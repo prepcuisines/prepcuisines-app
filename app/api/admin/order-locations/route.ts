@@ -51,24 +51,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  // Optional ?date=2026-08-31 narrows the map to orders placed on that
-  // specific day. Without it, every order since launch is shown.
+  // Optional ?date=2026-08-31 narrows the map to orders actually being
+  // DELIVERED that day (via the linked menu window's date), not orders
+  // placed that day — those are usually different days entirely.
   const dateParam = req.nextUrl.searchParams.get('date')
 
-  let query = supabase
+  const { data: orders, error } = await supabase
     .from('customer_window_orders')
-    .select('ship_postcode')
+    .select('ship_postcode, created_at, menu_windows(week_start_date)')
+    .gte('created_at', LAUNCH_CUTOFF)
     .not('ship_postcode', 'is', null)
-
-  if (dateParam) {
-    const startOfDay = new Date(`${dateParam}T00:00:00Z`)
-    const endOfDay = new Date(`${dateParam}T23:59:59.999Z`)
-    query = query.gte('created_at', startOfDay.toISOString()).lte('created_at', endOfDay.toISOString())
-  } else {
-    query = query.gte('created_at', LAUNCH_CUTOFF)
-  }
-
-  const { data: orders, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -76,6 +68,21 @@ export async function GET(req: NextRequest) {
 
   const countByPostcode = new Map<string, number>()
   for (const o of orders || []) {
+    const menuWindow = Array.isArray((o as any).menu_windows)
+      ? (o as any).menu_windows[0]
+      : (o as any).menu_windows
+
+    if (dateParam) {
+      // Only include orders whose linked delivery window falls on the
+      // picked date. Orders with no window (e.g. some manual entries)
+      // are skipped when a specific date is chosen, since we can't tell
+      // which day they're actually going out.
+      const deliveryDate = menuWindow?.week_start_date
+        ? new Date(menuWindow.week_start_date).toISOString().slice(0, 10)
+        : null
+      if (deliveryDate !== dateParam) continue
+    }
+
     const clean = (o.ship_postcode || '').toUpperCase().replace(/\s+/g, '')
     if (!clean) continue
     countByPostcode.set(clean, (countByPostcode.get(clean) || 0) + 1)
