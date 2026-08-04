@@ -108,6 +108,8 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [segment, setSegment] = useState('all')
   const [customerSearch, setCustomerSearch] = useState('')
+  const [customerDateFrom, setCustomerDateFrom] = useState('')
+  const [customerDateTo, setCustomerDateTo] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -518,9 +520,13 @@ export default function AdminDashboard() {
           (c.email || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
           (c.postcode || '').toLowerCase().includes(customerSearch.toLowerCase())
 
-        return matchesSegment && matchesSearch
+        const signupDate = c.created_at ? c.created_at.slice(0, 10) : null
+        const matchesDateFrom = !customerDateFrom || (signupDate && signupDate >= customerDateFrom)
+        const matchesDateTo = !customerDateTo || (signupDate && signupDate <= customerDateTo)
+
+        return matchesSegment && matchesSearch && matchesDateFrom && matchesDateTo
       }),
-    [customers, segment, customerSearch]
+    [customers, segment, customerSearch, customerDateFrom, customerDateTo]
   )
 
   const filteredOrders = useMemo(
@@ -778,6 +784,40 @@ export default function AdminDashboard() {
                 onChange={(e) => setCustomerSearch(e.target.value)}
                 className="text-input search-input"
               />
+            </div>
+
+            <div className="toolbar">
+              <label className="field-label" htmlFor="cust-date-from" style={{ marginBottom: 0 }}>
+                Signed up from
+              </label>
+              <input
+                id="cust-date-from"
+                type="date"
+                className="text-input search-input"
+                value={customerDateFrom}
+                onChange={(e) => setCustomerDateFrom(e.target.value)}
+              />
+              <label className="field-label" htmlFor="cust-date-to" style={{ marginBottom: 0 }}>
+                to
+              </label>
+              <input
+                id="cust-date-to"
+                type="date"
+                className="text-input search-input"
+                value={customerDateTo}
+                onChange={(e) => setCustomerDateTo(e.target.value)}
+              />
+              {(customerDateFrom || customerDateTo) && (
+                <button
+                  className="segment-pill"
+                  onClick={() => {
+                    setCustomerDateFrom('')
+                    setCustomerDateTo('')
+                  }}
+                >
+                  Clear dates
+                </button>
+              )}
             </div>
 
             <div className="result-count">{filteredCustomers.length} customers</div>
