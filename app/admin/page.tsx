@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type Overview = {
   totalCustomers: number
@@ -63,20 +63,36 @@ const statusLabels: Record<string, string> = {
 }
 
 const segmentFilters = [
-  { key: 'all', label: 'All customers' },
-  { key: 'active', label: 'Subscribed (active)' },
+  { key: 'all', label: 'All' },
+  { key: 'active', label: 'Subscribed' },
   { key: 'cancelled', label: 'Cancelled' },
-  { key: 'payg', label: 'PAYG / one-off' },
-  { key: 'lapsed_30', label: 'Lapsed 30+ days' },
-  { key: 'lapsed_60', label: 'Lapsed 60+ days' },
-  { key: 'lapsed_90', label: 'Lapsed 90+ days' },
-  { key: 'loyal', label: 'Loyal customers' },
+  { key: 'payg', label: 'PAYG' },
+  { key: 'lapsed_30', label: 'Lapsed 30+' },
+  { key: 'lapsed_60', label: 'Lapsed 60+' },
+  { key: 'lapsed_90', label: 'Lapsed 90+' },
+  { key: 'loyal', label: 'Loyal' },
   { key: 'new_this_week', label: 'New this week' },
-  { key: 'win_back', label: 'Win-back candidates' },
+  { key: 'win_back', label: 'Win-back' },
 ]
 
 function money(n: number | null | undefined) {
   return `£${(n || 0).toFixed(2)}`
+}
+
+function initials(name: string | null) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return (parts[0]?.[0] || '') + (parts[1]?.[0] || '')
+}
+
+function StatusBadge({ status }: { status: string | null }) {
+  const map: Record<string, { label: string; tone: 'active' | 'muted' | 'warn' }> = {
+    active: { label: 'Active', tone: 'active' },
+    cancelled: { label: 'Cancelled', tone: 'muted' },
+    none: { label: 'PAYG', tone: 'warn' },
+  }
+  const entry = map[status || 'none'] || { label: status || 'None', tone: 'muted' }
+  return <span className={`pill pill-${entry.tone}`}>{entry.label}</span>
 }
 
 export default function AdminDashboard() {
@@ -162,59 +178,68 @@ export default function AdminDashboard() {
     if (tab === 'orders' && orders.length === 0) loadOrders()
   }, [tab, authenticated])
 
-  const filteredCustomers = customers.filter((c) => {
-    const matchesSegment = (() => {
-      switch (segment) {
-        case 'active':
-          return c.subscription_status === 'active'
-        case 'cancelled':
-          return c.subscription_status === 'cancelled'
-        case 'payg':
-          return !c.subscription_status || c.subscription_status === 'none'
-        case 'lapsed_30':
-          return c.lapsedTier === '30'
-        case 'lapsed_60':
-          return c.lapsedTier === '60'
-        case 'lapsed_90':
-          return c.lapsedTier === '90+'
-        case 'loyal':
-          return c.isLoyal
-        case 'new_this_week':
-          return c.isNewThisWeek
-        case 'win_back':
-          return c.isWinBackCandidate
-        default:
-          return true
-      }
-    })()
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter((c) => {
+        const matchesSegment = (() => {
+          switch (segment) {
+            case 'active':
+              return c.subscription_status === 'active'
+            case 'cancelled':
+              return c.subscription_status === 'cancelled'
+            case 'payg':
+              return !c.subscription_status || c.subscription_status === 'none'
+            case 'lapsed_30':
+              return c.lapsedTier === '30'
+            case 'lapsed_60':
+              return c.lapsedTier === '60'
+            case 'lapsed_90':
+              return c.lapsedTier === '90+'
+            case 'loyal':
+              return c.isLoyal
+            case 'new_this_week':
+              return c.isNewThisWeek
+            case 'win_back':
+              return c.isWinBackCandidate
+            default:
+              return true
+          }
+        })()
 
-    const matchesSearch =
-      !customerSearch ||
-      (c.full_name || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
-      (c.email || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
-      (c.postcode || '').toLowerCase().includes(customerSearch.toLowerCase())
+        const matchesSearch =
+          !customerSearch ||
+          (c.full_name || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
+          (c.email || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
+          (c.postcode || '').toLowerCase().includes(customerSearch.toLowerCase())
 
-    return matchesSegment && matchesSearch
-  })
+        return matchesSegment && matchesSearch
+      }),
+    [customers, segment, customerSearch]
+  )
 
-  const filteredOrders = orders.filter((o) => {
-    if (!orderSearch) return true
-    const q = orderSearch.toLowerCase()
-    return (
-      o.customer_name.toLowerCase().includes(q) ||
-      (o.customer_email || '').toLowerCase().includes(q) ||
-      (o.ship_postcode || '').toLowerCase().includes(q)
-    )
-  })
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter((o) => {
+        if (!orderSearch) return true
+        const q = orderSearch.toLowerCase()
+        return (
+          o.customer_name.toLowerCase().includes(q) ||
+          (o.customer_email || '').toLowerCase().includes(q) ||
+          (o.ship_postcode || '').toLowerCase().includes(q)
+        )
+      }),
+    [orders, orderSearch]
+  )
 
-  // Tally of orders grouped by delivery week + day, so it's easy to see
-  // "how many for Wednesday's window" vs "how many for Sunday's" at a glance.
-  const orderTally = (() => {
-    const groups = new Map<string, { day: string; week: string | null; count: number; total: number }>()
+  const orderTally = useMemo(() => {
+    const groups = new Map<
+      string,
+      { day: string; week: string | null; count: number; total: number }
+    >()
     for (const o of filteredOrders) {
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
-        : 'No window'
+        : null
       const day = o.delivery_day || 'Unknown'
       const key = `${week}__${day}`
       const existing = groups.get(key)
@@ -229,271 +254,720 @@ export default function AdminDashboard() {
       if (a.week === b.week) return a.day.localeCompare(b.day)
       return (a.week || '').localeCompare(b.week || '')
     })
-  })()
+  }, [filteredOrders])
 
   if (checkingAuth) {
-    return <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Loading…</div>
+    return (
+      <div className="pc-admin-shell pc-admin-center">
+        <div className="pc-admin-loading">Loading…</div>
+        <Styles />
+      </div>
+    )
   }
 
   if (!authenticated) {
     return (
-      <div style={{ maxWidth: 360, margin: '80px auto', fontFamily: 'sans-serif' }}>
-        <h1 style={{ fontSize: 20, marginBottom: 16 }}>Admin Login</h1>
-        <form onSubmit={login}>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            style={{ width: '100%', padding: 10, marginBottom: 12, boxSizing: 'border-box' }}
-          />
-          {loginError && (
-            <p style={{ color: 'crimson', fontSize: 14, marginBottom: 12 }}>{loginError}</p>
-          )}
-          <button type="submit" style={{ width: '100%', padding: 10 }}>
-            Log in
-          </button>
-        </form>
+      <div className="pc-admin-shell pc-admin-center">
+        <div className="login-card">
+          <div className="login-eyebrow">prepcuisines</div>
+          <h1 className="login-title">Admin</h1>
+          <form onSubmit={login}>
+            <label htmlFor="admin-password" className="field-label">
+              Password
+            </label>
+            <input
+              id="admin-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              className="text-input"
+              autoFocus
+            />
+            {loginError && <p className="error-text">{loginError}</p>}
+            <button type="submit" className="btn-primary btn-full">
+              Log in
+            </button>
+          </form>
+        </div>
+        <Styles />
       </div>
     )
   }
 
   return (
-    <div style={{ fontFamily: 'sans-serif', maxWidth: 1200, margin: '0 auto', padding: 24 }}>
-      <h1 style={{ fontSize: 24, marginBottom: 8 }}>prepcuisines admin</h1>
-
-      {overview && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: 12,
-            margin: '20px 0 28px',
-          }}
-        >
-          {[
-            ['Total customers', overview.totalCustomers],
-            ['Active subscriptions', overview.activeSubscriptions],
-            ['New signups (7d)', overview.newSignupsThisWeek],
-            ['Orders (7d)', overview.ordersThisWeek],
-            ['Revenue (7d)', money(overview.revenueThisWeek)],
-          ].map(([label, value]) => (
-            <div
-              key={label as string}
-              style={{ border: '1px solid #ddd', borderRadius: 8, padding: 14 }}
+    <div className="pc-admin-shell">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="sidebar-eyebrow">prepcuisines</div>
+          <div className="sidebar-title">Admin</div>
+        </div>
+        <nav className="sidebar-nav">
+          {(
+            [
+              { key: 'overview', label: 'Overview' },
+              { key: 'customers', label: 'Customers' },
+              { key: 'orders', label: 'Orders' },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`sidebar-link ${tab === t.key ? 'sidebar-link-active' : ''}`}
+              aria-current={tab === t.key ? 'page' : undefined}
             >
-              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 22, fontWeight: 600 }}>{value}</div>
-            </div>
+              {t.label}
+            </button>
           ))}
-        </div>
-      )}
+        </nav>
+      </aside>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: '1px solid #eee' }}>
-        {(['overview', 'customers', 'orders'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: '10px 16px',
-              border: 'none',
-              borderBottom: tab === t ? '2px solid #1a2e1a' : '2px solid transparent',
-              background: 'none',
-              fontWeight: tab === t ? 600 : 400,
-              cursor: 'pointer',
-              textTransform: 'capitalize',
-            }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <main className="main-content">
+        <header className="page-header">
+          <h1 className="page-title">
+            {tab === 'overview' ? 'Overview' : tab === 'customers' ? 'Customers' : 'Orders'}
+          </h1>
+        </header>
 
-      {tab === 'overview' && (
-        <p style={{ color: '#666' }}>
-          Top-line numbers above refresh each time you load this page. Use the Customers and
-          Orders tabs for full detail and filtering.
-        </p>
-      )}
-
-      {tab === 'customers' && (
-        <div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-            <select
-              value={segment}
-              onChange={(e) => setSegment(e.target.value)}
-              style={{ padding: 8 }}
-            >
-              {segmentFilters.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            <input
-              placeholder="Search name, email, postcode…"
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              style={{ padding: 8, flex: 1, minWidth: 200 }}
-            />
-            <span style={{ alignSelf: 'center', color: '#666', fontSize: 14 }}>
-              {filteredCustomers.length} shown
-            </span>
+        {overview && (
+          <div className="stat-grid">
+            <StatCard label="Total customers" value={overview.totalCustomers} />
+            <StatCard label="Active subscriptions" value={overview.activeSubscriptions} />
+            <StatCard label="New signups (7d)" value={overview.newSignupsThisWeek} />
+            <StatCard label="Orders (7d)" value={overview.ordersThisWeek} />
+            <StatCard label="Revenue (7d)" value={money(overview.revenueThisWeek)} accent />
           </div>
+        )}
 
-          {loading ? (
-            <p>Loading…</p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee' }}>
-                    <th style={{ padding: 8 }}>Name</th>
-                    <th style={{ padding: 8 }}>Email</th>
-                    <th style={{ padding: 8 }}>Status</th>
-                    <th style={{ padding: 8 }}>Orders</th>
-                    <th style={{ padding: 8 }}>Total spend</th>
-                    <th style={{ padding: 8 }}>Last order</th>
-                    <th style={{ padding: 8 }}>Postcode</th>
-                    <th style={{ padding: 8 }}>Signed up</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCustomers.map((c) => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: 8 }}>{c.full_name || '—'}</td>
-                      <td style={{ padding: 8 }}>{c.email || '—'}</td>
-                      <td style={{ padding: 8 }}>{c.subscription_status || 'none'}</td>
-                      <td style={{ padding: 8 }}>{c.orderCount}</td>
-                      <td style={{ padding: 8 }}>{money(c.totalSpend)}</td>
-                      <td style={{ padding: 8 }}>
-                        {c.lastOrderAt
-                          ? new Date(c.lastOrderAt).toLocaleDateString('en-GB')
-                          : 'Never'}
-                      </td>
-                      <td style={{ padding: 8 }}>{c.postcode || '—'}</td>
-                      <td style={{ padding: 8 }}>
-                        {new Date(c.created_at).toLocaleDateString('en-GB')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredCustomers.length === 0 && (
-                <p style={{ color: '#666', marginTop: 16 }}>No customers match this filter.</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === 'orders' && (
-        <div>
-          {orderTally.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                flexWrap: 'wrap',
-                marginBottom: 20,
-                padding: 14,
-                background: '#fafafa',
-                border: '1px solid #eee',
-                borderRadius: 8,
-              }}
-            >
-              {orderTally.map((t) => (
-                <div
-                  key={`${t.week}-${t.day}`}
-                  style={{
-                    padding: '8px 14px',
-                    background: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: 6,
-                    fontSize: 13,
-                  }}
-                >
-                  <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>
-                    {t.day}{t.week && t.week !== 'No window' ? ` — week of ${t.week}` : ''}
-                  </div>
-                  <div style={{ color: '#666' }}>
-                    {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-            <input
-              placeholder="Search name, email, postcode…"
-              value={orderSearch}
-              onChange={(e) => setOrderSearch(e.target.value)}
-              style={{ padding: 8, flex: 1, minWidth: 200 }}
-            />
-            <span style={{ alignSelf: 'center', color: '#666', fontSize: 14 }}>
-              {filteredOrders.length} shown
-            </span>
+        {tab === 'overview' && (
+          <div className="empty-panel">
+            <p>
+              Top-line numbers update every time this page loads. Switch to Customers or Orders
+              for full detail, filtering, and search.
+            </p>
           </div>
+        )}
 
-          {loading ? (
-            <p>Loading…</p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee' }}>
-                    <th style={{ padding: 8 }}>Customer</th>
-                    <th style={{ padding: 8 }}>Type</th>
-                    <th style={{ padding: 8 }}>Items</th>
-                    <th style={{ padding: 8 }}>Total</th>
-                    <th style={{ padding: 8 }}>Delivery day</th>
-                    <th style={{ padding: 8 }}>Delivery week</th>
-                    <th style={{ padding: 8 }}>Postcode</th>
-                    <th style={{ padding: 8 }}>Placed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((o) => (
-                    <tr key={o.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: 8 }}>
-                        {o.customer_name}
-                        {o.customer_email && (
-                          <div style={{ fontSize: 12, color: '#888' }}>{o.customer_email}</div>
-                        )}
-                      </td>
-                      <td style={{ padding: 8 }}>{statusLabels[o.status] || o.status}</td>
-                      <td style={{ padding: 8 }}>
-                        {(o.items || [])
-                          .map((it) => `${it.qty}× ${it.name}`)
-                          .join(', ')}
-                      </td>
-                      <td style={{ padding: 8 }}>{money(o.total_amount)}</td>
-                      <td style={{ padding: 8 }}>{o.delivery_day || '—'}</td>
-                      <td style={{ padding: 8 }}>
-                        {o.menu_windows?.week_start_date
-                          ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
-                          : '—'}
-                      </td>
-                      <td style={{ padding: 8 }}>{o.ship_postcode || '—'}</td>
-                      <td style={{ padding: 8 }}>
-                        {new Date(o.created_at).toLocaleDateString('en-GB')}{' '}
-                        {new Date(o.created_at).toLocaleTimeString('en-GB', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredOrders.length === 0 && (
-                <p style={{ color: '#666', marginTop: 16 }}>No orders match this search.</p>
-              )}
+        {tab === 'customers' && (
+          <section>
+            <div className="toolbar">
+              <div className="segment-pills" role="tablist" aria-label="Customer segment">
+                {segmentFilters.map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => setSegment(s.key)}
+                    className={`segment-pill ${segment === s.key ? 'segment-pill-active' : ''}`}
+                    role="tab"
+                    aria-selected={segment === s.key}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                aria-label="Search customers"
+                placeholder="Search name, email, postcode…"
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                className="text-input search-input"
+              />
             </div>
-          )}
-        </div>
-      )}
+
+            <div className="result-count">{filteredCustomers.length} customers</div>
+
+            {loading ? (
+              <div className="empty-panel">Loading…</div>
+            ) : filteredCustomers.length === 0 ? (
+              <div className="empty-panel">No customers match this filter.</div>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Status</th>
+                      <th>Orders</th>
+                      <th>Total spend</th>
+                      <th>Last order</th>
+                      <th>Postcode</th>
+                      <th>Signed up</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCustomers.map((c) => (
+                      <tr key={c.id}>
+                        <td>
+                          <div className="customer-cell">
+                            <span className="avatar">{initials(c.full_name)}</span>
+                            <div>
+                              <div className="customer-name">{c.full_name || '—'}</div>
+                              <div className="customer-email">{c.email || '—'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <StatusBadge status={c.subscription_status} />
+                        </td>
+                        <td>{c.orderCount}</td>
+                        <td className="num">{money(c.totalSpend)}</td>
+                        <td>
+                          {c.lastOrderAt
+                            ? new Date(c.lastOrderAt).toLocaleDateString('en-GB')
+                            : 'Never'}
+                        </td>
+                        <td>{c.postcode || '—'}</td>
+                        <td>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === 'orders' && (
+          <section>
+            {orderTally.length > 0 && (
+              <div className="tally-row">
+                {orderTally.map((t) => (
+                  <div key={`${t.week}-${t.day}`} className="tally-chip">
+                    <div className="tally-day">
+                      {t.day}
+                      {t.week ? ` — w/c ${t.week}` : ''}
+                    </div>
+                    <div className="tally-meta">
+                      {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="toolbar">
+              <input
+                aria-label="Search orders"
+                placeholder="Search name, email, postcode…"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                className="text-input search-input"
+              />
+            </div>
+
+            <div className="result-count">{filteredOrders.length} orders</div>
+
+            {loading ? (
+              <div className="empty-panel">Loading…</div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="empty-panel">No orders match this search.</div>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Type</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Delivery day</th>
+                      <th>Delivery week</th>
+                      <th>Postcode</th>
+                      <th>Placed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((o) => (
+                      <tr key={o.id}>
+                        <td>
+                          <div className="customer-name">{o.customer_name}</div>
+                          {o.customer_email && (
+                            <div className="customer-email">{o.customer_email}</div>
+                          )}
+                        </td>
+                        <td>
+                          <span className="pill pill-muted">
+                            {statusLabels[o.status] || o.status}
+                          </span>
+                        </td>
+                        <td className="items-cell">
+                          {(o.items || []).map((it) => `${it.qty}× ${it.name}`).join(', ')}
+                        </td>
+                        <td className="num">{money(o.total_amount)}</td>
+                        <td className="capitalize">{o.delivery_day || '—'}</td>
+                        <td>
+                          {o.menu_windows?.week_start_date
+                            ? new Date(o.menu_windows.week_start_date).toLocaleDateString(
+                                'en-GB'
+                              )
+                            : '—'}
+                        </td>
+                        <td>{o.ship_postcode || '—'}</td>
+                        <td className="nowrap">
+                          {new Date(o.created_at).toLocaleDateString('en-GB')}{' '}
+                          {new Date(o.created_at).toLocaleTimeString('en-GB', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+      <Styles />
     </div>
+  )
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string
+  value: string | number
+  accent?: boolean
+}) {
+  return (
+    <div className={`stat-card ${accent ? 'stat-card-accent' : ''}`}>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
+    </div>
+  )
+}
+
+function Styles() {
+  return (
+    <style jsx global>{`
+      .pc-admin-shell {
+        min-height: 100vh;
+        display: flex;
+        background: var(--pc-cream, #f5f2ec);
+        color: var(--pc-green, #2d3510);
+        font-family: var(--font-montserrat), system-ui, sans-serif;
+      }
+
+      .pc-admin-center {
+        align-items: center;
+        justify-content: center;
+      }
+
+      .pc-admin-loading {
+        font-size: 15px;
+        color: var(--pc-green-mid, #3a4516);
+      }
+
+      /* Login */
+      .login-card {
+        width: 360px;
+        max-width: calc(100vw - 48px);
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 14px;
+        padding: 40px 36px;
+        box-shadow: 0 12px 40px rgba(45, 53, 16, 0.08);
+      }
+      .login-eyebrow {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--pc-gold-dark, #9a7c45);
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .login-title {
+        font-family: var(--font-playfair), serif;
+        font-size: 30px;
+        font-weight: 900;
+        margin: 0 0 28px;
+        color: var(--pc-green, #2d3510);
+      }
+      .field-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--pc-green-mid, #3a4516);
+        margin-bottom: 6px;
+      }
+      .error-text {
+        color: #a3402f;
+        font-size: 13px;
+        margin: 10px 0 0;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: 224px;
+        flex-shrink: 0;
+        background: var(--pc-green, #2d3510);
+        color: var(--pc-white, #faf8f4);
+        padding: 28px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      .sidebar-brand {
+        padding: 0 8px;
+      }
+      .sidebar-eyebrow {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--pc-gold-light, #e8d5b0);
+        font-weight: 600;
+      }
+      .sidebar-title {
+        font-family: var(--font-playfair), serif;
+        font-size: 22px;
+        font-weight: 900;
+        margin-top: 2px;
+      }
+      .sidebar-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .sidebar-link {
+        text-align: left;
+        background: none;
+        border: none;
+        color: var(--pc-cream, #f5f2ec);
+        opacity: 0.75;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+        transition: background 0.15s ease, opacity 0.15s ease;
+      }
+      .sidebar-link:hover {
+        background: rgba(255, 255, 255, 0.06);
+        opacity: 1;
+      }
+      .sidebar-link:focus-visible {
+        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline-offset: 2px;
+      }
+      .sidebar-link-active {
+        opacity: 1;
+        background: rgba(201, 168, 76, 0.14);
+        border-left-color: var(--pc-gold, #c9a84c);
+      }
+
+      /* Main content */
+      .main-content {
+        flex: 1;
+        padding: 36px 44px 60px;
+        max-width: 1280px;
+      }
+      .page-header {
+        margin-bottom: 22px;
+      }
+      .page-title {
+        font-family: var(--font-playfair), serif;
+        font-size: 28px;
+        font-weight: 900;
+        margin: 0;
+        color: var(--pc-green, #2d3510);
+      }
+
+      /* Stat cards */
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 14px;
+        margin-bottom: 32px;
+      }
+      .stat-card {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-top: 3px solid var(--pc-gold, #c9a84c);
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+      .stat-card-accent {
+        border-top-color: var(--pc-green, #2d3510);
+        background: var(--pc-green, #2d3510);
+        color: var(--pc-white, #faf8f4);
+      }
+      .stat-card-accent .stat-label {
+        color: var(--pc-gold-light, #e8d5b0);
+      }
+      .stat-label {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: var(--pc-green-mid, #3a4516);
+        margin-bottom: 8px;
+      }
+      .stat-value {
+        font-family: var(--font-playfair), serif;
+        font-size: 28px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      /* Toolbar / filters */
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      .segment-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        flex: 1;
+      }
+      .segment-pill {
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 600;
+        padding: 7px 13px;
+        border-radius: 999px;
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        background: var(--pc-white, #faf8f4);
+        color: var(--pc-green-mid, #3a4516);
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .segment-pill:hover {
+        border-color: var(--pc-gold, #c9a84c);
+      }
+      .segment-pill:focus-visible {
+        outline: 2px solid var(--pc-gold-dark, #9a7c45);
+        outline-offset: 2px;
+      }
+      .segment-pill-active {
+        background: var(--pc-green, #2d3510);
+        border-color: var(--pc-green, #2d3510);
+        color: var(--pc-white, #faf8f4);
+      }
+
+      .text-input {
+        font-family: inherit;
+        font-size: 14px;
+        padding: 9px 14px;
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 8px;
+        background: var(--pc-white, #faf8f4);
+        color: var(--pc-green, #2d3510);
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .text-input:focus-visible,
+      .text-input:focus {
+        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline-offset: 1px;
+        border-color: var(--pc-gold, #c9a84c);
+      }
+      .search-input {
+        max-width: 320px;
+      }
+
+      .btn-primary {
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 11px 18px;
+        border-radius: 8px;
+        border: none;
+        background: var(--pc-green, #2d3510);
+        color: var(--pc-white, #faf8f4);
+        cursor: pointer;
+        margin-top: 18px;
+      }
+      .btn-primary:hover {
+        background: var(--pc-green-mid, #3a4516);
+      }
+      .btn-primary:focus-visible {
+        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline-offset: 2px;
+      }
+      .btn-full {
+        width: 100%;
+      }
+
+      .result-count {
+        font-size: 12.5px;
+        color: var(--pc-green-mid, #3a4516);
+        margin-bottom: 10px;
+      }
+
+      /* Tally chips */
+      .tally-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 22px;
+      }
+      .tally-chip {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-left: 3px solid var(--pc-gold, #c9a84c);
+        border-radius: 8px;
+        padding: 10px 16px;
+      }
+      .tally-day {
+        font-weight: 700;
+        font-size: 13.5px;
+        text-transform: capitalize;
+        color: var(--pc-green, #2d3510);
+      }
+      .tally-meta {
+        font-size: 12.5px;
+        color: var(--pc-green-mid, #3a4516);
+        margin-top: 2px;
+      }
+
+      /* Table */
+      .table-wrap {
+        overflow-x: auto;
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+      }
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+      }
+      .data-table th {
+        text-align: left;
+        padding: 12px 16px;
+        background: var(--pc-cream, #f5f2ec);
+        color: var(--pc-green-mid, #3a4516);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+        white-space: nowrap;
+      }
+      .data-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+        vertical-align: top;
+        color: var(--pc-green, #2d3510);
+      }
+      .data-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .data-table tbody tr:hover {
+        background: var(--pc-cream, #f5f2ec);
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+      .capitalize {
+        text-transform: capitalize;
+      }
+      .items-cell {
+        max-width: 320px;
+      }
+
+      .customer-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        background: var(--pc-green, #2d3510);
+        color: var(--pc-white, #faf8f4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      .customer-name {
+        font-weight: 600;
+        color: var(--pc-green, #2d3510);
+      }
+      .customer-email {
+        font-size: 12px;
+        color: var(--pc-green-mid, #3a4516);
+        opacity: 0.85;
+      }
+
+      /* Status pills */
+      .pill {
+        display: inline-block;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .pill-active {
+        background: #e3ead0;
+        color: #3a4d1e;
+      }
+      .pill-muted {
+        background: var(--pc-cream-dark, #ede8de);
+        color: var(--pc-green-mid, #3a4516);
+      }
+      .pill-warn {
+        background: var(--pc-gold-light, #e8d5b0);
+        color: var(--pc-gold-dark, #9a7c45);
+      }
+
+      .empty-panel {
+        background: var(--pc-white, #faf8f4);
+        border: 1px dashed var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 28px;
+        color: var(--pc-green-mid, #3a4516);
+        font-size: 14px;
+      }
+
+      @media (max-width: 720px) {
+        .pc-admin-shell {
+          flex-direction: column;
+        }
+        .sidebar {
+          width: 100%;
+          height: auto;
+          position: static;
+          flex-direction: row;
+          align-items: center;
+          padding: 16px;
+        }
+        .sidebar-nav {
+          flex-direction: row;
+        }
+        .main-content {
+          padding: 24px 18px 40px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    `}</style>
   )
 }
