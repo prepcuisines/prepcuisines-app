@@ -11,6 +11,10 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
+// Everything placed before go-live was test data from setting up the site,
+// not real customers — excluded here so it never shows up as if it were.
+const LAUNCH_CUTOFF = '2026-08-04T00:00:00Z'
+
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
@@ -19,8 +23,9 @@ export async function GET(req: NextRequest) {
   const { data: orders, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, menu_windows(week_start_date)'
+      'id, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, menu_windows(week_start_date)'
     )
+    .gte('created_at', LAUNCH_CUTOFF)
     .order('created_at', { ascending: false })
     .limit(500)
 
@@ -50,7 +55,7 @@ export async function GET(req: NextRequest) {
       menu_windows: menuWindow,
       // PAYG orders have customer_id null — shipping fields carry the name/contact instead.
       customer_name: profile?.full_name || o.ship_full_name || 'Guest (PAYG)',
-      customer_email: profile?.email || null,
+      customer_email: profile?.email || o.ship_email || null,
     }
   })
 
