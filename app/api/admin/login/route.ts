@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 1 week
+    maxAge: 60 * 60, // 1 hour — auto-logs out after this and requires the password again
   })
   return res
 }
