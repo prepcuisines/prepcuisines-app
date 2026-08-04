@@ -1,0 +1,147 @@
+.pc-how *, .pc-how *::before, .pc-how *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.pc-how {
+  --green: #2d3510; --green-mid: #3a4516; --cream: #f5f2ec; --gold: #c9a84c; --gold-light: #e8d5b0; --gold-dark: #9a7c45; --white: #faf8f4;
+  font-family: var(--font-montserrat), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  width: 100%;
+}
+
+/* HERO */
+.pc-how-hero {
+  background: var(--green); position: relative; overflow: hidden;
+  padding: 60px 80px 70px; text-align: center; width: 100%;
+}
+.pc-how-hero::before {
+  content: ''; position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.pc-how-hero::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-dark) 20%, var(--gold) 50%, var(--gold-dark) 80%, transparent);
+}
+.pc-how-eyebrow {
+  display: inline-flex; align-items: center; gap: 12px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--gold-dark); margin-bottom: 20px; position: relative; z-index: 1;
+}
+.pc-how-eyebrow::before, .pc-how-eyebrow::after {
+  content: ''; display: inline-block; width: 32px; height: 1px;
+  background: var(--gold-dark); opacity: 0.5;
+}
+.pc-how-hero h1 {
+  font-family: var(--font-playfair), Georgia, serif; font-size: clamp(32px, 4vw, 52px);
+  font-weight: 900; color: var(--cream); line-height: 1.0; letter-spacing: -0.02em;
+  position: relative; z-index: 1;
+}
+.pc-how-hero h1 em {
+  font-family: var(--font-cormorant), Georgia, serif; font-style: italic; font-weight: 400; color: var(--gold);
+}
+.pc-how-hero-sub {
+  font-family: var(--font-cormorant), Georgia, serif; font-size: 19px; font-weight: 400; font-style: italic;
+  color: rgba(245,242,236,0.6); margin: 16px auto 0; line-height: 1.6; max-width: 560px;
+  position: relative; z-index: 1;
+}
+
+/* STEPS — alternating panel rows */
+.pc-how-steps-wrap { background: var(--white); padding: 100px 80px; width: 100%; }
+.pc-how-steps { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 90px; }
+.pc-how-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+}
+.pc-how-row.reverse { direction: rtl; }
+.pc-how-row.reverse > * { direction: ltr; }
+
+.pc-how-panel {
+  aspect-ratio: 4/3; border-radius: 20px; background: var(--green);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+.pc-how-panel::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 30% 20%, rgba(201,168,76,0.18) 0%, transparent 60%);
+}
+.pc-how-row:hover .pc-how-panel { transform: translateY(-6px); }
+.pc-how-panel-number {
+  font-family: var(--font-playfair), Georgia, serif; font-size: 15px; font-weight: 900;
+  color: var(--gold-dark); letter-spacing: 0.1em; position: relative; z-index: 1; margin-bottom: 12px;
+}
+.pc-how-panel-icon { font-size: 64px; position: relative; z-index: 1; }
+.pc-how-panel-photo { width: 100%; height: 100%; object-fit: cover; display: block; position: relative; z-index: 1; }
+
+.pc-how-row-text { padding: 0 8px; }
+.pc-how-step-eyebrow {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--gold-dark); margin-bottom: 16px;
+}
+.pc-how-step-eyebrow::before {
+  content: ''; display: inline-block; width: 32px; height: 1px;
+  background: var(--gold-dark); opacity: 0.4;
+}
+.pc-how-row-text h3 {
+  font-family: var(--font-playfair), Georgia, serif; font-size: clamp(24px, 2.4vw, 32px); font-weight: 900;
+  color: var(--green); margin-bottom: 16px; letter-spacing: -0.01em; line-height: 1.15;
+}
+.pc-how-row-text p {
+  font-family: var(--font-cormorant), Georgia, serif; font-size: 18px; line-height: 1.75;
+  color: rgba(45,53,16,0.7); max-width: 480px;
+}
+
+/* CTA */
+.pc-how-cta {
+  background: var(--green); padding: 100px 80px; text-align: center;
+  position: relative; overflow: hidden; width: 100%;
+}
+.pc-how-cta::before {
+  content: ''; position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(201,168,76,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.pc-how-cta::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-dark) 20%, var(--gold) 50%, var(--gold-dark) 80%, transparent);
+}
+.pc-how-cta-inner { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; }
+.pc-how-center-eyebrow {
+  display: inline-flex; align-items: center; gap: 12px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--gold-dark); margin-bottom: 16px;
+}
+.pc-how-center-eyebrow::before, .pc-how-center-eyebrow::after {
+  content: ''; display: inline-block; width: 32px; height: 1px;
+  background: var(--gold-dark); opacity: 0.4;
+}
+.pc-how-cta h2 {
+  font-family: var(--font-playfair), Georgia, serif; font-size: clamp(30px, 3.5vw, 44px);
+  font-weight: 900; color: var(--cream); line-height: 1.1;
+  letter-spacing: -0.02em; margin-bottom: 16px;
+}
+.pc-how-cta h2 em {
+  font-family: var(--font-cormorant), Georgia, serif; font-style: italic; font-weight: 400; color: var(--gold);
+}
+.pc-how-cta p {
+  font-family: var(--font-cormorant), Georgia, serif; font-size: 17px; font-style: italic;
+  color: rgba(245,242,236,0.6); margin-bottom: 32px; line-height: 1.6;
+}
+.pc-how-cta-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--gold); color: var(--green);
+  padding: 16px 40px; border-radius: 100px;
+  font-family: var(--font-montserrat), sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 4px 24px rgba(201,168,76,0.35);
+}
+.pc-how-cta-btn:hover { background: var(--gold-light); transform: translateY(-4px); }
+
+/* RESPONSIVE */
+@media (max-width: 800px) {
+  .pc-how-hero, .pc-how-steps-wrap, .pc-how-cta { padding: 60px 24px; }
+  .pc-how-row, .pc-how-row.reverse { grid-template-columns: 1fr; direction: ltr; gap: 28px; }
+  .pc-how-steps { gap: 56px; }
+  .pc-how-panel { aspect-ratio: 16/9; }
+}
