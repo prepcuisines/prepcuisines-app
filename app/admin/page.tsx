@@ -1143,10 +1143,16 @@ export default function AdminDashboard() {
                   <div className="map-panel">
                     <svg viewBox="0 0 400 500" className="map-svg" role="img" aria-label="Order locations scatter plot">
                       <rect x="0" y="0" width="400" height="500" className="map-bg" />
+                      <line x1="200" y1="0" x2="200" y2="500" className="map-gridline" />
+                      <line x1="0" y1="250" x2="400" y2="250" className="map-gridline" />
+                      <text x="200" y="20" textAnchor="middle" className="map-compass-label">N</text>
+                      <text x="200" y="490" textAnchor="middle" className="map-compass-label">S</text>
+                      <text x="16" y="255" textAnchor="middle" className="map-compass-label">W</text>
+                      <text x="384" y="255" textAnchor="middle" className="map-compass-label">E</text>
                       {mapPoints.map((p) => {
                         const x = ((p.lon - LON_MIN) / (LON_MAX - LON_MIN)) * 400
                         const y = 500 - ((p.lat - LAT_MIN) / (LAT_MAX - LAT_MIN)) * 500
-                        const radius = 4 + (p.count / maxCount) * 12
+                        const radius = 2.5 + (p.count / maxCount) * 5
                         return (
                           <circle
                             key={p.postcode}
@@ -1543,6 +1549,16 @@ function Styles() {
       }
       .map-bg {
         fill: var(--pc-cream, #f5f2ec);
+      }
+      .map-gridline {
+        stroke: var(--pc-cream-dark, #ede8de);
+        stroke-width: 1;
+      }
+      .map-compass-label {
+        font-size: 12px;
+        font-weight: 700;
+        fill: var(--pc-green-mid, #3a4516);
+        opacity: 0.5;
       }
       .map-dot {
         fill: var(--pc-gold, #c9a84c);
