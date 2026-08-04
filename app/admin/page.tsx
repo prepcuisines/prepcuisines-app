@@ -101,7 +101,7 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'orders'>('overview')
+  const [tab, setTab] = useState<'overview' | 'customers' | 'orders' | 'menu'>('overview')
 
   const [overview, setOverview] = useState<Overview | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -122,6 +122,16 @@ export default function AdminDashboard() {
   })
   const [addOrderStatus, setAddOrderStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [addOrderError, setAddOrderError] = useState<string | null>(null)
+
+  const [menuItems, setMenuItems] = useState<
+    { id: string; name: string; category: string | null; price: number | null }[]
+  >([])
+  const [menuWindows, setMenuWindows] = useState<
+    { id: string; delivery_day: string; week_start_date: string }[]
+  >([])
+  const [selectedByWindow, setSelectedByWindow] = useState<Record<string, string[]>>({})
+  const [menuLoaded, setMenuLoaded] = useState(false)
+  const [togglingItem, setTogglingItem] = useState<string | null>(null)
 
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
@@ -241,10 +251,68 @@ export default function AdminDashboard() {
     loadOrders()
   }
 
+  const loadMenu = async () => {
+    setLoading(true)
+    const res = await fetch('/api/admin/menu')
+    if (res.status === 401) {
+      setAuthenticated(false)
+      setLoading(false)
+      return
+    }
+    const data = await res.json()
+    setMenuItems(data.menuItems || [])
+    setMenuWindows(data.windows || [])
+    setSelectedByWindow(data.selectedByWindow || {})
+    setMenuLoaded(true)
+    setLoading(false)
+  }
+
+  const toggleMenuItem = async (windowId: string, itemId: string, currentlyOn: boolean) => {
+    setTogglingItem(`${windowId}-${itemId}`)
+
+    // Optimistic update so the toggle feels instant — reverted below if
+    // the request actually fails.
+    setSelectedByWindow((prev) => {
+      const current = prev[windowId] || []
+      return {
+        ...prev,
+        [windowId]: currentlyOn
+          ? current.filter((id) => id !== itemId)
+          : [...current, itemId],
+      }
+    })
+
+    const res = await fetch('/api/admin/menu', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        menuWindowId: windowId,
+        menuItemId: itemId,
+        action: currentlyOn ? 'remove' : 'add',
+      }),
+    })
+
+    if (!res.ok) {
+      // Revert on failure
+      setSelectedByWindow((prev) => {
+        const current = prev[windowId] || []
+        return {
+          ...prev,
+          [windowId]: currentlyOn
+            ? [...current, itemId]
+            : current.filter((id) => id !== itemId),
+        }
+      })
+    }
+
+    setTogglingItem(null)
+  }
+
   useEffect(() => {
     if (!authenticated) return
     if (tab === 'customers' && customers.length === 0) loadCustomers()
     if (tab === 'orders' && orders.length === 0) loadOrders()
+    if (tab === 'menu' && !menuLoaded) loadMenu()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -441,6 +509,7 @@ export default function AdminDashboard() {
               { key: 'overview', label: 'Overview' },
               { key: 'customers', label: 'Customers' },
               { key: 'orders', label: 'Orders' },
+              { key: 'menu', label: 'Menu' },
             ] as const
           ).map((t) => (
             <button
@@ -458,7 +527,13 @@ export default function AdminDashboard() {
       <main className="main-content">
         <header className="page-header">
           <h1 className="page-title">
-            {tab === 'overview' ? 'Overview' : tab === 'customers' ? 'Customers' : 'Orders'}
+            {tab === 'overview'
+              ? 'Overview'
+              : tab === 'customers'
+              ? 'Customers'
+              : tab === 'orders'
+              ? 'Orders'
+              : 'Menu'}
           </h1>
         </header>
 
@@ -879,6 +954,67 @@ export default function AdminDashboard() {
             )}
           </section>
         )}
+
+        {tab === 'menu' && (
+          <section>
+            {loading ? (
+              <div className="empty-panel">Loading…</div>
+            ) : menuWindows.length === 0 ? (
+              <div className="empty-panel">
+                No upcoming Wednesday or Sunday window found — set one up first.
+              </div>
+            ) : (
+              <div className="menu-windows-grid">
+                {menuWindows.map((w) => {
+                  const selected = selectedByWindow[w.id] || []
+                  const categories = Array.from(
+                    new Set(menuItems.map((m) => m.category || 'Other'))
+                  )
+                  return (
+                    <div key={w.id} className="menu-window-card">
+                      <div className="menu-window-title">
+                        {w.delivery_day} — w/c{' '}
+                        {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                      </div>
+                      <div className="menu-window-count">{selected.length} dishes on</div>
+
+                      {categories.map((cat) => (
+                        <div key={cat} className="menu-category-block">
+                          <div className="menu-category-title">{cat}</div>
+                          {menuItems
+                            .filter((m) => (m.category || 'Other') === cat)
+                            .map((item) => {
+                              const isOn = selected.includes(item.id)
+                              const isToggling = togglingItem === `${w.id}-${item.id}`
+                              return (
+                                <label key={item.id} className="menu-item-row">
+                                  <span className="menu-item-name">{item.name}</span>
+                                  <span className="menu-item-price">
+                                    {item.price != null ? money(item.price) : ''}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={isOn}
+                                    aria-label={`${item.name} on ${w.delivery_day} menu`}
+                                    disabled={isToggling}
+                                    className={`menu-toggle ${isOn ? 'menu-toggle-on' : ''}`}
+                                    onClick={() => toggleMenuItem(w.id, item.id, isOn)}
+                                  >
+                                    <span className="menu-toggle-knob" />
+                                  </button>
+                                </label>
+                              )
+                            })}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </main>
       <Styles />
     </div>
@@ -1131,6 +1267,93 @@ function Styles() {
         text-align: right;
         color: var(--pc-green-mid, #3a4516);
         font-variant-numeric: tabular-nums;
+      }
+
+      .menu-windows-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+        align-items: start;
+      }
+      .menu-window-card {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-top: 3px solid var(--pc-gold, #c9a84c);
+        border-radius: 10px;
+        padding: 18px 20px;
+        min-width: 0;
+      }
+      .menu-window-title {
+        font-family: var(--font-playfair), serif;
+        font-weight: 900;
+        font-size: 17px;
+        color: var(--pc-green, #2d3510);
+        text-transform: capitalize;
+      }
+      .menu-window-count {
+        font-size: 12px;
+        color: var(--pc-green-mid, #3a4516);
+        margin-bottom: 12px;
+      }
+      .menu-category-block {
+        margin-bottom: 16px;
+      }
+      .menu-category-title {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--pc-gold-dark, #9a7c45);
+        margin-bottom: 6px;
+      }
+      .menu-item-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+        cursor: pointer;
+      }
+      .menu-item-name {
+        flex: 1;
+        font-size: 13.5px;
+        color: var(--pc-green, #2d3510);
+      }
+      .menu-item-price {
+        font-size: 12.5px;
+        color: var(--pc-green-mid, #3a4516);
+        font-variant-numeric: tabular-nums;
+      }
+      .menu-toggle {
+        position: relative;
+        width: 38px;
+        height: 22px;
+        border-radius: 999px;
+        border: none;
+        background: var(--pc-cream-dark, #ede8de);
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s ease;
+      }
+      .menu-toggle:focus-visible {
+        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline-offset: 2px;
+      }
+      .menu-toggle-on {
+        background: var(--pc-green, #2d3510);
+      }
+      .menu-toggle-knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: var(--pc-white, #faf8f4);
+        transition: transform 0.15s ease;
+      }
+      .menu-toggle-on .menu-toggle-knob {
+        transform: translateX(16px);
       }
 
       .orders-header-row {
