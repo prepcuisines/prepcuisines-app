@@ -163,6 +163,7 @@ export async function GET(req: NextRequest) {
           ship_house_number: houseNumber,
           ship_street: street,
           ship_postcode: postcode,
+          ship_email: email,
         })
 
         if (email) {
