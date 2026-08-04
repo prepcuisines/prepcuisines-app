@@ -37,10 +37,7 @@ export default function RootLayout({
       lang="en"
       className={`${playfair.variable} ${cormorant.variable} ${montserrat.variable} h-full antialiased`}
     >
-<body className="min-h-full flex flex-col">
-        {children}
-        <Analytics />
-      </body>
+<body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }
