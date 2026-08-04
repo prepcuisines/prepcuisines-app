@@ -490,7 +490,24 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="items-cell">
-                          {(o.items || []).map((it) => `${it.qty}× ${it.name}`).join(', ')}
+                          <span title={(o.items || []).map((it) => `${it.qty}× ${it.name}`).join(', ')}>
+                            {(() => {
+                              const list = o.items || []
+                              const totalQty = list.reduce((sum, it) => sum + (it.qty || 0), 0)
+                              const preview = list
+                                .slice(0, 2)
+                                .map((it) => `${it.qty}× ${it.name}`)
+                                .join(', ')
+                              const remaining = list.length - 2
+                              return (
+                                <>
+                                  {preview}
+                                  {remaining > 0 ? `, +${remaining} more` : ''}
+                                  <div className="items-count">{totalQty} items total</div>
+                                </>
+                              )
+                            })()}
+                          </span>
                         </td>
                         <td className="num">{money(o.total_amount)}</td>
                         <td className="capitalize">{o.delivery_day || '—'}</td>
@@ -880,7 +897,16 @@ function Styles() {
         text-transform: capitalize;
       }
       .items-cell {
-        max-width: 320px;
+        max-width: 260px;
+        min-width: 200px;
+        white-space: normal;
+        line-height: 1.4;
+      }
+      .items-count {
+        font-size: 11px;
+        color: var(--pc-green-mid, #3a4516);
+        opacity: 0.75;
+        margin-top: 2px;
       }
 
       .customer-cell {
