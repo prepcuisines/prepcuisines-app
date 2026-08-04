@@ -1094,12 +1094,12 @@ export default function AdminDashboard() {
           <section>
             <p className="map-intro">
               Approximate scatter of delivery postcodes — clustering shows relative position
-              (north/south/east/west), not an exact geographic map. Shows orders placed on the
-              selected date, or everything since launch if no date is picked.
+              (north/south/east/west), not an exact geographic map. Shows orders being
+              delivered on the selected date, or everything since launch if no date is picked.
             </p>
             <div className="toolbar">
               <label className="field-label" htmlFor="map-date" style={{ marginBottom: 0 }}>
-                Filter by date placed
+                Filter by delivery date
               </label>
               <input
                 id="map-date"
