@@ -19,6 +19,7 @@ type Customer = {
   street: string | null
   postcode: string | null
   subscription_status: string | null
+  effectiveStatus?: string | null
   orders_completed: number | null
   standing_plan_size: number | null
   standing_delivery_day: string | null
@@ -90,6 +91,7 @@ function StatusBadge({ status }: { status: string | null }) {
     active: { label: 'Active', tone: 'active' },
     cancelled: { label: 'Cancelled', tone: 'muted' },
     none: { label: 'PAYG', tone: 'warn' },
+    incomplete: { label: 'Incomplete signup', tone: 'warn' },
   }
   const entry = map[status || 'none'] || { label: status || 'None', tone: 'muted' }
   return <span className={`pill pill-${entry.tone}`}>{entry.label}</span>
@@ -150,6 +152,7 @@ export default function AdminDashboard() {
   const [topDishes, setTopDishes] = useState<{ name: string; qty: number; revenue: number }[]>([])
   const [topDishesPeriod, setTopDishesPeriod] = useState<'week' | 'month' | 'all'>('week')
   const [topDishesLoaded, setTopDishesLoaded] = useState(false)
+  const [copiedListKey, setCopiedListKey] = useState<string | null>(null)
   const leafletMapRef = useRef<HTMLDivElement>(null)
   const leafletInstanceRef = useRef<any>(null)
 
@@ -510,28 +513,31 @@ export default function AdminDashboard() {
     if (tab === 'menu' && !menuLoaded) loadMenu()
     if (tab === 'map' && !mapLoaded) loadMapPoints()
     if (tab === 'insights' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
+    if (tab === 'insights' && customers.length === 0) loadCustomers()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
-    const active = customers.filter((c) => c.subscription_status === 'active').length
-    const cancelled = customers.filter((c) => c.subscription_status === 'cancelled').length
-    const payg = customers.filter(
-      (c) => !c.subscription_status || c.subscription_status === 'none'
-    ).length
+    const active = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'active').length
+    const cancelled = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'cancelled').length
+    const payg = customers.filter((c) => {
+      const s = c.effectiveStatus ?? c.subscription_status
+      return !s || s === 'none' || s === 'incomplete'
+    }).length
     return { active, cancelled, payg, total: customers.length }
   }, [customers])
 
   const filteredCustomers = useMemo(
     () =>
       customers.filter((c) => {
+        const status = c.effectiveStatus ?? c.subscription_status
         const matchesSegment = (() => {
           switch (segment) {
             case 'active':
-              return c.subscription_status === 'active'
+              return status === 'active'
             case 'cancelled':
-              return c.subscription_status === 'cancelled'
+              return status === 'cancelled'
             case 'payg':
-              return !c.subscription_status || c.subscription_status === 'none'
+              return !status || status === 'none' || status === 'incomplete'
             case 'lapsed_30':
               return c.lapsedTier === '30'
             case 'lapsed_60':
@@ -590,6 +596,54 @@ export default function AdminDashboard() {
       customerSingleDate,
     ]
   )
+
+  const emailLists = useMemo(() => {
+    const topSpenders = customers
+      .slice()
+      .sort((a, b) => b.totalSpend - a.totalSpend)
+      .slice(0, 10)
+
+    return [
+      {
+        key: 'lapsed_30',
+        label: 'Lapsed 30+ days',
+        customers: customers.filter((c) => c.lapsedTier === '30'),
+      },
+      {
+        key: 'lapsed_60',
+        label: 'Lapsed 60+ days',
+        customers: customers.filter((c) => c.lapsedTier === '60'),
+      },
+      {
+        key: 'lapsed_90',
+        label: 'Lapsed 90+ days',
+        customers: customers.filter((c) => c.lapsedTier === '90+'),
+      },
+      {
+        key: 'new_this_week',
+        label: 'New this week',
+        customers: customers.filter((c) => c.isNewThisWeek),
+      },
+      {
+        key: 'win_back',
+        label: 'Win-back candidates',
+        customers: customers.filter((c) => c.isWinBackCandidate),
+      },
+      {
+        key: 'top_spenders',
+        label: 'Top 10 spenders',
+        customers: topSpenders,
+      },
+    ]
+  }, [customers])
+
+  const copyEmailList = (key: string, emails: string[]) => {
+    const text = emails.join(', ')
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedListKey(key)
+      setTimeout(() => setCopiedListKey((k) => (k === key ? null : k)), 2500)
+    })
+  }
 
   const filteredOrders = useMemo(
     () =>
@@ -959,7 +1013,7 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td>
-                          <StatusBadge status={c.subscription_status} />
+                          <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
                         </td>
                         <td>{c.orderCount}</td>
                         <td className="num">{money(c.totalSpend)}</td>
@@ -1390,6 +1444,35 @@ export default function AdminDashboard() {
 
         {tab === 'insights' && (
           <section>
+            <div className="insights-block">
+              <h2 className="insights-block-title">Email marketing lists</h2>
+              <p className="map-intro">
+                One-click copy — pastes as a comma-separated list ready for your email tool.
+              </p>
+              <div className="email-lists-grid">
+                {emailLists.map((list) => (
+                  <div key={list.key} className="email-list-card">
+                    <div className="email-list-header">
+                      <span className="email-list-label">{list.label}</span>
+                      <span className="email-list-count">{list.customers.length}</span>
+                    </div>
+                    <button
+                      className="btn-primary"
+                      disabled={list.customers.length === 0}
+                      onClick={() =>
+                        copyEmailList(
+                          list.key,
+                          list.customers.map((c) => c.email).filter(Boolean) as string[]
+                        )
+                      }
+                    >
+                      {copiedListKey === list.key ? 'Copied!' : 'Copy emails'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="insights-block">
               <div className="insights-block-header">
                 <h2 className="insights-block-title">Best-selling dishes</h2>
@@ -1852,6 +1935,46 @@ function Styles() {
         font-weight: 900;
         color: var(--pc-green, #2d3510);
         margin: 0;
+      }
+      .email-lists-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 14px;
+        margin-top: 14px;
+      }
+      .email-list-card {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-top: 3px solid var(--pc-gold, #c9a84c);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .email-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 10px;
+      }
+      .email-list-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pc-green, #2d3510);
+      }
+      .email-list-count {
+        font-family: var(--font-playfair), serif;
+        font-size: 20px;
+        font-weight: 900;
+        color: var(--pc-gold-dark, #9a7c45);
+      }
+      .email-list-card .btn-primary {
+        width: 100%;
+        margin-top: 0;
+        font-size: 13px;
+        padding: 8px 14px;
+      }
+      .email-list-card .btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
       }
 
       @media (max-width: 640px) {
