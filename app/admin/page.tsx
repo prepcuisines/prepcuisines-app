@@ -207,6 +207,30 @@ export default function AdminDashboard() {
     )
   })
 
+  // Tally of orders grouped by delivery week + day, so it's easy to see
+  // "how many for Wednesday's window" vs "how many for Sunday's" at a glance.
+  const orderTally = (() => {
+    const groups = new Map<string, { day: string; week: string | null; count: number; total: number }>()
+    for (const o of filteredOrders) {
+      const week = o.menu_windows?.week_start_date
+        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
+        : 'No window'
+      const day = o.delivery_day || 'Unknown'
+      const key = `${week}__${day}`
+      const existing = groups.get(key)
+      if (existing) {
+        existing.count += 1
+        existing.total += o.total_amount || 0
+      } else {
+        groups.set(key, { day, week, count: 1, total: o.total_amount || 0 })
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.week === b.week) return a.day.localeCompare(b.day)
+      return (a.week || '').localeCompare(b.week || '')
+    })
+  })()
+
   if (checkingAuth) {
     return <div style={{ padding: 40, fontFamily: 'sans-serif' }}>Loading…</div>
   }
@@ -365,6 +389,41 @@ export default function AdminDashboard() {
 
       {tab === 'orders' && (
         <div>
+          {orderTally.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                flexWrap: 'wrap',
+                marginBottom: 20,
+                padding: 14,
+                background: '#fafafa',
+                border: '1px solid #eee',
+                borderRadius: 8,
+              }}
+            >
+              {orderTally.map((t) => (
+                <div
+                  key={`${t.week}-${t.day}`}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#fff',
+                    border: '1px solid #ddd',
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                    {t.day}{t.week && t.week !== 'No window' ? ` — week of ${t.week}` : ''}
+                  </div>
+                  <div style={{ color: '#666' }}>
+                    {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
             <input
               placeholder="Search name, email, postcode…"
