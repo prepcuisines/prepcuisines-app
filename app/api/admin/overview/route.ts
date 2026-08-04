@@ -31,11 +31,27 @@ export async function GET(req: NextRequest) {
     .select('id', { count: 'exact', head: true })
     .gte('created_at', LAUNCH_CUTOFF)
 
-  const { count: activeSubscriptions } = await supabase
+  // "Active" requires an actual plan or at least one real order — a
+  // database flag alone (e.g. an incomplete signup) doesn't count, same
+  // rule as the Customers tab uses.
+  const { data: activeCandidates } = await supabase
     .from('customer_profiles')
-    .select('id', { count: 'exact', head: true })
+    .select('id, standing_plan_size')
     .eq('subscription_status', 'active')
     .gte('created_at', LAUNCH_CUTOFF)
+
+  const candidateIds = (activeCandidates || []).map((c) => c.id)
+  const { data: candidateOrders } = candidateIds.length
+    ? await supabase
+        .from('customer_window_orders')
+        .select('customer_id')
+        .in('customer_id', candidateIds)
+    : { data: [] }
+
+  const customerIdsWithOrders = new Set((candidateOrders || []).map((o) => o.customer_id))
+  const activeSubscriptions = (activeCandidates || []).filter(
+    (c) => !!c.standing_plan_size || customerIdsWithOrders.has(c.id)
+  ).length
 
   const { count: newSignupsThisWeek } = await supabase
     .from('customer_profiles')
