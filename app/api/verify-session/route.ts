@@ -81,8 +81,11 @@ export async function GET(req: NextRequest) {
           matchedWindowId = window?.id || null
         }
 
-        // Only log if we found a matching window (menu_window_id can't be
-        // null) and haven't already logged this window for this customer.
+        // Only skip if we've already logged this exact window for this
+        // customer (dedup). If there's no matching window at all, we
+        // still log the order — better to have it with no window link
+        // than to lose it from our records entirely while Stripe still
+        // took the payment.
         const { data: existing } = matchedWindowId
           ? await supabase
               .from('customer_window_orders')
@@ -92,7 +95,7 @@ export async function GET(req: NextRequest) {
               .maybeSingle()
           : { data: null }
 
-        if (matchedWindowId && !existing) {
+        if (!existing) {
           await supabase.from('customer_window_orders').insert({
             customer_id: userId,
             menu_window_id: matchedWindowId,
@@ -148,21 +151,19 @@ export async function GET(req: NextRequest) {
           matchedWindowId = window?.id || null
         }
 
-        if (matchedWindowId) {
-          await supabase.from('customer_window_orders').insert({
-            customer_id: null,
-            menu_window_id: matchedWindowId,
-            status: 'payg_order',
-            items: orderItemsSnapshot,
-            total_amount: (session.amount_total || 0) / 100,
-            delivery_day: deliveryDay,
-            ship_full_name: fullName,
-            ship_phone: phone,
-            ship_house_number: houseNumber,
-            ship_street: street,
-            ship_postcode: postcode,
-          })
-        }
+        await supabase.from('customer_window_orders').insert({
+          customer_id: null,
+          menu_window_id: matchedWindowId,
+          status: 'payg_order',
+          items: orderItemsSnapshot,
+          total_amount: (session.amount_total || 0) / 100,
+          delivery_day: deliveryDay,
+          ship_full_name: fullName,
+          ship_phone: phone,
+          ship_house_number: houseNumber,
+          ship_street: street,
+          ship_postcode: postcode,
+        })
 
         if (email) {
           await sendOrderConfirmationEmailToCustomer(
