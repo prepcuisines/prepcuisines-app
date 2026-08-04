@@ -50,8 +50,15 @@ export default function OrderHistoryPage() {
         .eq('customer_id', data.user.id)
         .order('created_at', { ascending: false })
 
-      setOrders(rows || [])
-      setLoading(false)
+   const normalized = (rows || []).map((row: any) => ({
+     ...row,
+     menu_windows: Array.isArray(row.menu_windows)
+       ? row.menu_windows[0] ?? null
+       : row.menu_windows ?? null,
+   }))
+
+   setOrders(normalized)
+   setLoading(false)
     }
 
     load()
