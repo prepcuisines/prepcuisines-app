@@ -137,6 +137,7 @@ export default function AdminDashboard() {
     { postcode: string; count: number; lat: number; lon: number }[]
   >([])
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [mapDateFilter, setMapDateFilter] = useState('')
 
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
@@ -345,10 +346,13 @@ export default function AdminDashboard() {
     setTogglingItem(null)
   }
 
-  const loadMapPoints = async () => {
+  const loadMapPoints = async (dateFilter?: string) => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/order-locations')
+      const url = dateFilter
+        ? `/api/admin/order-locations?date=${dateFilter}`
+        : '/api/admin/order-locations'
+      const res = await fetch(url)
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -513,11 +517,16 @@ export default function AdminDashboard() {
     [filteredOrders]
   )
 
-  // DPD charges per delivery, billed monthly — this estimates cost for
-  // whatever set of orders is currently in view (respects search/location
-  // filters) so it's a live "if I ship all of these, it'll cost X" figure.
+  // DPD only charges for deliveries outside Stoke-on-Trent — those are
+  // done in-house. So this always counts non-Stoke orders from the
+  // current search/order set, regardless of which location toggle is
+  // selected, since that's the real cost driver either way.
+  const outsideStokeCount = useMemo(
+    () => filteredOrders.filter((o) => !(o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
+    [filteredOrders]
+  )
   const DPD_COST_PER_DELIVERY = 7.95
-  const dpdEstimate = locationScopedOrders.length * DPD_COST_PER_DELIVERY
+  const dpdEstimate = outsideStokeCount * DPD_COST_PER_DELIVERY
 
   if (checkingAuth) {
     return (
@@ -761,10 +770,10 @@ export default function AdminDashboard() {
               </div>
 
               <div className="dpd-card">
-                <div className="dpd-label">Estimated DPD cost (this view)</div>
+                <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
                 <div className="dpd-value">{money(dpdEstimate)}</div>
                 <div className="dpd-meta">
-                  {locationScopedOrders.length} deliveries × {money(DPD_COST_PER_DELIVERY)}
+                  {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
                 </div>
               </div>
             </div>
@@ -1085,8 +1094,36 @@ export default function AdminDashboard() {
           <section>
             <p className="map-intro">
               Approximate scatter of delivery postcodes — clustering shows relative position
-              (north/south/east/west), not an exact geographic map.
+              (north/south/east/west), not an exact geographic map. Shows orders placed on the
+              selected date, or everything since launch if no date is picked.
             </p>
+            <div className="toolbar">
+              <label className="field-label" htmlFor="map-date" style={{ marginBottom: 0 }}>
+                Filter by date placed
+              </label>
+              <input
+                id="map-date"
+                type="date"
+                className="text-input search-input"
+                value={mapDateFilter}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setMapDateFilter(value)
+                  loadMapPoints(value || undefined)
+                }}
+              />
+              {mapDateFilter && (
+                <button
+                  className="segment-pill"
+                  onClick={() => {
+                    setMapDateFilter('')
+                    loadMapPoints()
+                  }}
+                >
+                  Clear (show all)
+                </button>
+              )}
+            </div>
             {loading ? (
               <div className="empty-panel">Loading…</div>
             ) : mapPoints.length === 0 ? (
