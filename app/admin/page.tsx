@@ -312,7 +312,7 @@ export default function AdminDashboard() {
   const orderTally = useMemo(() => {
     const groups = new Map<
       string,
-      { day: string; week: string | null; count: number; total: number }
+      { key: string; day: string; week: string | null; count: number; total: number }
     >()
     for (const o of filteredOrders) {
       const week = o.menu_windows?.week_start_date
@@ -325,7 +325,7 @@ export default function AdminDashboard() {
         existing.count += 1
         existing.total += o.total_amount || 0
       } else {
-        groups.set(key, { day, week, count: 1, total: o.total_amount || 0 })
+        groups.set(key, { key, day, week, count: 1, total: o.total_amount || 0 })
       }
     }
     return Array.from(groups.values()).sort((a, b) => {
@@ -333,6 +333,27 @@ export default function AdminDashboard() {
       return (a.week || '').localeCompare(b.week || '')
     })
   }, [filteredOrders])
+
+  const [expandedTallyKey, setExpandedTallyKey] = useState<string | null>(null)
+
+  const cookSheetForKey = useMemo(() => {
+    if (!expandedTallyKey) return []
+    const dishTotals = new Map<string, number>()
+    for (const o of filteredOrders) {
+      const week = o.menu_windows?.week_start_date
+        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
+        : null
+      const day = o.delivery_day || 'Unknown'
+      const key = `${week}__${day}`
+      if (key !== expandedTallyKey) continue
+      for (const item of o.items || []) {
+        dishTotals.set(item.name, (dishTotals.get(item.name) || 0) + (item.qty || 0))
+      }
+    }
+    return Array.from(dishTotals.entries())
+      .map(([name, qty]) => ({ name, qty }))
+      .sort((a, b) => b.qty - a.qty)
+  }, [expandedTallyKey, filteredOrders])
 
   if (checkingAuth) {
     return (
@@ -647,7 +668,13 @@ export default function AdminDashboard() {
             {orderTally.length > 0 && (
               <div className="tally-row">
                 {orderTally.map((t) => (
-                  <div key={`${t.week}-${t.day}`} className="tally-chip">
+                  <button
+                    key={t.key}
+                    className={`tally-chip ${expandedTallyKey === t.key ? 'tally-chip-active' : ''}`}
+                    onClick={() =>
+                      setExpandedTallyKey((prev) => (prev === t.key ? null : t.key))
+                    }
+                  >
                     <div className="tally-day">
                       {t.day}
                       {t.week ? ` — w/c ${t.week}` : ''}
@@ -655,8 +682,30 @@ export default function AdminDashboard() {
                     <div className="tally-meta">
                       {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
                     </div>
-                  </div>
+                  </button>
                 ))}
+              </div>
+            )}
+
+            {expandedTallyKey && (
+              <div className="cook-sheet-panel">
+                <div className="cook-sheet-title">
+                  Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
+                  {orderTally.find((t) => t.key === expandedTallyKey)?.week
+                    ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
+                    : ''}
+                </div>
+                {cookSheetForKey.length === 0 ? (
+                  <p className="cook-sheet-empty">No item data for this window.</p>
+                ) : (
+                  <ul className="cook-sheet-list">
+                    {cookSheetForKey.map((d) => (
+                      <li key={d.name}>
+                        <span className="cook-sheet-qty">{d.qty}×</span> {d.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -1118,11 +1167,63 @@ function Styles() {
         margin-bottom: 22px;
       }
       .tally-chip {
+        text-align: left;
+        font-family: inherit;
+        cursor: pointer;
         background: var(--pc-white, #faf8f4);
         border: 1px solid var(--pc-cream-dark, #ede8de);
         border-left: 3px solid var(--pc-gold, #c9a84c);
         border-radius: 8px;
         padding: 10px 16px;
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      .tally-chip:hover {
+        border-color: var(--pc-gold-dark, #9a7c45);
+      }
+      .tally-chip:focus-visible {
+        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline-offset: 2px;
+      }
+      .tally-chip-active {
+        box-shadow: inset 0 0 0 1px var(--pc-green, #2d3510);
+        border-left-color: var(--pc-green, #2d3510);
+      }
+      .cook-sheet-panel {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin-bottom: 22px;
+      }
+      .cook-sheet-title {
+        font-family: var(--font-playfair), serif;
+        font-weight: 900;
+        font-size: 17px;
+        color: var(--pc-green, #2d3510);
+        margin-bottom: 10px;
+      }
+      .cook-sheet-empty {
+        font-size: 13.5px;
+        color: var(--pc-green-mid, #3a4516);
+      }
+      .cook-sheet-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px 20px;
+      }
+      .cook-sheet-list li {
+        font-size: 13.5px;
+        color: var(--pc-green, #2d3510);
+        padding: 4px 0;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+      }
+      .cook-sheet-qty {
+        font-weight: 700;
+        color: var(--pc-gold-dark, #9a7c45);
+        margin-right: 6px;
       }
       .tally-day {
         font-weight: 700;
