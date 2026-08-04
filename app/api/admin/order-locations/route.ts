@@ -51,11 +51,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const { data: orders, error } = await supabase
+  // Optional ?date=2026-08-31 narrows the map to orders placed on that
+  // specific day. Without it, every order since launch is shown.
+  const dateParam = req.nextUrl.searchParams.get('date')
+
+  let query = supabase
     .from('customer_window_orders')
     .select('ship_postcode')
-    .gte('created_at', LAUNCH_CUTOFF)
     .not('ship_postcode', 'is', null)
+
+  if (dateParam) {
+    const startOfDay = new Date(`${dateParam}T00:00:00Z`)
+    const endOfDay = new Date(`${dateParam}T23:59:59.999Z`)
+    query = query.gte('created_at', startOfDay.toISOString()).lte('created_at', endOfDay.toISOString())
+  } else {
+    query = query.gte('created_at', LAUNCH_CUTOFF)
+  }
+
+  const { data: orders, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
