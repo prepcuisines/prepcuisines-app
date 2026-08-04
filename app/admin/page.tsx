@@ -154,6 +154,8 @@ export default function AdminDashboard() {
   const [topDishesPeriod, setTopDishesPeriod] = useState<'week' | 'month' | 'all'>('week')
   const [topDishesLoaded, setTopDishesLoaded] = useState(false)
   const [copiedListKey, setCopiedListKey] = useState<string | null>(null)
+  const [dishPairs, setDishPairs] = useState<{ dishA: string; dishB: string; count: number }[]>([])
+  const [dishPairsLoaded, setDishPairsLoaded] = useState(false)
   const leafletMapRef = useRef<HTMLDivElement>(null)
   const leafletInstanceRef = useRef<any>(null)
 
@@ -415,6 +417,27 @@ export default function AdminDashboard() {
     }
   }
 
+  const loadDishPairs = async () => {
+    try {
+      const res = await fetch('/api/admin/dish-pairs')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setDishPairs([])
+        setDishPairsLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setDishPairs(data.pairs || [])
+      setDishPairsLoaded(true)
+    } catch {
+      setDishPairs([])
+      setDishPairsLoaded(true)
+    }
+  }
+
   // Loads Leaflet from a CDN (same approach as the ops hub) so we get a
   // real OpenStreetMap-backed map with actual roads/coastline, without
   // adding a new npm dependency to the build.
@@ -515,6 +538,7 @@ export default function AdminDashboard() {
     if (tab === 'map' && !mapLoaded) loadMapPoints()
     if (tab === 'insights' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
     if (tab === 'insights' && customers.length === 0) loadCustomers()
+    if (tab === 'insights' && !dishPairsLoaded) loadDishPairs()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -1577,9 +1601,35 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <div className="empty-panel" style={{ marginTop: 20 }}>
-              More insights (repeat purchase rate, reorder timing, email marketing lists,
-              discount performance) are being added here next.
+            <div className="insights-block">
+              <h2 className="insights-block-title">Frequently bought together</h2>
+              <p className="map-intro">
+                Dish pairs that most often appear in the same order, all-time since launch.
+              </p>
+              {dishPairs.length === 0 ? (
+                <div className="empty-panel">Not enough order data yet.</div>
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Dish A</th>
+                        <th>Dish B</th>
+                        <th>Times ordered together</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dishPairs.map((p) => (
+                        <tr key={`${p.dishA}-${p.dishB}`}>
+                          <td>{p.dishA}</td>
+                          <td>{p.dishB}</td>
+                          <td className="num">{p.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </section>
         )}
