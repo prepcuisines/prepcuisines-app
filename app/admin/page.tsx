@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type Overview = {
   totalCustomers: number
@@ -138,6 +138,8 @@ export default function AdminDashboard() {
   >([])
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapDateFilter, setMapDateFilter] = useState('')
+  const leafletMapRef = useRef<HTMLDivElement>(null)
+  const leafletInstanceRef = useRef<any>(null)
 
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
@@ -372,6 +374,98 @@ export default function AdminDashboard() {
       setLoading(false)
     }
   }
+
+  // Loads Leaflet from a CDN (same approach as the ops hub) so we get a
+  // real OpenStreetMap-backed map with actual roads/coastline, without
+  // adding a new npm dependency to the build.
+  useEffect(() => {
+    if (tab !== 'map') return
+    if (loading || mapPoints.length === 0) return
+    if (!leafletMapRef.current) return
+
+    const HQ_LAT = 53.025
+    const HQ_LNG = -2.175
+
+    function renderLeafletMap() {
+      const L = (window as any).L
+      if (!L || !leafletMapRef.current) return
+
+      if (leafletInstanceRef.current) {
+        leafletInstanceRef.current.remove()
+        leafletInstanceRef.current = null
+      }
+
+      const map = L.map(leafletMapRef.current).setView([HQ_LAT, HQ_LNG], 9)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 18,
+      }).addTo(map)
+      leafletInstanceRef.current = map
+
+      const hqIcon = L.divIcon({
+        html: '<div style="background:#2d3510;color:#faf8f4;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;border:2px solid #c9a84c;">HQ</div>',
+        className: '',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      })
+      L.marker([HQ_LAT, HQ_LNG], { icon: hqIcon }).addTo(map).bindPopup('<b>prepcuisines HQ</b><br>102A Sun Street')
+
+      const maxCount = Math.max(1, ...mapPoints.map((p) => p.count))
+      const bounds: [number, number][] = [[HQ_LAT, HQ_LNG]]
+
+      mapPoints.forEach((p) => {
+        const size = 20 + (p.count / maxCount) * 16
+        const icon = L.divIcon({
+          html: `<div style="background:#c9a84c;color:#2d3510;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);">${p.count}</div>`,
+          className: '',
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
+        })
+        L.marker([p.lat, p.lon], { icon })
+          .addTo(map)
+          .bindPopup(`<b>${p.postcode}</b><br>${p.count} order${p.count !== 1 ? 's' : ''}`)
+        bounds.push([p.lat, p.lon])
+      })
+
+      if (bounds.length > 1) {
+        map.fitBounds(bounds, { padding: [40, 40] })
+      }
+      setTimeout(() => map.invalidateSize(), 100)
+    }
+
+    if ((window as any).L) {
+      renderLeafletMap()
+      return
+    }
+
+    const existingLink = document.querySelector('link[data-leaflet]')
+    if (!existingLink) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      link.setAttribute('data-leaflet', 'true')
+      document.head.appendChild(link)
+    }
+
+    const existingScript = document.querySelector('script[data-leaflet]')
+    if (existingScript) {
+      existingScript.addEventListener('load', renderLeafletMap)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    script.setAttribute('data-leaflet', 'true')
+    script.onload = renderLeafletMap
+    document.body.appendChild(script)
+
+    return () => {
+      if (leafletInstanceRef.current) {
+        leafletInstanceRef.current.remove()
+        leafletInstanceRef.current = null
+      }
+    }
+  }, [tab, loading, mapPoints])
 
   useEffect(() => {
     if (!authenticated) return
@@ -1093,8 +1187,7 @@ export default function AdminDashboard() {
         {tab === 'map' && (
           <section>
             <p className="map-intro">
-              Approximate scatter of delivery postcodes — clustering shows relative position
-              (north/south/east/west), not an exact geographic map. Shows orders being
+              Real map of delivery postcodes, pin size shows order count. Shows orders being
               delivered on the selected date, or everything since launch if no date is picked.
             </p>
             <div className="toolbar">
@@ -1129,61 +1222,22 @@ export default function AdminDashboard() {
             ) : mapPoints.length === 0 ? (
               <div className="empty-panel">No located orders yet.</div>
             ) : (
-              (() => {
-                // UK bounding box roughly covering Land's End to Shetland,
-                // west coast to East Anglia — used only to place dots in
-                // sensible relative positions, not for real cartography.
-                const LAT_MIN = 49.9
-                const LAT_MAX = 60.9
-                const LON_MIN = -8.2
-                const LON_MAX = 1.8
-                const maxCount = Math.max(1, ...mapPoints.map((p) => p.count))
-
-                return (
-                  <div className="map-panel">
-                    <svg viewBox="0 0 400 500" className="map-svg" role="img" aria-label="Order locations scatter plot">
-                      <rect x="0" y="0" width="400" height="500" className="map-bg" />
-                      <line x1="200" y1="0" x2="200" y2="500" className="map-gridline" />
-                      <line x1="0" y1="250" x2="400" y2="250" className="map-gridline" />
-                      <text x="200" y="20" textAnchor="middle" className="map-compass-label">N</text>
-                      <text x="200" y="490" textAnchor="middle" className="map-compass-label">S</text>
-                      <text x="16" y="255" textAnchor="middle" className="map-compass-label">W</text>
-                      <text x="384" y="255" textAnchor="middle" className="map-compass-label">E</text>
-                      {mapPoints.map((p) => {
-                        const x = ((p.lon - LON_MIN) / (LON_MAX - LON_MIN)) * 400
-                        const y = 500 - ((p.lat - LAT_MIN) / (LAT_MAX - LAT_MIN)) * 500
-                        const radius = 2.5 + (p.count / maxCount) * 5
-                        return (
-                          <circle
-                            key={p.postcode}
-                            cx={x}
-                            cy={y}
-                            r={radius}
-                            className="map-dot"
-                          >
-                            <title>
-                              {p.postcode} — {p.count} order{p.count !== 1 ? 's' : ''}
-                            </title>
-                          </circle>
-                        )
-                      })}
-                    </svg>
-                    <div className="map-list">
-                      {mapPoints
-                        .slice()
-                        .sort((a, b) => b.count - a.count)
-                        .map((p) => (
-                          <div key={p.postcode} className="map-list-row">
-                            <span className="map-list-postcode">{p.postcode}</span>
-                            <span className="map-list-count">
-                              {p.count} order{p.count !== 1 ? 's' : ''}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )
-              })()
+              <div className="map-panel">
+                <div ref={leafletMapRef} className="leaflet-map-container" />
+                <div className="map-list">
+                  {mapPoints
+                    .slice()
+                    .sort((a, b) => b.count - a.count)
+                    .map((p) => (
+                      <div key={p.postcode} className="map-list-row">
+                        <span className="map-list-postcode">{p.postcode}</span>
+                        <span className="map-list-count">
+                          {p.count} order{p.count !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
             )}
           </section>
         )}
@@ -1535,43 +1589,24 @@ function Styles() {
       }
       .map-panel {
         display: grid;
-        grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
         gap: 20px;
         align-items: start;
       }
-      .map-svg {
+      .leaflet-map-container {
         width: 100%;
-        max-width: 380px;
-        height: auto;
-        background: var(--pc-white, #faf8f4);
+        height: 480px;
+        background: var(--pc-cream, #f5f2ec);
         border: 1px solid var(--pc-cream-dark, #ede8de);
         border-radius: 10px;
-      }
-      .map-bg {
-        fill: var(--pc-cream, #f5f2ec);
-      }
-      .map-gridline {
-        stroke: var(--pc-cream-dark, #ede8de);
-        stroke-width: 1;
-      }
-      .map-compass-label {
-        font-size: 12px;
-        font-weight: 700;
-        fill: var(--pc-green-mid, #3a4516);
-        opacity: 0.5;
-      }
-      .map-dot {
-        fill: var(--pc-gold, #c9a84c);
-        stroke: var(--pc-green, #2d3510);
-        stroke-width: 1;
-        opacity: 0.85;
+        overflow: hidden;
       }
       .map-list {
         background: var(--pc-white, #faf8f4);
         border: 1px solid var(--pc-cream-dark, #ede8de);
         border-radius: 10px;
         padding: 14px 18px;
-        max-height: 380px;
+        max-height: 480px;
         overflow-y: auto;
         min-width: 0;
       }
@@ -1593,6 +1628,9 @@ function Styles() {
       @media (max-width: 640px) {
         .map-panel {
           grid-template-columns: 1fr;
+        }
+        .leaflet-map-container {
+          height: 340px;
         }
       }
 
