@@ -101,7 +101,7 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'orders' | 'menu'>('overview')
+  const [tab, setTab] = useState<'overview' | 'customers' | 'orders' | 'menu' | 'map'>('overview')
 
   const [overview, setOverview] = useState<Overview | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -132,6 +132,11 @@ export default function AdminDashboard() {
   const [selectedByWindow, setSelectedByWindow] = useState<Record<string, string[]>>({})
   const [menuLoaded, setMenuLoaded] = useState(false)
   const [togglingItem, setTogglingItem] = useState<string | null>(null)
+
+  const [mapPoints, setMapPoints] = useState<
+    { postcode: string; count: number; lat: number; lon: number }[]
+  >([])
+  const [mapLoaded, setMapLoaded] = useState(false)
 
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
@@ -308,11 +313,26 @@ export default function AdminDashboard() {
     setTogglingItem(null)
   }
 
+  const loadMapPoints = async () => {
+    setLoading(true)
+    const res = await fetch('/api/admin/order-locations')
+    if (res.status === 401) {
+      setAuthenticated(false)
+      setLoading(false)
+      return
+    }
+    const data = await res.json()
+    setMapPoints(data.points || [])
+    setMapLoaded(true)
+    setLoading(false)
+  }
+
   useEffect(() => {
     if (!authenticated) return
     if (tab === 'customers' && customers.length === 0) loadCustomers()
     if (tab === 'orders' && orders.length === 0) loadOrders()
     if (tab === 'menu' && !menuLoaded) loadMenu()
+    if (tab === 'map' && !mapLoaded) loadMapPoints()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -510,6 +530,7 @@ export default function AdminDashboard() {
               { key: 'customers', label: 'Customers' },
               { key: 'orders', label: 'Orders' },
               { key: 'menu', label: 'Menu' },
+              { key: 'map', label: 'Map' },
             ] as const
           ).map((t) => (
             <button
@@ -533,7 +554,9 @@ export default function AdminDashboard() {
               ? 'Customers'
               : tab === 'orders'
               ? 'Orders'
-              : 'Menu'}
+              : tab === 'menu'
+              ? 'Menu'
+              : 'Order Map'}
           </h1>
         </header>
 
@@ -1015,6 +1038,70 @@ export default function AdminDashboard() {
             )}
           </section>
         )}
+
+        {tab === 'map' && (
+          <section>
+            <p className="map-intro">
+              Approximate scatter of delivery postcodes — clustering shows relative position
+              (north/south/east/west), not an exact geographic map.
+            </p>
+            {loading ? (
+              <div className="empty-panel">Loading…</div>
+            ) : mapPoints.length === 0 ? (
+              <div className="empty-panel">No located orders yet.</div>
+            ) : (
+              (() => {
+                // UK bounding box roughly covering Land's End to Shetland,
+                // west coast to East Anglia — used only to place dots in
+                // sensible relative positions, not for real cartography.
+                const LAT_MIN = 49.9
+                const LAT_MAX = 60.9
+                const LON_MIN = -8.2
+                const LON_MAX = 1.8
+                const maxCount = Math.max(1, ...mapPoints.map((p) => p.count))
+
+                return (
+                  <div className="map-panel">
+                    <svg viewBox="0 0 400 500" className="map-svg" role="img" aria-label="Order locations scatter plot">
+                      <rect x="0" y="0" width="400" height="500" className="map-bg" />
+                      {mapPoints.map((p) => {
+                        const x = ((p.lon - LON_MIN) / (LON_MAX - LON_MIN)) * 400
+                        const y = 500 - ((p.lat - LAT_MIN) / (LAT_MAX - LAT_MIN)) * 500
+                        const radius = 4 + (p.count / maxCount) * 12
+                        return (
+                          <circle
+                            key={p.postcode}
+                            cx={x}
+                            cy={y}
+                            r={radius}
+                            className="map-dot"
+                          >
+                            <title>
+                              {p.postcode} — {p.count} order{p.count !== 1 ? 's' : ''}
+                            </title>
+                          </circle>
+                        )
+                      })}
+                    </svg>
+                    <div className="map-list">
+                      {mapPoints
+                        .slice()
+                        .sort((a, b) => b.count - a.count)
+                        .map((p) => (
+                          <div key={p.postcode} className="map-list-row">
+                            <span className="map-list-postcode">{p.postcode}</span>
+                            <span className="map-list-count">
+                              {p.count} order{p.count !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )
+              })()
+            )}
+          </section>
+        )}
       </main>
       <Styles />
     </div>
@@ -1354,6 +1441,64 @@ function Styles() {
       }
       .menu-toggle-on .menu-toggle-knob {
         transform: translateX(16px);
+      }
+
+      .map-intro {
+        font-size: 13px;
+        color: var(--pc-green-mid, #3a4516);
+        margin-bottom: 16px;
+      }
+      .map-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+      .map-svg {
+        width: 100%;
+        max-width: 380px;
+        height: auto;
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+      }
+      .map-bg {
+        fill: var(--pc-cream, #f5f2ec);
+      }
+      .map-dot {
+        fill: var(--pc-gold, #c9a84c);
+        stroke: var(--pc-green, #2d3510);
+        stroke-width: 1;
+        opacity: 0.85;
+      }
+      .map-list {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 14px 18px;
+        max-height: 380px;
+        overflow-y: auto;
+        min-width: 0;
+      }
+      .map-list-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+        font-size: 13.5px;
+      }
+      .map-list-postcode {
+        font-weight: 700;
+        color: var(--pc-green, #2d3510);
+      }
+      .map-list-count {
+        color: var(--pc-green-mid, #3a4516);
+      }
+
+      @media (max-width: 640px) {
+        .map-panel {
+          grid-template-columns: 1fr;
+        }
       }
 
       .orders-header-row {
