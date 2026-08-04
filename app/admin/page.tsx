@@ -355,6 +355,40 @@ export default function AdminDashboard() {
       .sort((a, b) => b.qty - a.qty)
   }, [expandedTallyKey, filteredOrders])
 
+  const [locationFilter, setLocationFilter] = useState<'all' | 'st' | 'outside'>('all')
+
+  const locationScopedOrders = useMemo(() => {
+    if (locationFilter === 'all') return filteredOrders
+    return filteredOrders.filter((o) => {
+      const isStoke = (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
+      return locationFilter === 'st' ? isStoke : !isStoke
+    })
+  }, [filteredOrders, locationFilter])
+
+  const locationBreakdown = useMemo(() => {
+    const areas = new Map<string, number>()
+    for (const o of filteredOrders) {
+      const match = (o.ship_postcode || '').trim().toUpperCase().match(/^[A-Z]+/)
+      const area = match ? match[0] : 'Unknown'
+      areas.set(area, (areas.get(area) || 0) + 1)
+    }
+    const maxCount = Math.max(1, ...Array.from(areas.values()))
+    return Array.from(areas.entries())
+      .map(([area, count]) => ({ area, count, pct: Math.round((count / maxCount) * 100) }))
+      .sort((a, b) => b.count - a.count)
+  }, [filteredOrders])
+
+  const stokeOrderCount = useMemo(
+    () => filteredOrders.filter((o) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
+    [filteredOrders]
+  )
+
+  // DPD charges per delivery, billed monthly — this estimates cost for
+  // whatever set of orders is currently in view (respects search/location
+  // filters) so it's a live "if I ship all of these, it'll cost X" figure.
+  const DPD_COST_PER_DELIVERY = 7.95
+  const dpdEstimate = locationScopedOrders.length * DPD_COST_PER_DELIVERY
+
   if (checkingAuth) {
     return (
       <div className="pc-admin-shell pc-admin-center">
@@ -564,6 +598,52 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            <div className="location-summary">
+              <div className="location-toggle" role="tablist" aria-label="Location filter">
+                <button
+                  className={`segment-pill ${locationFilter === 'all' ? 'segment-pill-active' : ''}`}
+                  onClick={() => setLocationFilter('all')}
+                >
+                  All areas ({filteredOrders.length})
+                </button>
+                <button
+                  className={`segment-pill ${locationFilter === 'st' ? 'segment-pill-active' : ''}`}
+                  onClick={() => setLocationFilter('st')}
+                >
+                  Stoke-on-Trent ({stokeOrderCount})
+                </button>
+                <button
+                  className={`segment-pill ${locationFilter === 'outside' ? 'segment-pill-active' : ''}`}
+                  onClick={() => setLocationFilter('outside')}
+                >
+                  Outside Stoke ({filteredOrders.length - stokeOrderCount})
+                </button>
+              </div>
+
+              <div className="dpd-card">
+                <div className="dpd-label">Estimated DPD cost (this view)</div>
+                <div className="dpd-value">{money(dpdEstimate)}</div>
+                <div className="dpd-meta">
+                  {locationScopedOrders.length} deliveries × {money(DPD_COST_PER_DELIVERY)}
+                </div>
+              </div>
+            </div>
+
+            {locationBreakdown.length > 0 && (
+              <div className="area-map">
+                <div className="area-map-title">Orders by area</div>
+                {locationBreakdown.map((a) => (
+                  <div key={a.area} className="area-row">
+                    <span className="area-name">{a.area}</span>
+                    <div className="area-bar-track">
+                      <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+                    </div>
+                    <span className="area-count">{a.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {showAddOrder && (
               <form className="add-order-panel" onSubmit={submitManualOrder}>
                 <div className="form-grid">
@@ -719,11 +799,11 @@ export default function AdminDashboard() {
               />
             </div>
 
-            <div className="result-count">{filteredOrders.length} orders</div>
+            <div className="result-count">{locationScopedOrders.length} orders</div>
 
             {loading ? (
               <div className="empty-panel">Loading…</div>
-            ) : filteredOrders.length === 0 ? (
+            ) : locationScopedOrders.length === 0 ? (
               <div className="empty-panel">No orders match this search.</div>
             ) : (
               <div className="table-wrap">
@@ -741,7 +821,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOrders.map((o) => (
+                    {locationScopedOrders.map((o) => (
                       <tr key={o.id}>
                         <td>
                           <div className="customer-name">{o.customer_name}</div>
@@ -831,6 +911,8 @@ function Styles() {
         background: var(--pc-cream, #f5f2ec);
         color: var(--pc-green, #2d3510);
         font-family: var(--font-montserrat), system-ui, sans-serif;
+        overflow-x: hidden;
+        max-width: 100vw;
       }
 
       .pc-admin-center {
@@ -951,6 +1033,9 @@ function Styles() {
         flex: 1;
         padding: 36px 44px 60px;
         max-width: 1280px;
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
       .page-header {
         margin-bottom: 22px;
@@ -964,6 +1049,90 @@ function Styles() {
       }
 
       /* Stat cards */
+      .location-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: stretch;
+        margin-bottom: 16px;
+      }
+      .location-toggle {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: flex-start;
+        flex: 1;
+        min-width: 220px;
+      }
+      .dpd-card {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-left: 3px solid var(--pc-green, #2d3510);
+        border-radius: 8px;
+        padding: 10px 16px;
+        min-width: 200px;
+      }
+      .dpd-label {
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--pc-green-mid, #3a4516);
+      }
+      .dpd-value {
+        font-family: var(--font-playfair), serif;
+        font-size: 20px;
+        font-weight: 900;
+        color: var(--pc-green, #2d3510);
+        margin: 2px 0;
+      }
+      .dpd-meta {
+        font-size: 11.5px;
+        color: var(--pc-green-mid, #3a4516);
+      }
+      .area-map {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+      }
+      .area-map-title {
+        font-family: var(--font-playfair), serif;
+        font-weight: 900;
+        font-size: 15px;
+        color: var(--pc-green, #2d3510);
+        margin-bottom: 12px;
+      }
+      .area-row {
+        display: grid;
+        grid-template-columns: 60px 1fr 30px;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+      .area-name {
+        font-weight: 700;
+        color: var(--pc-green, #2d3510);
+      }
+      .area-bar-track {
+        background: var(--pc-cream, #f5f2ec);
+        border-radius: 999px;
+        height: 8px;
+        overflow: hidden;
+      }
+      .area-bar-fill {
+        background: var(--pc-gold, #c9a84c);
+        height: 100%;
+        border-radius: 999px;
+      }
+      .area-count {
+        text-align: right;
+        color: var(--pc-green-mid, #3a4516);
+        font-variant-numeric: tabular-nums;
+      }
+
       .orders-header-row {
         display: flex;
         justify-content: flex-end;
