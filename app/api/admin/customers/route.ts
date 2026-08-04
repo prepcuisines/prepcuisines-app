@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
   const lastOrderByCustomer = new Map<string, string>()
   const orderCountByCustomer = new Map<string, number>()
   const totalSpendByCustomer = new Map<string, number>()
+  const orderDatesByCustomer = new Map<string, string[]>()
 
   for (const o of orders || []) {
     if (!o.customer_id) continue
@@ -70,6 +71,22 @@ export async function GET(req: NextRequest) {
       o.customer_id,
       (totalSpendByCustomer.get(o.customer_id) || 0) + (o.total_amount || 0)
     )
+    if (!orderDatesByCustomer.has(o.customer_id)) {
+      orderDatesByCustomer.set(o.customer_id, [])
+    }
+    orderDatesByCustomer.get(o.customer_id)!.push(o.created_at)
+  }
+
+  // Average gap between consecutive orders, per customer — null if they've
+  // only ordered once (there's no gap to measure yet).
+  function avgDaysBetween(dates: string[]): number | null {
+    if (dates.length < 2) return null
+    const sorted = dates.map((d) => new Date(d).getTime()).sort((a, b) => a - b)
+    const gaps: number[] = []
+    for (let i = 1; i < sorted.length; i++) {
+      gaps.push((sorted[i] - sorted[i - 1]) / (1000 * 60 * 60 * 24))
+    }
+    return gaps.reduce((sum, g) => sum + g, 0) / gaps.length
   }
 
   const enriched = (customers || []).map((c) => {
@@ -101,6 +118,8 @@ export async function GET(req: NextRequest) {
     const isWinBackCandidate =
       effectiveStatus !== 'active' && daysSinceLastOrder !== null && daysSinceLastOrder >= 14 && daysSinceLastOrder < 90
 
+    const avgDaysBetweenOrders = avgDaysBetween(orderDatesByCustomer.get(c.id) || [])
+
     return {
       ...c,
       lastOrderAt,
@@ -112,6 +131,7 @@ export async function GET(req: NextRequest) {
       isLoyal,
       isWinBackCandidate,
       effectiveStatus,
+      avgDaysBetweenOrders,
     }
   })
 

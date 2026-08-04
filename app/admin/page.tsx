@@ -20,6 +20,7 @@ type Customer = {
   postcode: string | null
   subscription_status: string | null
   effectiveStatus?: string | null
+  avgDaysBetweenOrders?: number | null
   orders_completed: number | null
   standing_plan_size: number | null
   standing_delivery_day: string | null
@@ -644,6 +645,31 @@ export default function AdminDashboard() {
       setTimeout(() => setCopiedListKey((k) => (k === key ? null : k)), 2500)
     })
   }
+
+  const repeatPurchaseStats = useMemo(() => {
+    // Base is customers who've ordered at least once — repeat rate measures
+    // how many of those come back, not how many of ALL signups do.
+    const withAtLeastOne = customers.filter((c) => c.orderCount >= 1)
+    const base = withAtLeastOne.length || 1
+
+    const pctAtLeast = (n: number) =>
+      Math.round((withAtLeastOne.filter((c) => c.orderCount >= n).length / base) * 100)
+
+    const gaps = customers
+      .map((c) => c.avgDaysBetweenOrders)
+      .filter((g): g is number => g !== null && g !== undefined)
+
+    const avgReorderDays =
+      gaps.length > 0 ? Math.round(gaps.reduce((sum, g) => sum + g, 0) / gaps.length) : null
+
+    return {
+      customersWithOrders: withAtLeastOne.length,
+      second: pctAtLeast(2),
+      third: pctAtLeast(3),
+      fourth: pctAtLeast(4),
+      avgReorderDays,
+    }
+  }, [customers])
 
   const filteredOrders = useMemo(
     () =>
@@ -1470,6 +1496,29 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="insights-block">
+              <h2 className="insights-block-title">Repeat purchase & reorder timing</h2>
+              <p className="map-intro">
+                Based on {repeatPurchaseStats.customersWithOrders} customer
+                {repeatPurchaseStats.customersWithOrders !== 1 ? 's' : ''} who've ordered at
+                least once.
+              </p>
+              <div className="stat-grid">
+                <StatCard label="Ordered 2+ times" value={`${repeatPurchaseStats.second}%`} />
+                <StatCard label="Ordered 3+ times" value={`${repeatPurchaseStats.third}%`} />
+                <StatCard label="Ordered 4+ times" value={`${repeatPurchaseStats.fourth}%`} />
+                <StatCard
+                  label="Avg. days between orders"
+                  value={
+                    repeatPurchaseStats.avgReorderDays !== null
+                      ? `${repeatPurchaseStats.avgReorderDays}d`
+                      : '—'
+                  }
+                  accent
+                />
               </div>
             </div>
 
