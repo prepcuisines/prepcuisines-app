@@ -20,6 +20,10 @@ function daysSince(dateStr: string | null): number | null {
   return Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24))
 }
 
+// Every account here was created during pre-launch testing, not by a real
+// customer — the site only started taking real signups from this point on.
+const LAUNCH_CUTOFF = '2026-08-04T00:00:00Z'
+
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
@@ -30,6 +34,7 @@ export async function GET(req: NextRequest) {
     .select(
       'id, full_name, email, phone, house_number, street, postcode, subscription_status, orders_completed, standing_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, created_at'
     )
+    .gte('created_at', LAUNCH_CUTOFF)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -44,6 +49,7 @@ export async function GET(req: NextRequest) {
         .from('customer_window_orders')
         .select('customer_id, created_at, total_amount')
         .in('customer_id', ids)
+        .gte('created_at', LAUNCH_CUTOFF)
         .order('created_at', { ascending: false })
     : { data: [] }
 
