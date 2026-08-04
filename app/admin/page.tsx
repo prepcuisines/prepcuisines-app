@@ -175,28 +175,44 @@ export default function AdminDashboard() {
 
   const loadCustomers = async () => {
     setLoading(true)
-    const res = await fetch('/api/admin/customers')
-    if (res.status === 401) {
-      setAuthenticated(false)
+    try {
+      const res = await fetch('/api/admin/customers')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setCustomers([])
+        return
+      }
+      const data = await res.json()
+      setCustomers(data.customers || [])
+    } catch {
+      setCustomers([])
+    } finally {
       setLoading(false)
-      return
     }
-    const data = await res.json()
-    setCustomers(data.customers || [])
-    setLoading(false)
   }
 
   const loadOrders = async () => {
     setLoading(true)
-    const res = await fetch('/api/admin/orders')
-    if (res.status === 401) {
-      setAuthenticated(false)
+    try {
+      const res = await fetch('/api/admin/orders')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setOrders([])
+        return
+      }
+      const data = await res.json()
+      setOrders(data.orders || [])
+    } catch {
+      setOrders([])
+    } finally {
       setLoading(false)
-      return
     }
-    const data = await res.json()
-    setOrders(data.orders || [])
-    setLoading(false)
   }
 
   const submitManualOrder = async (e: React.FormEvent) => {
@@ -223,6 +239,14 @@ export default function AdminDashboard() {
         return { qty: 1, name: line, price: 0 }
       })
 
+    // Turn the picked date (2026-08-31) into a friendly label like
+    // "Monday — 31/08/2026" so it displays the same way as real orders.
+    const deliveryDayLabel = addOrderForm.deliveryDay
+      ? `${new Date(addOrderForm.deliveryDay + 'T00:00:00').toLocaleDateString('en-GB', {
+          weekday: 'long',
+        })} — ${new Date(addOrderForm.deliveryDay + 'T00:00:00').toLocaleDateString('en-GB')}`
+      : ''
+
     const res = await fetch('/api/admin/manual-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -230,7 +254,7 @@ export default function AdminDashboard() {
         customerName: addOrderForm.customerName,
         customerEmail: addOrderForm.customerEmail,
         postcode: addOrderForm.postcode,
-        deliveryDay: addOrderForm.deliveryDay,
+        deliveryDay: deliveryDayLabel,
         totalAmount: addOrderForm.totalAmount,
         items,
       }),
@@ -258,18 +282,26 @@ export default function AdminDashboard() {
 
   const loadMenu = async () => {
     setLoading(true)
-    const res = await fetch('/api/admin/menu')
-    if (res.status === 401) {
-      setAuthenticated(false)
+    try {
+      const res = await fetch('/api/admin/menu')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setMenuLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setMenuItems(data.menuItems || [])
+      setMenuWindows(data.windows || [])
+      setSelectedByWindow(data.selectedByWindow || {})
+      setMenuLoaded(true)
+    } catch {
+      setMenuLoaded(true)
+    } finally {
       setLoading(false)
-      return
     }
-    const data = await res.json()
-    setMenuItems(data.menuItems || [])
-    setMenuWindows(data.windows || [])
-    setSelectedByWindow(data.selectedByWindow || {})
-    setMenuLoaded(true)
-    setLoading(false)
   }
 
   const toggleMenuItem = async (windowId: string, itemId: string, currentlyOn: boolean) => {
@@ -315,16 +347,26 @@ export default function AdminDashboard() {
 
   const loadMapPoints = async () => {
     setLoading(true)
-    const res = await fetch('/api/admin/order-locations')
-    if (res.status === 401) {
-      setAuthenticated(false)
+    try {
+      const res = await fetch('/api/admin/order-locations')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setMapPoints([])
+        setMapLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setMapPoints(data.points || [])
+      setMapLoaded(true)
+    } catch {
+      setMapPoints([])
+      setMapLoaded(true)
+    } finally {
       setLoading(false)
-      return
     }
-    const data = await res.json()
-    setMapPoints(data.points || [])
-    setMapLoaded(true)
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -788,12 +830,12 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="field-label" htmlFor="ao-day">
-                      Delivery day
+                      Delivery date
                     </label>
                     <input
                       id="ao-day"
+                      type="date"
                       className="text-input"
-                      placeholder="Wednesday or Sunday"
                       value={addOrderForm.deliveryDay}
                       onChange={(e) =>
                         setAddOrderForm((f) => ({ ...f, deliveryDay: e.target.value }))
