@@ -17,7 +17,7 @@ const steps = [
   { num: '02', title: 'We get cheffing & cooking', desc: 'Fresh ingredients, expert preparation', image: '/cheffing-cooking.jpg' },
   { num: '03', title: 'Heat, eat, enjoy & repeat', desc: 'Ready in minutes, savoured for longer', image: `${CDN}/Photoroom_20250304_051535.jpg` },
   { num: '04', title: 'Embrace the gains', desc: 'Feel the difference from day one', image: '/embrace-the-gains.jpg' },
-
+]
 const plans = [
   { tag: 'Popular', name: 'Lean & Clean', desc: 'High protein, low calorie meals designed to help you cut without sacrificing taste or energy.', image: `${CDN}/ground-beef-pepper-rice-bowl-683x1024.webp` },
   { tag: 'Best Value', name: 'Bulk & Build', desc: 'High calorie, muscle-building meals packed with clean carbs and quality protein to fuel serious gains.', image: `${CDN}/4BAF6F67-DE09-434C-8BF7-E92FB7F2040A.jpg` },
