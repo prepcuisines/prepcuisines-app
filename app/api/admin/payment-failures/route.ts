@@ -64,5 +64,3 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ success: true })
 }
-PCEOF
-cat > app/admin/payment-failures/page.tsx << 'PCEOF'
