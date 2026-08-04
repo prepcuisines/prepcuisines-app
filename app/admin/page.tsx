@@ -19,7 +19,6 @@ type Customer = {
   street: string | null
   postcode: string | null
   subscription_status: string | null
-  effectiveStatus?: string | null
   orders_completed: number | null
   standing_plan_size: number | null
   standing_delivery_day: string | null
@@ -91,7 +90,6 @@ function StatusBadge({ status }: { status: string | null }) {
     active: { label: 'Active', tone: 'active' },
     cancelled: { label: 'Cancelled', tone: 'muted' },
     none: { label: 'PAYG', tone: 'warn' },
-    incomplete: { label: 'Incomplete signup', tone: 'warn' },
   }
   const entry = map[status || 'none'] || { label: status || 'None', tone: 'muted' }
   return <span className={`pill pill-${entry.tone}`}>{entry.label}</span>
@@ -110,8 +108,12 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [segment, setSegment] = useState('all')
   const [customerSearch, setCustomerSearch] = useState('')
+  const [customerDateField, setCustomerDateField] = useState<'signup' | 'last_order' | 'delivery_day'>(
+    'signup'
+  )
   const [customerDateFrom, setCustomerDateFrom] = useState('')
   const [customerDateTo, setCustomerDateTo] = useState('')
+  const [customerSingleDate, setCustomerSingleDate] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -480,27 +482,25 @@ export default function AdminDashboard() {
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
-    const active = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'active').length
-    const cancelled = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'cancelled').length
-    const payg = customers.filter((c) => {
-      const s = c.effectiveStatus ?? c.subscription_status
-      return !s || s === 'none' || s === 'incomplete'
-    }).length
+    const active = customers.filter((c) => c.subscription_status === 'active').length
+    const cancelled = customers.filter((c) => c.subscription_status === 'cancelled').length
+    const payg = customers.filter(
+      (c) => !c.subscription_status || c.subscription_status === 'none'
+    ).length
     return { active, cancelled, payg, total: customers.length }
   }, [customers])
 
   const filteredCustomers = useMemo(
     () =>
       customers.filter((c) => {
-        const status = c.effectiveStatus ?? c.subscription_status
         const matchesSegment = (() => {
           switch (segment) {
             case 'active':
-              return status === 'active'
+              return c.subscription_status === 'active'
             case 'cancelled':
-              return status === 'cancelled'
+              return c.subscription_status === 'cancelled'
             case 'payg':
-              return !status || status === 'none' || status === 'incomplete'
+              return !c.subscription_status || c.subscription_status === 'none'
             case 'lapsed_30':
               return c.lapsedTier === '30'
             case 'lapsed_60':
@@ -524,13 +524,40 @@ export default function AdminDashboard() {
           (c.email || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
           (c.postcode || '').toLowerCase().includes(customerSearch.toLowerCase())
 
-        const signupDate = c.created_at ? c.created_at.slice(0, 10) : null
-        const matchesDateFrom = !customerDateFrom || (signupDate && signupDate >= customerDateFrom)
-        const matchesDateTo = !customerDateTo || (signupDate && signupDate <= customerDateTo)
+        const matchesDate = (() => {
+          if (customerDateField === 'delivery_day') {
+            if (!customerSingleDate) return true
+            const weekday = new Date(`${customerSingleDate}T00:00:00`).toLocaleDateString('en-GB', {
+              weekday: 'long',
+            })
+            return c.standing_delivery_day === weekday || c.second_delivery_day === weekday
+          }
 
-        return matchesSegment && matchesSearch && matchesDateFrom && matchesDateTo
+          const dateStr =
+            customerDateField === 'last_order'
+              ? c.lastOrderAt
+                ? c.lastOrderAt.slice(0, 10)
+                : null
+              : c.created_at
+              ? c.created_at.slice(0, 10)
+              : null
+
+          const matchesFrom = !customerDateFrom || (dateStr && dateStr >= customerDateFrom)
+          const matchesTo = !customerDateTo || (dateStr && dateStr <= customerDateTo)
+          return matchesFrom && matchesTo
+        })()
+
+        return matchesSegment && matchesSearch && matchesDate
       }),
-    [customers, segment, customerSearch, customerDateFrom, customerDateTo]
+    [
+      customers,
+      segment,
+      customerSearch,
+      customerDateField,
+      customerDateFrom,
+      customerDateTo,
+      customerSingleDate,
+    ]
   )
 
   const filteredOrders = useMemo(
@@ -791,36 +818,77 @@ export default function AdminDashboard() {
             </div>
 
             <div className="toolbar">
-              <label className="field-label" htmlFor="cust-date-from" style={{ marginBottom: 0 }}>
-                Signed up from
+              <label className="field-label" htmlFor="cust-date-field" style={{ marginBottom: 0 }}>
+                Filter by
               </label>
-              <input
-                id="cust-date-from"
-                type="date"
+              <select
+                id="cust-date-field"
                 className="text-input search-input"
-                value={customerDateFrom}
-                onChange={(e) => setCustomerDateFrom(e.target.value)}
-              />
-              <label className="field-label" htmlFor="cust-date-to" style={{ marginBottom: 0 }}>
-                to
-              </label>
-              <input
-                id="cust-date-to"
-                type="date"
-                className="text-input search-input"
-                value={customerDateTo}
-                onChange={(e) => setCustomerDateTo(e.target.value)}
-              />
-              {(customerDateFrom || customerDateTo) && (
-                <button
-                  className="segment-pill"
-                  onClick={() => {
-                    setCustomerDateFrom('')
-                    setCustomerDateTo('')
-                  }}
-                >
-                  Clear dates
-                </button>
+                value={customerDateField}
+                onChange={(e) => {
+                  setCustomerDateField(e.target.value as typeof customerDateField)
+                  setCustomerDateFrom('')
+                  setCustomerDateTo('')
+                  setCustomerSingleDate('')
+                }}
+              >
+                <option value="signup">Signed up date</option>
+                <option value="last_order">Last order date</option>
+                <option value="delivery_day">Delivery day (Wed/Sun match)</option>
+              </select>
+
+              {customerDateField === 'delivery_day' ? (
+                <>
+                  <label className="field-label" htmlFor="cust-date-single" style={{ marginBottom: 0 }}>
+                    On date
+                  </label>
+                  <input
+                    id="cust-date-single"
+                    type="date"
+                    className="text-input search-input"
+                    value={customerSingleDate}
+                    onChange={(e) => setCustomerSingleDate(e.target.value)}
+                  />
+                  {customerSingleDate && (
+                    <button className="segment-pill" onClick={() => setCustomerSingleDate('')}>
+                      Clear date
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <label className="field-label" htmlFor="cust-date-from" style={{ marginBottom: 0 }}>
+                    from
+                  </label>
+                  <input
+                    id="cust-date-from"
+                    type="date"
+                    className="text-input search-input"
+                    value={customerDateFrom}
+                    onChange={(e) => setCustomerDateFrom(e.target.value)}
+                  />
+                  <label className="field-label" htmlFor="cust-date-to" style={{ marginBottom: 0 }}>
+                    to
+                  </label>
+                  <input
+                    id="cust-date-to"
+                    type="date"
+                    className="text-input search-input"
+                    value={customerDateTo}
+                    onChange={(e) => setCustomerDateTo(e.target.value)}
+                  />
+                  {(customerDateFrom || customerDateTo) && (
+                    <button
+                      className="segment-pill"
+                      onClick={() => {
+                        setCustomerDateFrom('')
+                        setCustomerDateTo('')
+                      }}
+                    >
+                      Clear dates
+                    </button>
+                  )}
+                </>
               )}
             </div>
 
@@ -857,7 +925,7 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td>
-                          <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
+                          <StatusBadge status={c.subscription_status} />
                         </td>
                         <td>{c.orderCount}</td>
                         <td className="num">{money(c.totalSpend)}</td>
