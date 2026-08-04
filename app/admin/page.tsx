@@ -19,6 +19,7 @@ type Customer = {
   street: string | null
   postcode: string | null
   subscription_status: string | null
+  effectiveStatus?: string | null
   orders_completed: number | null
   standing_plan_size: number | null
   standing_delivery_day: string | null
@@ -90,6 +91,7 @@ function StatusBadge({ status }: { status: string | null }) {
     active: { label: 'Active', tone: 'active' },
     cancelled: { label: 'Cancelled', tone: 'muted' },
     none: { label: 'PAYG', tone: 'warn' },
+    incomplete: { label: 'Incomplete signup', tone: 'warn' },
   }
   const entry = map[status || 'none'] || { label: status || 'None', tone: 'muted' }
   return <span className={`pill pill-${entry.tone}`}>{entry.label}</span>
@@ -478,25 +480,27 @@ export default function AdminDashboard() {
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
-    const active = customers.filter((c) => c.subscription_status === 'active').length
-    const cancelled = customers.filter((c) => c.subscription_status === 'cancelled').length
-    const payg = customers.filter(
-      (c) => !c.subscription_status || c.subscription_status === 'none'
-    ).length
+    const active = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'active').length
+    const cancelled = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'cancelled').length
+    const payg = customers.filter((c) => {
+      const s = c.effectiveStatus ?? c.subscription_status
+      return !s || s === 'none' || s === 'incomplete'
+    }).length
     return { active, cancelled, payg, total: customers.length }
   }, [customers])
 
   const filteredCustomers = useMemo(
     () =>
       customers.filter((c) => {
+        const status = c.effectiveStatus ?? c.subscription_status
         const matchesSegment = (() => {
           switch (segment) {
             case 'active':
-              return c.subscription_status === 'active'
+              return status === 'active'
             case 'cancelled':
-              return c.subscription_status === 'cancelled'
+              return status === 'cancelled'
             case 'payg':
-              return !c.subscription_status || c.subscription_status === 'none'
+              return !status || status === 'none' || status === 'incomplete'
             case 'lapsed_30':
               return c.lapsedTier === '30'
             case 'lapsed_60':
@@ -853,7 +857,7 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td>
-                          <StatusBadge status={c.subscription_status} />
+                          <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
                         </td>
                         <td>{c.orderCount}</td>
                         <td className="num">{money(c.totalSpend)}</td>
