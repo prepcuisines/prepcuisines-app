@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '../Header'
 
-export default function OrderConfirmedPage() {
+function OrderConfirmedInner() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
   const [checking, setChecking] = useState(true)
@@ -57,5 +57,13 @@ export default function OrderConfirmedPage() {
         </div>
       </div>
     </>
+  )
+}
+
+export default function OrderConfirmedPage() {
+  return (
+    <Suspense fallback={null}>
+      <OrderConfirmedInner />
+    </Suspense>
   )
 }
