@@ -111,6 +111,18 @@ export default function AdminDashboard() {
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const [showAddOrder, setShowAddOrder] = useState(false)
+  const [addOrderForm, setAddOrderForm] = useState({
+    customerName: '',
+    customerEmail: '',
+    postcode: '',
+    deliveryDay: '',
+    totalAmount: '',
+    itemsText: '',
+  })
+  const [addOrderStatus, setAddOrderStatus] = useState<'idle' | 'saving' | 'error'>('idle')
+  const [addOrderError, setAddOrderError] = useState<string | null>(null)
+
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
     const res = await fetch('/api/admin/overview')
@@ -172,11 +184,77 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
+  const submitManualOrder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAddOrderStatus('saving')
+    setAddOrderError(null)
+
+    // Parses lines like "2x Marry-Me Salmon @ 8.00" into item objects.
+    // Falls back to treating the whole line as a name with qty 1 if the
+    // shorthand isn't used, so it never blocks on formatting.
+    const items = addOrderForm.itemsText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const match = line.match(/^(\d+)\s*x\s*(.+?)(?:\s*@\s*([\d.]+))?$/i)
+        if (match) {
+          return {
+            qty: Number(match[1]),
+            name: match[2].trim(),
+            price: match[3] ? Number(match[3]) : 0,
+          }
+        }
+        return { qty: 1, name: line, price: 0 }
+      })
+
+    const res = await fetch('/api/admin/manual-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: addOrderForm.customerName,
+        customerEmail: addOrderForm.customerEmail,
+        postcode: addOrderForm.postcode,
+        deliveryDay: addOrderForm.deliveryDay,
+        totalAmount: addOrderForm.totalAmount,
+        items,
+      }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setAddOrderError(data.error || 'Something went wrong saving this order.')
+      setAddOrderStatus('error')
+      return
+    }
+
+    setAddOrderStatus('idle')
+    setShowAddOrder(false)
+    setAddOrderForm({
+      customerName: '',
+      customerEmail: '',
+      postcode: '',
+      deliveryDay: '',
+      totalAmount: '',
+      itemsText: '',
+    })
+    loadOrders()
+  }
+
   useEffect(() => {
     if (!authenticated) return
     if (tab === 'customers' && customers.length === 0) loadCustomers()
     if (tab === 'orders' && orders.length === 0) loadOrders()
   }, [tab, authenticated])
+
+  const statusBreakdown = useMemo(() => {
+    const active = customers.filter((c) => c.subscription_status === 'active').length
+    const cancelled = customers.filter((c) => c.subscription_status === 'cancelled').length
+    const payg = customers.filter(
+      (c) => !c.subscription_status || c.subscription_status === 'none'
+    ).length
+    return { active, cancelled, payg, total: customers.length }
+  }, [customers])
 
   const filteredCustomers = useMemo(
     () =>
@@ -350,6 +428,37 @@ export default function AdminDashboard() {
 
         {tab === 'customers' && (
           <section>
+            <div className="status-breakdown">
+              <button
+                className={`status-card ${segment === 'active' ? 'status-card-active' : ''}`}
+                onClick={() => setSegment('active')}
+              >
+                <div className="status-card-label">Subscribed</div>
+                <div className="status-card-value">{statusBreakdown.active}</div>
+              </button>
+              <button
+                className={`status-card ${segment === 'cancelled' ? 'status-card-active' : ''}`}
+                onClick={() => setSegment('cancelled')}
+              >
+                <div className="status-card-label">Cancelled</div>
+                <div className="status-card-value">{statusBreakdown.cancelled}</div>
+              </button>
+              <button
+                className={`status-card ${segment === 'payg' ? 'status-card-active' : ''}`}
+                onClick={() => setSegment('payg')}
+              >
+                <div className="status-card-label">Pay As You Go</div>
+                <div className="status-card-value">{statusBreakdown.payg}</div>
+              </button>
+              <button
+                className={`status-card ${segment === 'all' ? 'status-card-active' : ''}`}
+                onClick={() => setSegment('all')}
+              >
+                <div className="status-card-label">All customers</div>
+                <div className="status-card-value">{statusBreakdown.total}</div>
+              </button>
+            </div>
+
             <div className="toolbar">
               <div className="segment-pills" role="tablist" aria-label="Customer segment">
                 {segmentFilters.map((s) => (
@@ -428,6 +537,113 @@ export default function AdminDashboard() {
 
         {tab === 'orders' && (
           <section>
+            <div className="orders-header-row">
+              <button className="btn-primary" onClick={() => setShowAddOrder((v) => !v)}>
+                {showAddOrder ? 'Cancel' : '+ Add order manually'}
+              </button>
+            </div>
+
+            {showAddOrder && (
+              <form className="add-order-panel" onSubmit={submitManualOrder}>
+                <div className="form-grid">
+                  <div>
+                    <label className="field-label" htmlFor="ao-name">
+                      Customer name *
+                    </label>
+                    <input
+                      id="ao-name"
+                      required
+                      className="text-input"
+                      value={addOrderForm.customerName}
+                      onChange={(e) =>
+                        setAddOrderForm((f) => ({ ...f, customerName: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="ao-email">
+                      Email
+                    </label>
+                    <input
+                      id="ao-email"
+                      type="email"
+                      className="text-input"
+                      value={addOrderForm.customerEmail}
+                      onChange={(e) =>
+                        setAddOrderForm((f) => ({ ...f, customerEmail: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="ao-postcode">
+                      Postcode
+                    </label>
+                    <input
+                      id="ao-postcode"
+                      className="text-input"
+                      value={addOrderForm.postcode}
+                      onChange={(e) =>
+                        setAddOrderForm((f) => ({ ...f, postcode: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="ao-day">
+                      Delivery day
+                    </label>
+                    <input
+                      id="ao-day"
+                      className="text-input"
+                      placeholder="Wednesday or Sunday"
+                      value={addOrderForm.deliveryDay}
+                      onChange={(e) =>
+                        setAddOrderForm((f) => ({ ...f, deliveryDay: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="ao-total">
+                      Total amount (£) *
+                    </label>
+                    <input
+                      id="ao-total"
+                      type="number"
+                      step="0.01"
+                      required
+                      className="text-input"
+                      value={addOrderForm.totalAmount}
+                      onChange={(e) =>
+                        setAddOrderForm((f) => ({ ...f, totalAmount: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <label className="field-label" htmlFor="ao-items">
+                  Items (one per line — e.g. "2x Marry-Me Salmon @ 8.00")
+                </label>
+                <textarea
+                  id="ao-items"
+                  className="text-input textarea-input"
+                  rows={4}
+                  value={addOrderForm.itemsText}
+                  onChange={(e) =>
+                    setAddOrderForm((f) => ({ ...f, itemsText: e.target.value }))
+                  }
+                />
+
+                {addOrderError && <p className="error-text">{addOrderError}</p>}
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={addOrderStatus === 'saving'}
+                >
+                  {addOrderStatus === 'saving' ? 'Saving…' : 'Save order'}
+                </button>
+              </form>
+            )}
+
             {orderTally.length > 0 && (
               <div className="tally-row">
                 {orderTally.map((t) => (
@@ -699,6 +915,76 @@ function Styles() {
       }
 
       /* Stat cards */
+      .orders-header-row {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 14px;
+      }
+      .orders-header-row .btn-primary {
+        margin-top: 0;
+      }
+      .add-order-panel {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      .textarea-input {
+        resize: vertical;
+        font-family: inherit;
+        margin-top: 4px;
+        margin-bottom: 14px;
+      }
+
+      .status-breakdown {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .status-card {
+        text-align: left;
+        font-family: inherit;
+        cursor: pointer;
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 14px 16px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      .status-card:hover {
+        border-color: var(--pc-gold, #c9a84c);
+      }
+      .status-card:focus-visible {
+        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline-offset: 2px;
+      }
+      .status-card-active {
+        border-color: var(--pc-green, #2d3510);
+        box-shadow: inset 0 0 0 1px var(--pc-green, #2d3510);
+      }
+      .status-card-label {
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--pc-green-mid, #3a4516);
+        margin-bottom: 6px;
+      }
+      .status-card-value {
+        font-family: var(--font-playfair), serif;
+        font-size: 24px;
+        font-weight: 900;
+        color: var(--pc-green, #2d3510);
+      }
+
       .stat-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
