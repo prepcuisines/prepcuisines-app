@@ -11,42 +11,9 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
-// Everything before go-live was pre-launch test data, same cutoff used
-// elsewhere in admin.
+// Everything placed before go-live was test data from setting up the site,
+// not real customers — excluded here so it never shows up as if it were.
 const LAUNCH_CUTOFF = '2026-08-04T00:00:00Z'
-
-// Looks up lat/lon for postcodes via postcodes.io — a free, keyless UK
-// postcode API — so we can plot orders without needing a paid geocoding
-// service or a mapping library dependency.
-async function geocodePostcodes(postcodes: string[]) {
-  if (postcodes.length === 0) return new Map<string, { lat: number; lon: number }>()
-
-  const results = new Map<string, { lat: number; lon: number }>()
-  // postcodes.io bulk lookup accepts up to 100 per request.
-  for (let i = 0; i < postcodes.length; i += 100) {
-    const batch = postcodes.slice(i, i + 100)
-    try {
-      const res = await fetch('https://api.postcodes.io/postcodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postcodes: batch }),
-      })
-      const data = await res.json()
-      for (const entry of data.result || []) {
-        if (entry.result) {
-          results.set(entry.query.toUpperCase().replace(/\s+/g, ''), {
-            lat: entry.result.latitude,
-            lon: entry.result.longitude,
-          })
-        }
-      }
-    } catch {
-      // Skip failures — a few unresolvable postcodes shouldn't break the
-      // whole map.
-    }
-  }
-  return results
-}
 
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
@@ -55,32 +22,42 @@ export async function GET(req: NextRequest) {
 
   const { data: orders, error } = await supabase
     .from('customer_window_orders')
-    .select('ship_postcode')
+    .select(
+      'id, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, menu_windows(week_start_date)'
+    )
     .gte('created_at', LAUNCH_CUTOFF)
-    .not('ship_postcode', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(500)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const countByPostcode = new Map<string, number>()
-  for (const o of orders || []) {
-    const clean = (o.ship_postcode || '').toUpperCase().replace(/\s+/g, '')
-    if (!clean) continue
-    countByPostcode.set(clean, (countByPostcode.get(clean) || 0) + 1)
-  }
+  const customerIds = [
+    ...new Set((orders || []).map((o) => o.customer_id).filter(Boolean)),
+  ] as string[]
 
-  const uniquePostcodes = Array.from(countByPostcode.keys())
-  const coords = await geocodePostcodes(uniquePostcodes)
+  const { data: profiles } = customerIds.length
+    ? await supabase
+        .from('customer_profiles')
+        .select('id, full_name, email')
+        .in('id', customerIds)
+    : { data: [] }
 
-  const points = uniquePostcodes
-    .filter((p) => coords.has(p))
-    .map((p) => ({
-      postcode: p,
-      count: countByPostcode.get(p) || 0,
-      lat: coords.get(p)!.lat,
-      lon: coords.get(p)!.lon,
-    }))
+  const withNames = (orders || []).map((o: any) => {
+    const profile = (profiles || []).find((p) => p.id === o.customer_id)
+    const menuWindow = Array.isArray(o.menu_windows)
+      ? o.menu_windows[0] ?? null
+      : o.menu_windows ?? null
 
-  return NextResponse.json({ points })
+    return {
+      ...o,
+      menu_windows: menuWindow,
+      // PAYG orders have customer_id null — shipping fields carry the name/contact instead.
+      customer_name: profile?.full_name || o.ship_full_name || 'Guest (PAYG)',
+      customer_email: profile?.email || o.ship_email || null,
+    }
+  })
+
+  return NextResponse.json({ orders: withNames })
 }
