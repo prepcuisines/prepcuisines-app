@@ -78,8 +78,19 @@ export async function GET(req: NextRequest) {
     const orderCount = orderCountByCustomer.get(c.id) || 0
     const totalSpend = totalSpendByCustomer.get(c.id) || 0
 
+    // A subscription flag alone doesn't make someone "active" — they need
+    // an actual plan set up or at least one real order. Someone marked
+    // active in the database with no plan and no orders is an incomplete
+    // signup, not a live subscriber, and shouldn't be counted or shown as
+    // Active anywhere in the dashboard.
+    const hasPlan = !!c.standing_plan_size
+    const effectiveStatus =
+      c.subscription_status === 'active' && !hasPlan && orderCount === 0
+        ? 'incomplete'
+        : c.subscription_status
+
     let lapsedTier: '30' | '60' | '90+' | null = null
-    if (c.subscription_status !== 'active' && daysSinceLastOrder !== null) {
+    if (effectiveStatus !== 'active' && daysSinceLastOrder !== null) {
       if (daysSinceLastOrder >= 90) lapsedTier = '90+'
       else if (daysSinceLastOrder >= 60) lapsedTier = '60'
       else if (daysSinceLastOrder >= 30) lapsedTier = '30'
@@ -88,7 +99,7 @@ export async function GET(req: NextRequest) {
     const isNewThisWeek = daysSince(c.created_at) !== null && daysSince(c.created_at)! <= 7
     const isLoyal = orderCount >= 8 // rough loyalty threshold, adjustable later
     const isWinBackCandidate =
-      c.subscription_status !== 'active' && daysSinceLastOrder !== null && daysSinceLastOrder >= 14 && daysSinceLastOrder < 90
+      effectiveStatus !== 'active' && daysSinceLastOrder !== null && daysSinceLastOrder >= 14 && daysSinceLastOrder < 90
 
     return {
       ...c,
@@ -100,6 +111,7 @@ export async function GET(req: NextRequest) {
       isNewThisWeek,
       isLoyal,
       isWinBackCandidate,
+      effectiveStatus,
     }
   })
 
