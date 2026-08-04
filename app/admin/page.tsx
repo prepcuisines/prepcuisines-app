@@ -101,7 +101,9 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'orders' | 'menu' | 'map'>('overview')
+  const [tab, setTab] = useState<'overview' | 'customers' | 'orders' | 'menu' | 'map' | 'insights'>(
+    'overview'
+  )
 
   const [overview, setOverview] = useState<Overview | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -144,6 +146,10 @@ export default function AdminDashboard() {
   >([])
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapDateFilter, setMapDateFilter] = useState('')
+
+  const [topDishes, setTopDishes] = useState<{ name: string; qty: number; revenue: number }[]>([])
+  const [topDishesPeriod, setTopDishesPeriod] = useState<'week' | 'month' | 'all'>('week')
+  const [topDishesLoaded, setTopDishesLoaded] = useState(false)
   const leafletMapRef = useRef<HTMLDivElement>(null)
   const leafletInstanceRef = useRef<any>(null)
 
@@ -381,6 +387,30 @@ export default function AdminDashboard() {
     }
   }
 
+  const loadTopDishes = async (period: 'week' | 'month' | 'all') => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/top-dishes?period=${period}`)
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setTopDishes([])
+        setTopDishesLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setTopDishes(data.dishes || [])
+      setTopDishesLoaded(true)
+    } catch {
+      setTopDishes([])
+      setTopDishesLoaded(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Loads Leaflet from a CDN (same approach as the ops hub) so we get a
   // real OpenStreetMap-backed map with actual roads/coastline, without
   // adding a new npm dependency to the build.
@@ -479,6 +509,7 @@ export default function AdminDashboard() {
     if (tab === 'orders' && orders.length === 0) loadOrders()
     if (tab === 'menu' && !menuLoaded) loadMenu()
     if (tab === 'map' && !mapLoaded) loadMapPoints()
+    if (tab === 'insights' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -713,6 +744,7 @@ export default function AdminDashboard() {
               { key: 'orders', label: 'Orders' },
               { key: 'menu', label: 'Menu' },
               { key: 'map', label: 'Map' },
+              { key: 'insights', label: 'Insights' },
             ] as const
           ).map((t) => (
             <button
@@ -738,7 +770,9 @@ export default function AdminDashboard() {
               ? 'Orders'
               : tab === 'menu'
               ? 'Menu'
-              : 'Order Map'}
+              : tab === 'map'
+              ? 'Order Map'
+              : 'Insights'}
           </h1>
         </header>
 
@@ -1353,6 +1387,70 @@ export default function AdminDashboard() {
             )}
           </section>
         )}
+
+        {tab === 'insights' && (
+          <section>
+            <div className="insights-block">
+              <div className="insights-block-header">
+                <h2 className="insights-block-title">Best-selling dishes</h2>
+                <div className="segment-pills" role="tablist" aria-label="Top dishes period">
+                  {(
+                    [
+                      { key: 'week', label: 'This week' },
+                      { key: 'month', label: 'This month' },
+                      { key: 'all', label: 'All time' },
+                    ] as const
+                  ).map((p) => (
+                    <button
+                      key={p.key}
+                      className={`segment-pill ${topDishesPeriod === p.key ? 'segment-pill-active' : ''}`}
+                      onClick={() => {
+                        setTopDishesPeriod(p.key)
+                        loadTopDishes(p.key)
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="empty-panel">Loading…</div>
+              ) : topDishes.length === 0 ? (
+                <div className="empty-panel">No orders in this period yet.</div>
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Dish</th>
+                        <th>Quantity sold</th>
+                        <th>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topDishes.slice(0, 20).map((d, i) => (
+                        <tr key={d.name}>
+                          <td className="num">{i + 1}</td>
+                          <td>{d.name}</td>
+                          <td className="num">{d.qty}</td>
+                          <td className="num">{money(d.revenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="empty-panel" style={{ marginTop: 20 }}>
+              More insights (repeat purchase rate, reorder timing, email marketing lists,
+              discount performance) are being added here next.
+            </div>
+          </section>
+        )}
       </main>
       <Styles />
     </div>
@@ -1735,6 +1833,25 @@ function Styles() {
       }
       .map-list-count {
         color: var(--pc-green-mid, #3a4516);
+      }
+
+      .insights-block {
+        margin-bottom: 20px;
+      }
+      .insights-block-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .insights-block-title {
+        font-family: var(--font-playfair), serif;
+        font-size: 19px;
+        font-weight: 900;
+        color: var(--pc-green, #2d3510);
+        margin: 0;
       }
 
       @media (max-width: 640px) {
