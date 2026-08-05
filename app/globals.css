@@ -106,8 +106,8 @@ html, body { margin: 0; padding: 0; }
 .pc-plan-btn:hover { background: var(--pc-gold); color: var(--pc-green); border-color: var(--pc-gold); }
 .pc-plan-btn.featured { background: rgba(201,169,110,0.25); }
 .pc-plans-cta { display: flex; justify-content: center; margin-top: 44px; }
-.pc-plans-view-menu-btn { display: inline-flex; align-items: center; gap: 8px; background: transparent; color: var(--pc-gold-light); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 14px 40px; border-radius: 100px; border: 1.5px solid var(--pc-gold); text-decoration: none; transition: all 0.3s ease; }
-.pc-plans-view-menu-btn:hover { background: var(--pc-gold); color: var(--pc-green); }
+.pc-plans-view-menu-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--pc-gold); color: var(--pc-green); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 14px 40px; border-radius: 100px; border: none; text-decoration: none; transition: all 0.3s ease; box-shadow: 0 4px 24px rgba(201,169,110,0.35); }
+.pc-plans-view-menu-btn:hover { background: var(--pc-gold-dark); transform: translateY(-1px); }
 
 .pc-testimonials-section { background: var(--pc-cream); padding: 100px 80px; }
 .pc-testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; }
