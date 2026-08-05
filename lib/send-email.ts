@@ -115,9 +115,9 @@ export async function sendOrderConfirmationEmailToCustomer(
   deliveryDay: string,
   items: OrderConfirmationItem[] = [],
   orderType: string = '',
-  isSubscribed: boolean = false
+  isSubscribed: boolean = false,
+  isFirstOrder: boolean = false
 ) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
   const realItems = items.filter((i) => i.name && i.name !== 'Delivery')
 
   const itemRows = realItems
@@ -134,17 +134,30 @@ export async function sendOrderConfirmationEmailToCustomer(
     )
     .join('')
 
-  const subscriptionNote = isSubscribed
-    ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
-        You're on an active subscription — this order was charged automatically as part of that.
-        You can change your delivery day, choose your favourite meals, skip a week, or cancel any
-        time from your account.
-      </p>`
-    : `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
-        This was a one-off Pay As You Go order — you're not on a subscription, so nothing will be
-        charged again automatically. If you'd like weekly deliveries and better pricing, you can
-        set up a subscription any time.
-      </p>`
+  // First order (subscriber): they just actively placed this one themselves
+  // at signup — it hasn't been "charged automatically" yet, that only
+  // starts from their second order onward. Repeat/auto orders: genuinely
+  // charged automatically as part of their ongoing subscription. PAYG:
+  // one-off, nothing repeats regardless of order number.
+  const subscriptionNote =
+    orderType === 'payg_order'
+      ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
+          This was a one-off Pay As You Go order — you're not on a subscription, so nothing will
+          be charged again automatically. If you'd like weekly deliveries and better pricing, you
+          can set up a subscription any time.
+        </p>`
+      : isSubscribed && isFirstOrder
+      ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
+          This is your first order on your new subscription — you've been charged for it now.
+          From your next delivery onward, we'll charge and prepare your order automatically each
+          week, based on your plan.
+        </p>`
+      : isSubscribed
+      ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
+          You're on an active subscription — this order was charged automatically as part of
+          that.
+        </p>`
+      : ''
 
   await sendEmailViaNeo(
     toEmail,
@@ -199,6 +212,58 @@ export async function sendOrderConfirmationEmailToCustomer(
                 </table>
 
                 ${subscriptionNote}
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="background:#1a2e1a;padding:24px 32px;">
+                <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">
+                  Chef-made · Fresh · Delivered
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    `
+  )
+}
+
+// Sent when the admin marks an order as fulfilled — this is where the
+// account-management links live now, since it's more useful once someone
+// actually has the meals in hand rather than crowding the initial
+// confirmation.
+export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstName: string) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  await sendEmailViaNeo(
+    toEmail,
+    'Your prepcuisines order is on its way',
+    `
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr>
+        <td align="center">
+          <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
+            <tr>
+              <td align="center" style="background:#1a2e1a;padding:20px 32px;">
+                <span style="font-family:Georgia,serif;font-size:22px;color:#f5f0e8;">prepcuisines</span>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="background:#c9a84c;padding:12px 20px;">
+                <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">
+                  🍽️ ORDER FULFILLED
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:40px 36px 32px;">
+                <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
+                  Enjoy your <em style="font-style:italic;">meals!</em>
+                </p>
+                <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+                  Hey ${firstName}, your order has been fulfilled. We hope you love it.
+                </p>
 
                 <table border="0" cellpadding="0" cellspacing="0" width="100%">
                   <tr>

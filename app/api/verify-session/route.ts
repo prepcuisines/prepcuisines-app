@@ -120,6 +120,7 @@ export async function GET(req: NextRequest) {
               deliveryDay || 'your',
               orderItemsSnapshot,
               'signup_order',
+              true,
               true
             )
             await klaviyoTrackEvent(
@@ -197,6 +198,7 @@ export async function GET(req: NextRequest) {
             deliveryDay || 'your',
             orderItemsSnapshot,
             'payg_order',
+            false,
             false
           )
           await klaviyoTrackEvent(

@@ -245,7 +245,8 @@ export async function POST(req: NextRequest) {
             deliveryDay || 'your',
             orderItemsSnapshot,
             'manually_ordered',
-            true
+            true,
+            ordersCompleted === 0
           )
           await klaviyoTrackEvent(
             profile.email,

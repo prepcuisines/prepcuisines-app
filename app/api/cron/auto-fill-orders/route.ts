@@ -204,7 +204,8 @@ export async function POST(req: NextRequest) {
                 window.delivery_day || 'your',
                 orderItemsSnapshot,
                 'auto_filled',
-                true
+                true,
+                false
               )
               await klaviyoTrackEvent(
                 sub.email,

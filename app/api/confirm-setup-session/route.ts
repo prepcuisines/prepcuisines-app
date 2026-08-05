@@ -240,7 +240,8 @@ export async function GET(req: NextRequest) {
           deliveryDay || 'your',
           orderItemsSnapshot,
           'manually_ordered',
-          true
+          true,
+          ordersCompleted === 0
         )
       }
 

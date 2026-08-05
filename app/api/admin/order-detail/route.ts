@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { sendOrderFulfilledEmailToCustomer } from '@/lib/send-email'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -98,6 +99,36 @@ export async function PATCH(req: NextRequest) {
       .update({ fulfilled: !!payload.value })
       .eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Only fires when marking AS fulfilled, not when un-marking it — and
+    // only if we can actually find an email to send it to.
+    if (payload.value) {
+      const { data: order } = await supabase
+        .from('customer_window_orders')
+        .select('customer_id, ship_full_name, ship_email')
+        .eq('id', id)
+        .maybeSingle()
+
+      let email = order?.ship_email || null
+      let name = order?.ship_full_name || 'there'
+
+      if (order?.customer_id) {
+        const { data: profile } = await supabase
+          .from('customer_profiles')
+          .select('email, full_name')
+          .eq('id', order.customer_id)
+          .maybeSingle()
+        if (profile?.email) {
+          email = profile.email
+          name = profile.full_name || name
+        }
+      }
+
+      if (email) {
+        await sendOrderFulfilledEmailToCustomer(email, name.split(' ')[0])
+      }
+    }
+
     return NextResponse.json({ success: true })
   }
 
