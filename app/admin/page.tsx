@@ -832,6 +832,24 @@ export default function AdminDashboard() {
     setOrderDetail(null)
   }
 
+  const deleteOrder = async (orderId: string) => {
+    setOrderActionStatus('saving')
+    try {
+      const res = await fetch(`/api/admin/order-detail?id=${orderId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setOrderActionError(data.error || 'Could not delete this order')
+        setOrderActionStatus('error')
+        return
+      }
+      closeOrderDetail()
+      loadOrders()
+    } catch {
+      setOrderActionError('Network error — please try again')
+      setOrderActionStatus('error')
+    }
+  }
+
   const orderDetailAction = async (action: string, payload?: any) => {
     if (!selectedOrderId) return
     setOrderActionStatus('saving')
@@ -1276,6 +1294,7 @@ export default function AdminDashboard() {
       { key: string; day: string; week: string | null; count: number; total: number }
     >()
     for (const o of filteredOrders) {
+      if (o.cancelled) continue
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
         : null
@@ -1301,6 +1320,7 @@ export default function AdminDashboard() {
     if (!expandedTallyKey) return []
     const dishTotals = new Map<string, number>()
     for (const o of filteredOrders) {
+      if (o.cancelled) continue
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
         : null
@@ -3529,6 +3549,30 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="pc-modal-section">
+                  <label className="field-label">Danger zone</label>
+                  <p className="map-intro">
+                    Permanently deletes this order record — use this for test/junk data only.
+                    This cannot be undone. For a real customer's order, use "Cancel order"
+                    above instead, which keeps the record but excludes it from cook sheets.
+                  </p>
+                  <button
+                    className="pc-delete-btn"
+                    disabled={orderActionStatus === 'saving'}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          'Permanently delete this order? This cannot be undone.'
+                        )
+                      ) {
+                        deleteOrder(selectedOrderId!)
+                      }
+                    }}
+                  >
+                    Delete this order permanently
+                  </button>
+                </div>
+
+                <div className="pc-modal-section">
                   <label className="field-label">Charge additional amount</label>
                   {orderDetail.canCharge ? (
                     <div className="pc-modal-inline-row">
@@ -3895,6 +3939,24 @@ function Styles() {
         color: #a3402f;
         font-size: 13px;
         margin: 10px 0 0;
+      }
+      .pc-delete-btn {
+        background: #fff5f4;
+        color: #a3402f;
+        border: 1px solid #f0c9c2;
+        border-radius: 8px;
+        padding: 9px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .pc-delete-btn:hover {
+        background: #a3402f;
+        color: #ffffff;
+      }
+      .pc-delete-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
 
       /* Sidebar — light, Shopify-style: white bg, near-black text, light

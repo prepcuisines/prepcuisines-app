@@ -61,6 +61,25 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ order, customerName, customerEmail, canCharge })
 }
 
+export async function DELETE(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+
+  const id = req.nextUrl.searchParams.get('id')
+  if (!id) {
+    return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  }
+
+  const { error } = await supabase.from('customer_window_orders').delete().eq('id', id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
+}
+
 export async function PATCH(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
