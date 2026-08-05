@@ -213,9 +213,9 @@ html, body { margin: 0; padding: 0; }
 .pc-day-tick { position: absolute; top: 14px; right: 14px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(45,53,16,0.14); background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; color: var(--pc-gold); transition: all 0.2s ease; }
 .pc-day-card.pc-day-selected .pc-day-tick { border-color: var(--pc-gold); background: var(--pc-gold); color: var(--pc-green); }
 
-.pc-day-name { font-family: var(--font-playfair), Georgia, serif; font-size: 32px; font-weight: 900; color: var(--pc-green); letter-spacing: -0.02em; line-height: 1; margin-bottom: 6px; transition: color 0.2s ease; overflow-wrap: anywhere; }
-.pc-day-date { font-family: var(--font-cormorant), Georgia, serif; font-size: 18px; font-style: italic; font-weight: 700; color: #111111; margin-bottom: 14px; transition: color 0.2s ease; overflow-wrap: anywhere; }
-.pc-day-countdown { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(45,53,16,0.4); flex-wrap: wrap; overflow-wrap: anywhere; }
+.pc-day-name { font-family: var(--font-playfair), Georgia, serif; font-size: 32px; font-weight: 900; color: var(--pc-green); letter-spacing: -0.02em; line-height: 1; margin-bottom: 6px; transition: color 0.2s ease; white-space: nowrap; }
+.pc-day-date { font-family: var(--font-cormorant), Georgia, serif; font-size: 18px; font-style: italic; font-weight: 700; color: #111111; margin-bottom: 14px; transition: color 0.2s ease; }
+.pc-day-countdown { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(45,53,16,0.4); flex-wrap: wrap; }
 .pc-day-countdown-time { font-family: var(--font-playfair), Georgia, serif; font-size: 16px; font-weight: 900; color: var(--pc-gold-dark); letter-spacing: -0.01em; white-space: nowrap; }
 .pc-day-card.pc-day-selected .pc-day-countdown-time { color: var(--pc-gold); }
 .pc-day-countdown-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pc-gold); flex-shrink: 0; animation: pcPulse 1s ease-in-out infinite; }
