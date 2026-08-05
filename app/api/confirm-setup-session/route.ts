@@ -241,7 +241,8 @@ export async function GET(req: NextRequest) {
           orderItemsSnapshot,
           'manually_ordered',
           true,
-          ordersCompleted === 0
+          ordersCompleted === 0,
+          profile.postcode || ''
         )
       }
 

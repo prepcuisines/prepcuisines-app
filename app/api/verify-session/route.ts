@@ -121,7 +121,8 @@ export async function GET(req: NextRequest) {
               orderItemsSnapshot,
               'signup_order',
               true,
-              true
+              true,
+              shipProfile.postcode || ''
             )
             await klaviyoTrackEvent(
               shipProfile.email,
@@ -199,7 +200,8 @@ export async function GET(req: NextRequest) {
             orderItemsSnapshot,
             'payg_order',
             false,
-            false
+            false,
+            postcode || ''
           )
           await klaviyoTrackEvent(
             email,

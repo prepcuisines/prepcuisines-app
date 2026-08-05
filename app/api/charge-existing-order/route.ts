@@ -246,7 +246,8 @@ export async function POST(req: NextRequest) {
             orderItemsSnapshot,
             'manually_ordered',
             true,
-            ordersCompleted === 0
+            ordersCompleted === 0,
+            profile.postcode || ''
           )
           await klaviyoTrackEvent(
             profile.email,

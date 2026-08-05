@@ -116,7 +116,8 @@ export async function sendOrderConfirmationEmailToCustomer(
   items: OrderConfirmationItem[] = [],
   orderType: string = '',
   isSubscribed: boolean = false,
-  isFirstOrder: boolean = false
+  isFirstOrder: boolean = false,
+  shipPostcode: string = ''
 ) {
   const realItems = items.filter((i) => i.name && i.name !== 'Delivery')
 
@@ -134,11 +135,10 @@ export async function sendOrderConfirmationEmailToCustomer(
     )
     .join('')
 
-  // First order (subscriber): they just actively placed this one themselves
-  // at signup — it hasn't been "charged automatically" yet, that only
-  // starts from their second order onward. Repeat/auto orders: genuinely
-  // charged automatically as part of their ongoing subscription. PAYG:
-  // one-off, nothing repeats regardless of order number.
+  // First order: pure excitement, no mention of billing/future charges at
+  // all — that's not what this moment is about. Repeat/auto orders:
+  // genuinely charged automatically as part of their ongoing subscription,
+  // worth being upfront about. PAYG: one-off, nothing repeats.
   const subscriptionNote =
     orderType === 'payg_order'
       ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
@@ -146,18 +146,38 @@ export async function sendOrderConfirmationEmailToCustomer(
           be charged again automatically. If you'd like weekly deliveries and better pricing, you
           can set up a subscription any time.
         </p>`
-      : isSubscribed && isFirstOrder
-      ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
-          This is your first order on your new subscription — you've been charged for it now.
-          From your next delivery onward, we'll charge and prepare your order automatically each
-          week, based on your plan.
-        </p>`
-      : isSubscribed
+      : isSubscribed && !isFirstOrder
       ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
           You're on an active subscription — this order was charged automatically as part of
           that.
         </p>`
       : ''
+
+  const firstOrderIntro = isFirstOrder
+    ? `<p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
+        Thank you for your <em style="font-style:italic;">first order!</em>
+      </p>
+      <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+        Hey ${firstName}, we're so glad you're here. Your first box of chef-made meals is on its
+        way for your ${deliveryDay} delivery, and we think it's going to be one of the best
+        decisions you make this week. Fresh ingredients, real flavour, zero hassle — here's
+        what's coming your way.
+      </p>`
+    : `<p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
+        Your order is <em style="font-style:italic;">confirmed.</em>
+      </p>
+      <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+        Hey ${firstName},<br/><br/>
+        Thanks for your order — here's a summary of what's coming for your
+        ${deliveryDay} delivery.
+      </p>`
+
+  const isDpdDelivery = !!shipPostcode && !shipPostcode.trim().toUpperCase().startsWith('ST')
+  const dpdNote = isDpdDelivery
+    ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
+        Your order will be delivered by DPD.
+      </p>`
+    : ''
 
   await sendEmailViaNeo(
     toEmail,
@@ -184,14 +204,7 @@ export async function sendOrderConfirmationEmailToCustomer(
                 <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
                   ${orderTypeLabel(orderType, isSubscribed)}
                 </p>
-                <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
-                  Your order is <em style="font-style:italic;">confirmed.</em>
-                </p>
-                <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
-                  Hey ${firstName},<br/><br/>
-                  Thanks for your order — here's a summary of what's coming for your
-                  ${deliveryDay} delivery.
-                </p>
+                ${firstOrderIntro}
 
                 <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
                   <tr>
@@ -211,6 +224,7 @@ export async function sendOrderConfirmationEmailToCustomer(
                   </tr>
                 </table>
 
+                ${dpdNote}
                 ${subscriptionNote}
               </td>
             </tr>

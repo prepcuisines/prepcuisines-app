@@ -205,7 +205,8 @@ export async function POST(req: NextRequest) {
                 orderItemsSnapshot,
                 'auto_filled',
                 true,
-                false
+                false,
+                sub.postcode || ''
               )
               await klaviyoTrackEvent(
                 sub.email,
