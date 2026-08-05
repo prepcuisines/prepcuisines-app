@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Header from './Header'
 import Footer from './Footer'
+import WelcomeOfferPopup from './WelcomeOfferPopup'
 
 const CDN = 'https://cdn.shopify.com/s/files/1/0962/3348/8716/files'
 
@@ -185,6 +186,7 @@ export default function Home() {
         <p className="pc-cta-note">No commitment · Skip any week</p>
       </section>
       <Footer />
+      <WelcomeOfferPopup />
     </div>
   )
 }
