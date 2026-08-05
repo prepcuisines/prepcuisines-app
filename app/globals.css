@@ -146,18 +146,22 @@ html, body { margin: 0; padding: 0; }
   .pc-how-section, .pc-plans-section, .pc-testimonials-section, .pc-cta-section { padding-left: 20px; padding-right: 20px; }
   .pc-how-grid { grid-template-columns: 1fr; }
   .pc-plans-grid, .pc-testimonials-grid { grid-template-columns: 1fr; }
-  .pc-day-grid { grid-template-columns: 1fr; }
-  .pc-day-card { padding: 26px 22px 22px; }
-  .pc-day-name { font-size: 26px; }
+  .pc-day-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pc-day-card { padding: 18px 14px 16px; }
+  .pc-day-name { font-size: 20px; }
+  .pc-day-date { font-size: 14px; margin-bottom: 8px; }
+  .pc-day-countdown { font-size: 9px; gap: 5px; }
+  .pc-day-countdown-time { font-size: 13px; }
   .pc-cta-title { font-size: 36px; }
 }
 
 @media (max-width: 400px) {
-  .pc-day-card { padding: 20px 16px 18px; }
-  .pc-day-name { font-size: 22px; }
-  .pc-day-date { font-size: 15px; }
-  .pc-day-countdown { font-size: 10px; gap: 6px; }
-  .pc-day-countdown-time { font-size: 14px; }
+  .pc-day-grid { gap: 8px; }
+  .pc-day-card { padding: 14px 10px 12px; }
+  .pc-day-name { font-size: 17px; }
+  .pc-day-date { font-size: 12px; margin-bottom: 6px; }
+  .pc-day-countdown { font-size: 8px; gap: 4px; }
+  .pc-day-countdown-time { font-size: 11px; }
 }
 
 /* ═══════════════════════════════════════════════════════════
