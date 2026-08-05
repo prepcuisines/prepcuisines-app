@@ -163,6 +163,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false)
 
   const [showAddOrder, setShowAddOrder] = useState(false)
+  const [showOrdersReport, setShowOrdersReport] = useState(false)
   const [addOrderForm, setAddOrderForm] = useState({
     customerName: '',
     customerEmail: '',
@@ -1596,12 +1597,6 @@ export default function AdminDashboard() {
         {tab === 'orders' && (
           <section>
             <div className="orders-header-row">
-              <button className="btn-primary" onClick={() => setShowAddOrder((v) => !v)}>
-                {showAddOrder ? 'Cancel' : '+ Add order manually'}
-              </button>
-            </div>
-
-            <div className="location-summary">
               <div className="location-toggle" role="tablist" aria-label="Location filter">
                 <button
                   className={`segment-pill ${locationFilter === 'all' ? 'segment-pill-active' : ''}`}
@@ -1622,29 +1617,91 @@ export default function AdminDashboard() {
                   Outside Stoke ({filteredOrders.length - stokeOrderCount})
                 </button>
               </div>
-
-              <div className="dpd-card">
-                <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
-                <div className="dpd-value">{money(dpdEstimate)}</div>
-                <div className="dpd-meta">
-                  {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
-                </div>
-              </div>
+              <button className="btn-primary" onClick={() => setShowAddOrder((v) => !v)}>
+                {showAddOrder ? 'Cancel' : '+ Add order manually'}
+              </button>
             </div>
 
-            {locationBreakdown.length > 0 && (
-              <div className="area-map">
-                <div className="area-map-title">Orders by area</div>
-                {locationBreakdown.map((a) => (
-                  <div key={a.area} className="area-row">
-                    <span className="area-name">{a.area}</span>
-                    <div className="area-bar-track">
-                      <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+            <div className="date-filter-toggle-row">
+              <button
+                className="date-filter-toggle"
+                onClick={() => setShowOrdersReport((v) => !v)}
+              >
+                {showOrdersReport ? '▾' : '▸'} Delivery cost, area breakdown & cook sheet
+              </button>
+            </div>
+
+            {showOrdersReport && (
+              <>
+                <div className="location-summary">
+                  <div className="dpd-card">
+                    <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
+                    <div className="dpd-value">{money(dpdEstimate)}</div>
+                    <div className="dpd-meta">
+                      {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
                     </div>
-                    <span className="area-count">{a.count}</span>
                   </div>
-                ))}
-              </div>
+                </div>
+
+                {locationBreakdown.length > 0 && (
+                  <div className="area-map">
+                    <div className="area-map-title">Orders by area</div>
+                    {locationBreakdown.map((a) => (
+                      <div key={a.area} className="area-row">
+                        <span className="area-name">{a.area}</span>
+                        <div className="area-bar-track">
+                          <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+                        </div>
+                        <span className="area-count">{a.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {orderTally.length > 0 && (
+                  <div className="tally-row">
+                    {orderTally.map((t) => (
+                      <button
+                        key={t.key}
+                        className={`tally-chip ${expandedTallyKey === t.key ? 'tally-chip-active' : ''}`}
+                        onClick={() =>
+                          setExpandedTallyKey((prev) => (prev === t.key ? null : t.key))
+                        }
+                      >
+                        <div className="tally-day">
+                          {t.day}
+                          {t.week ? ` — w/c ${t.week}` : ''}
+                        </div>
+                        <div className="tally-meta">
+                          {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {expandedTallyKey && (
+                  <div className="cook-sheet-panel">
+                    <div className="cook-sheet-title">
+                      Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
+                      {orderTally.find((t) => t.key === expandedTallyKey)?.week
+                        ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
+                        : ''}
+                    </div>
+                    {cookSheetForKey.length === 0 ? (
+                      <p className="cook-sheet-empty">No item data for this window.</p>
+                    ) : (
+                      <ul className="cook-sheet-list">
+                        {cookSheetForKey.map((d) => (
+                          <li key={d.name}>
+                            <span className="cook-sheet-qty">{d.qty}×</span> {d.name}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             {showAddOrder && (
@@ -1746,50 +1803,6 @@ export default function AdminDashboard() {
                   {addOrderStatus === 'saving' ? 'Saving…' : 'Save order'}
                 </button>
               </form>
-            )}
-
-            {orderTally.length > 0 && (
-              <div className="tally-row">
-                {orderTally.map((t) => (
-                  <button
-                    key={t.key}
-                    className={`tally-chip ${expandedTallyKey === t.key ? 'tally-chip-active' : ''}`}
-                    onClick={() =>
-                      setExpandedTallyKey((prev) => (prev === t.key ? null : t.key))
-                    }
-                  >
-                    <div className="tally-day">
-                      {t.day}
-                      {t.week ? ` — w/c ${t.week}` : ''}
-                    </div>
-                    <div className="tally-meta">
-                      {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {expandedTallyKey && (
-              <div className="cook-sheet-panel">
-                <div className="cook-sheet-title">
-                  Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
-                  {orderTally.find((t) => t.key === expandedTallyKey)?.week
-                    ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
-                    : ''}
-                </div>
-                {cookSheetForKey.length === 0 ? (
-                  <p className="cook-sheet-empty">No item data for this window.</p>
-                ) : (
-                  <ul className="cook-sheet-list">
-                    {cookSheetForKey.map((d) => (
-                      <li key={d.name}>
-                        <span className="cook-sheet-qty">{d.qty}×</span> {d.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
             )}
 
             <div className="toolbar">
@@ -3876,7 +3889,10 @@ function Styles() {
 
       .orders-header-row {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
         margin-bottom: 14px;
       }
       .orders-header-row .btn-primary {
