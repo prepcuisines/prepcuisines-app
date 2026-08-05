@@ -69,6 +69,23 @@ export async function sendOrderConfirmationEmailToCustomer(
   )
 }
 
+export async function sendWeeklyOrderLinkToCustomer(
+  toEmail: string,
+  firstName: string,
+  deliveryDay: string
+) {
+  await sendEmail(
+    toEmail,
+    `Time to choose your meals for ${deliveryDay}`,
+    `
+      <p>Hi ${firstName},</p>
+      <p>It's time to pick your meals for this week's ${deliveryDay} delivery.</p>
+      <p><a href="${process.env.NEXT_PUBLIC_SITE_URL}/menu">Choose your meals</a></p>
+      <p>Thanks,<br/>prepcuisines</p>
+    `
+  )
+}
+
 export async function sendPaymentFailedEmailToAdmin(
   customerName: string,
   customerEmail: string,

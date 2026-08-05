@@ -192,6 +192,13 @@ export default function AdminDashboard() {
   })
   const [addOrderStatus, setAddOrderStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [addOrderError, setAddOrderError] = useState<string | null>(null)
+  const [repeatWeekly, setRepeatWeekly] = useState(false)
+  const [repeatMode, setRepeatMode] = useState<'auto_charge' | 'manual' | 'send_link'>('manual')
+  const [repeatDeliveryDay, setRepeatDeliveryDay] = useState<'Wednesday' | 'Sunday'>('Wednesday')
+  const [repeatStatus, setRepeatStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle')
+  const [repeatError, setRepeatError] = useState<string | null>(null)
+  const [recurringOrdersList, setRecurringOrdersList] = useState<any[]>([])
+  const [showRecurringOrdersList, setShowRecurringOrdersList] = useState(false)
 
   const [menuItems, setMenuItems] = useState<
     { id: string; name: string; category: string | null; price: number | null }[]
@@ -439,6 +446,74 @@ export default function AdminDashboard() {
       itemsText: '',
     })
     loadOrders()
+  }
+
+  const loadRecurringOrders = async () => {
+    try {
+      const res = await fetch('/api/admin/recurring-manual-orders', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      setRecurringOrdersList(data.recurringOrders || [])
+    } catch {
+      // non-critical
+    }
+  }
+
+  const toggleRecurringOrderActive = async (id: string, active: boolean) => {
+    await fetch('/api/admin/recurring-manual-orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, active }),
+    })
+    loadRecurringOrders()
+  }
+
+  const setupRecurringOrder = async () => {
+    setRepeatStatus('saving')
+    setRepeatError(null)
+
+    const items = addOrderForm.itemsText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const match = line.match(/^(\d+)\s*x\s*(.+?)(?:\s*@\s*([\d.]+))?$/i)
+        if (match) {
+          return {
+            qty: Number(match[1]),
+            name: match[2].trim(),
+            price: match[3] ? Number(match[3]) : 0,
+          }
+        }
+        return { qty: 1, name: line, price: 0 }
+      })
+
+    try {
+      const res = await fetch('/api/admin/recurring-manual-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: addOrderForm.customerName,
+          email: addOrderForm.customerEmail,
+          postcode: addOrderForm.postcode,
+          deliveryDay: repeatDeliveryDay,
+          items,
+          totalAmount: Number(addOrderForm.totalAmount) || 0,
+          repeatMode,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setRepeatError(data.error || 'Something went wrong setting this up.')
+        setRepeatStatus('error')
+        return
+      }
+      setRepeatStatus('done')
+      loadRecurringOrders()
+    } catch {
+      setRepeatError('Network error — please try again')
+      setRepeatStatus('error')
+    }
   }
 
   const loadMenu = async () => {
@@ -844,6 +919,7 @@ export default function AdminDashboard() {
     if (tab === 'customers' && customers.length === 0) loadCustomers()
     if (tab === 'customers' && !marketingLeadsLoaded) loadMarketingLeads()
     if (tab === 'orders' && orders.length === 0) loadOrders()
+    if (tab === 'orders' && recurringOrdersList.length === 0) loadRecurringOrders()
     if (tab === 'menu' && !menuLoaded) loadMenu()
     if (tab === 'map' && !mapLoaded) loadMapPoints()
     if (tab === 'insights' && !insightsOverviewLoaded) loadInsightsOverview(insightsPeriod)
@@ -1986,7 +2062,137 @@ export default function AdminDashboard() {
                 >
                   {addOrderStatus === 'saving' ? 'Saving…' : 'Save order'}
                 </button>
+
+                <div className="ao-repeat-section">
+                  <label className="pc-repeat-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={repeatWeekly}
+                      onChange={(e) => setRepeatWeekly(e.target.checked)}
+                    />
+                    Repeat this order weekly (using the customer name, email, postcode and
+                    items above)
+                  </label>
+
+                  {repeatWeekly && (
+                    <div className="ao-repeat-controls">
+                      <div>
+                        <label className="field-label">Delivery day</label>
+                        <select
+                          className="text-input"
+                          value={repeatDeliveryDay}
+                          onChange={(e) => setRepeatDeliveryDay(e.target.value as any)}
+                        >
+                          <option value="Wednesday">Wednesday</option>
+                          <option value="Sunday">Sunday</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">How should each week work?</label>
+                        <select
+                          className="text-input"
+                          value={repeatMode}
+                          onChange={(e) => setRepeatMode(e.target.value as any)}
+                        >
+                          <option value="manual">
+                            I'll handle payment myself — just create the order each week
+                          </option>
+                          <option value="auto_charge">
+                            Auto-charge their saved card each week
+                          </option>
+                          <option value="send_link">
+                            Send them a link each week to choose their own meals
+                          </option>
+                        </select>
+                      </div>
+                      {repeatMode === 'auto_charge' && (
+                        <p className="map-intro">
+                          Only works if this email matches an existing customer with a saved
+                          card — otherwise it'll tell you there's nothing to charge.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={setupRecurringOrder}
+                        disabled={repeatStatus === 'saving'}
+                      >
+                        {repeatStatus === 'saving' ? 'Setting up…' : 'Set up recurring order'}
+                      </button>
+                      {repeatStatus === 'done' && (
+                        <p className="map-intro">
+                          Set up — this'll kick in from the next weekly run onward. Use "Save
+                          order" above too if you need this week's order placed right now.
+                        </p>
+                      )}
+                      {repeatStatus === 'error' && repeatError && (
+                        <p className="error-text">{repeatError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </form>
+            )}
+
+            <div className="date-filter-toggle-row">
+              <button
+                className="date-filter-toggle"
+                onClick={() => setShowRecurringOrdersList((v) => !v)}
+              >
+                {showRecurringOrdersList ? '▾' : '▸'} Recurring manual orders (
+                {recurringOrdersList.filter((r) => r.active).length} active)
+              </button>
+            </div>
+
+            {showRecurringOrdersList && (
+              <div className="insights-block">
+                {recurringOrdersList.length === 0 ? (
+                  <div className="empty-panel">No recurring manual orders set up yet.</div>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Customer</th>
+                          <th>Day</th>
+                          <th>Total</th>
+                          <th>Mode</th>
+                          <th>Status</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recurringOrdersList.map((r) => (
+                          <tr key={r.id}>
+                            <td>
+                              {r.customer_name || '—'}
+                              {r.email && <div className="customer-email">{r.email}</div>}
+                            </td>
+                            <td>{r.delivery_day}</td>
+                            <td className="num">{money(r.total_amount)}</td>
+                            <td className="capitalize">{r.repeat_mode.replace('_', ' ')}</td>
+                            <td>
+                              {r.active ? (
+                                <span className="pill pill-active">Active</span>
+                              ) : (
+                                <span className="pill pill-muted">Paused</span>
+                              )}
+                            </td>
+                            <td>
+                              <button
+                                className="segment-pill"
+                                onClick={() => toggleRecurringOrderActive(r.id, !r.active)}
+                              >
+                                {r.active ? 'Pause' : 'Resume'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="toolbar">
@@ -4088,6 +4294,26 @@ function Styles() {
         border-radius: 10px;
         padding: 20px;
         margin-bottom: 20px;
+      }
+      .ao-repeat-section {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--pc-cream-dark, #ede8de);
+      }
+      .pc-repeat-checkbox {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .ao-repeat-controls {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 420px;
       }
       .form-grid {
         display: grid;
