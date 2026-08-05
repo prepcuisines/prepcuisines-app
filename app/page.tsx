@@ -77,7 +77,7 @@ export default function Home() {
               <span className="pc-stat-label">Avg. rating</span>
             </div>
             <div>
-              <span className="pc-stat-num">700<sup>+</sup></span>
+              <span className="pc-stat-num">1000<sup>+</sup></span>
               <span className="pc-stat-label">Meals weekly</span>
             </div>
           </div>
