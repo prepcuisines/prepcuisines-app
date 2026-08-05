@@ -28,7 +28,8 @@ html, body { margin: 0; padding: 0; }
 .pc-promo-inner { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 11px 24px; flex-wrap: wrap; }
 .pc-promo-tag { display: flex; align-items: center; gap: 8px; font-family: var(--font-montserrat), sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--pc-green); opacity: 0.6; }
 .pc-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--pc-green); opacity: 0.5; }
-.pc-promo-text { font-family: var(--font-montserrat), sans-serif; font-size: 13px; color: var(--pc-green); letter-spacing: 0.04em; }
+.pc-promo-text { font-family: var(--font-montserrat), sans-serif; font-size: 13px; color: var(--pc-green); letter-spacing: 0.04em; display: flex; align-items: center; flex-wrap: wrap; justify-content: center; row-gap: 2px; }
+.pc-promo-clause { white-space: nowrap; }
 .pc-promo-sep { margin: 0 10px; opacity: 0.3; }
 
 /* HERO */
