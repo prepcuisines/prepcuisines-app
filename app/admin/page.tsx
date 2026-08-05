@@ -1291,7 +1291,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {overview && (
+        {tab === 'overview' && overview && (
           <>
             <div className="today-snapshot">
               <div className="today-snapshot-title">Today</div>
