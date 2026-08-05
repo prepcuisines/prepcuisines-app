@@ -46,7 +46,7 @@ export default function Home() {
           <span className="pc-promo-text">
             <strong>40% off</strong> your first order
             <span className="pc-promo-sep">·</span>
-            Then <strong>20% off</strong> your next 7 orders!
+            Then <strong>20% off</strong> your next 5 orders!
           </span>
         </div>
       </div>
