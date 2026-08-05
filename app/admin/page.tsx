@@ -176,6 +176,16 @@ export default function AdminDashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [resetPasswordCustomer, setResetPasswordCustomer] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [newPasswordValue, setNewPasswordValue] = useState('')
+  const [resetPasswordStatus, setResetPasswordStatus] = useState<
+    'idle' | 'saving' | 'done' | 'error'
+  >('idle')
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null)
+  const [passwordCopied, setPasswordCopied] = useState(false)
   const [orderDetail, setOrderDetail] = useState<any>(null)
   const [orderDetailLoading, setOrderDetailLoading] = useState(false)
   const [editingItems, setEditingItems] = useState<{ name: string; price: number; qty: number }[]>(
@@ -745,6 +755,51 @@ export default function AdminDashboard() {
     } catch {
       // Silent failure is acceptable here — the toggle just won't stick,
       // and the next full reload will show the real persisted state.
+    }
+  }
+
+  const generateSecurePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%'
+    let pw = ''
+    const randomValues = new Uint32Array(14)
+    crypto.getRandomValues(randomValues)
+    for (let i = 0; i < 14; i++) {
+      pw += chars[randomValues[i] % chars.length]
+    }
+    return pw
+  }
+
+  const openResetPassword = (customerId: string, customerName: string) => {
+    setResetPasswordCustomer({ id: customerId, name: customerName })
+    setNewPasswordValue(generateSecurePassword())
+    setResetPasswordStatus('idle')
+    setResetPasswordError(null)
+    setPasswordCopied(false)
+  }
+
+  const submitPasswordReset = async () => {
+    if (!resetPasswordCustomer) return
+    setResetPasswordStatus('saving')
+    setResetPasswordError(null)
+    try {
+      const res = await fetch('/api/admin/reset-customer-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: resetPasswordCustomer.id,
+          newPassword: newPasswordValue,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setResetPasswordError(data.error || 'Something went wrong')
+        setResetPasswordStatus('error')
+        return
+      }
+      setResetPasswordStatus('done')
+    } catch {
+      setResetPasswordError('Network error — please try again')
+      setResetPasswordStatus('error')
     }
   }
 
@@ -1862,6 +1917,7 @@ export default function AdminDashboard() {
                       <th>Last order</th>
                       <th>Postcode</th>
                       <th>Signed up</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1897,6 +1953,14 @@ export default function AdminDashboard() {
                         </td>
                         <td>{c.postcode || '—'}</td>
                         <td>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
+                        <td>
+                          <button
+                            className="segment-pill"
+                            onClick={() => openResetPassword(c.id, c.full_name || c.email || 'this customer')}
+                          >
+                            Reset password
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -3247,6 +3311,81 @@ export default function AdminDashboard() {
             )}
           </section>
         )}
+      {resetPasswordCustomer && (
+        <div
+          className="pc-modal-overlay"
+          onClick={() => resetPasswordStatus !== 'saving' && setResetPasswordCustomer(null)}
+        >
+          <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-modal-header">
+              <h2 className="pc-modal-title">Reset password — {resetPasswordCustomer.name}</h2>
+              <button
+                className="pc-modal-close"
+                onClick={() => setResetPasswordCustomer(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="pc-modal-body">
+              <div className="pc-modal-section">
+                <p className="map-intro">
+                  There's no way to see their current password — Supabase only ever stores a
+                  one-way hash, so nobody can view it, including us. Setting a brand new one is
+                  the only way to help them back in.
+                </p>
+                <label className="field-label">New password</label>
+                <div className="pc-modal-inline-row">
+                  <input
+                    className="text-input"
+                    style={{ flex: 1 }}
+                    value={newPasswordValue}
+                    onChange={(e) => setNewPasswordValue(e.target.value)}
+                  />
+                  <button
+                    className="segment-pill"
+                    onClick={() => setNewPasswordValue(generateSecurePassword())}
+                  >
+                    Regenerate
+                  </button>
+                  <button
+                    className="segment-pill"
+                    onClick={() => {
+                      navigator.clipboard.writeText(newPasswordValue)
+                      setPasswordCopied(true)
+                      setTimeout(() => setPasswordCopied(false), 2000)
+                    }}
+                  >
+                    {passwordCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <p className="map-intro" style={{ marginTop: 8 }}>
+                  Copy this and send it to the customer yourself (text, email, phone) — once
+                  you close this window it won't be shown again.
+                </p>
+              </div>
+              <div className="pc-modal-section">
+                <button
+                  className="btn-primary"
+                  onClick={submitPasswordReset}
+                  disabled={resetPasswordStatus === 'saving' || newPasswordValue.length < 8}
+                >
+                  {resetPasswordStatus === 'saving' ? 'Setting…' : 'Set new password'}
+                </button>
+                {resetPasswordStatus === 'done' && (
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    Done — they can log in with this new password right away.
+                  </p>
+                )}
+                {resetPasswordStatus === 'error' && resetPasswordError && (
+                  <p className="error-text">{resetPasswordError}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedOrderId && (
         <div className="pc-modal-overlay" onClick={closeOrderDetail}>
           <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
