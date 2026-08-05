@@ -911,6 +911,11 @@ export default function AdminDashboard() {
 
     return [
       {
+        key: 'all_subscribed',
+        label: 'All subscribed customers',
+        customers: consented,
+      },
+      {
         key: 'lapsed_30',
         label: 'Lapsed 30+ days',
         customers: consented.filter((c) => c.lapsedTier === '30'),
@@ -1372,7 +1377,10 @@ export default function AdminDashboard() {
                 </p>
                 <div className="email-lists-grid">
                   {emailLists.map((list) => (
-                    <div key={list.key} className="email-list-card">
+                    <div
+                      key={list.key}
+                      className={`email-list-card ${list.key === 'all_subscribed' ? 'email-list-card-featured' : ''}`}
+                    >
                       <div className="email-list-header">
                         <span className="email-list-label">{list.label}</span>
                         <span className="email-list-count">{list.customers.length}</span>
@@ -3797,6 +3805,12 @@ function Styles() {
         border-top: 3px solid var(--pc-gold, #c9a84c);
         border-radius: 10px;
         padding: 14px 16px;
+      }
+      .email-list-card-featured {
+        background: var(--pc-gold-light, #c9f0e2);
+        border-color: var(--pc-gold, #008060);
+        border-top-width: 3px;
+        grid-column: 1 / -1;
       }
       .email-list-header {
         display: flex;
