@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Papa from 'papaparse'
 
 type Overview = {
   totalCustomers: number
@@ -141,6 +142,19 @@ export default function AdminDashboard() {
   const [customerSingleDate, setCustomerSingleDate] = useState('')
   const [showCustomerDateFilter, setShowCustomerDateFilter] = useState(false)
   const [showEmailLists, setShowEmailLists] = useState(false)
+  const [showImportLeads, setShowImportLeads] = useState(false)
+  const [importStatus, setImportStatus] = useState<'idle' | 'parsing' | 'importing' | 'done' | 'error'>(
+    'idle'
+  )
+  const [importSummary, setImportSummary] = useState<{
+    totalRowsReceived: number
+    consentedRows: number
+    updatedExistingCustomers: number
+    createdLeads: number
+    skippedExplicitChoice: number
+  } | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 })
 
   const [opsHub, setOpsHub] = useState<any>(null)
   const [opsHubLoaded, setOpsHubLoaded] = useState(false)
@@ -958,6 +972,72 @@ export default function AdminDashboard() {
     })
   }
 
+  const handleShopifyCsvImport = (file: File) => {
+    setImportStatus('parsing')
+    setImportError(null)
+    setImportSummary(null)
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = (results.data as any[]).map((r) => ({
+          email: (r['Email'] || '').trim(),
+          firstName: (r['First Name'] || '').trim(),
+          lastName: (r['Last Name'] || '').trim(),
+          phone: (r['Phone'] || r['Default Address Phone'] || '').replace(/^'/, '').trim(),
+          acceptsEmailMarketing:
+            (r['Accepts Email Marketing'] || '').trim().toLowerCase() === 'yes',
+        }))
+
+        setImportStatus('importing')
+        const batchSize = 300
+        const aggregate = {
+          totalRowsReceived: 0,
+          consentedRows: 0,
+          updatedExistingCustomers: 0,
+          createdLeads: 0,
+          skippedExplicitChoice: 0,
+        }
+        setImportProgress({ done: 0, total: rows.length })
+
+        try {
+          for (let i = 0; i < rows.length; i += batchSize) {
+            const batch = rows.slice(i, i + batchSize)
+            const res = await fetch('/api/admin/import-marketing-leads', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rows: batch }),
+            })
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}))
+              setImportError(data.error || 'Import failed partway through')
+              setImportStatus('error')
+              return
+            }
+            const data = await res.json()
+            aggregate.totalRowsReceived += data.totalRowsReceived || 0
+            aggregate.consentedRows += data.consentedRows || 0
+            aggregate.updatedExistingCustomers += data.updatedExistingCustomers || 0
+            aggregate.createdLeads += data.createdLeads || 0
+            aggregate.skippedExplicitChoice += data.skippedExplicitChoice || 0
+            setImportProgress({ done: Math.min(i + batchSize, rows.length), total: rows.length })
+          }
+          setImportSummary(aggregate)
+          setImportStatus('done')
+          loadCustomers()
+        } catch {
+          setImportError('Network error partway through the import')
+          setImportStatus('error')
+        }
+      },
+      error: () => {
+        setImportError('Could not read that file — make sure it\'s a CSV export from Shopify')
+        setImportStatus('error')
+      },
+    })
+  }
+
   const repeatPurchaseStats = useMemo(() => {
     // Base is customers who've ordered at least once — repeat rate measures
     // how many of those come back, not how many of ALL signups do.
@@ -1416,6 +1496,75 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            <div className="date-filter-toggle-row">
+              <button
+                className="date-filter-toggle"
+                onClick={() => setShowImportLeads((v) => !v)}
+              >
+                {showImportLeads ? '▾' : '▸'} Import customers from Shopify
+              </button>
+            </div>
+
+            {showImportLeads && (
+              <div className="insights-block">
+                <p className="map-intro">
+                  Upload your Shopify customer export (CSV). Only rows with "Accepts Email
+                  Marketing" set to yes are imported. Anyone matching an existing customer's
+                  email just has their marketing consent filled in (never overwriting a choice
+                  they've already made on this site) — everyone else is stored as an email lead,
+                  separate from real ordering customers.
+                </p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  disabled={importStatus === 'parsing' || importStatus === 'importing'}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleShopifyCsvImport(file)
+                  }}
+                />
+                {importStatus === 'parsing' && (
+                  <p className="map-intro" style={{ marginTop: 10 }}>
+                    Reading file…
+                  </p>
+                )}
+                {importStatus === 'importing' && (
+                  <p className="map-intro" style={{ marginTop: 10 }}>
+                    Importing {importProgress.done} / {importProgress.total}…
+                  </p>
+                )}
+                {importStatus === 'error' && importError && (
+                  <p className="error-text">{importError}</p>
+                )}
+                {importStatus === 'done' && importSummary && (
+                  <div className="alerts-grid" style={{ marginTop: 14 }}>
+                    <div className="alert-card">
+                      <div className="alert-card-value">{importSummary.consentedRows}</div>
+                      <div className="alert-card-label">Opted-in rows found</div>
+                    </div>
+                    <div className="alert-card">
+                      <div className="alert-card-value">
+                        {importSummary.updatedExistingCustomers}
+                      </div>
+                      <div className="alert-card-label">Existing customers updated</div>
+                    </div>
+                    <div className="alert-card">
+                      <div className="alert-card-value">{importSummary.createdLeads}</div>
+                      <div className="alert-card-label">New email leads created</div>
+                    </div>
+                    <div className="alert-card alert-card-muted">
+                      <div className="alert-card-value">
+                        {importSummary.skippedExplicitChoice}
+                      </div>
+                      <div className="alert-card-label">
+                        Skipped (already had an explicit choice on this site)
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
