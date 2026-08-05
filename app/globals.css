@@ -138,6 +138,7 @@ html, body { margin: 0; padding: 0; }
 @media (max-width: 640px) {
   .pc-promo-inner { flex-direction: column; gap: 6px; }
   .pc-promo-text { width: 100%; }
+  .pc-promo-sep { display: none; }
   .pc-hero-content { padding: 90px 24px 60px; }
   .pc-hero-title, .pc-hero-title-line3 { font-size: clamp(38px, 11vw, 56px); }
   .pc-hero-title-italic { font-size: clamp(36px, 10.5vw, 54px); }
