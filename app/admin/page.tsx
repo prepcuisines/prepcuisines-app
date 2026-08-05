@@ -147,6 +147,7 @@ export default function AdminDashboard() {
   const [newTaskText, setNewTaskText] = useState('')
   const [topSearchValue, setTopSearchValue] = useState('')
   const [showNotifications, setShowNotifications] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [orderDetail, setOrderDetail] = useState<any>(null)
@@ -1127,6 +1128,13 @@ export default function AdminDashboard() {
     <div className="pc-admin-root">
       <header className="pc-topbar">
         <div className="pc-topbar-left">
+          <button
+            className="pc-topbar-hamburger"
+            aria-label="Open menu"
+            onClick={() => setMobileNavOpen((v) => !v)}
+          >
+            ☰
+          </button>
           <span className="pc-topbar-logo">prepcuisines</span>
         </div>
         <form
@@ -1181,7 +1189,11 @@ export default function AdminDashboard() {
       </header>
 
       <div className="pc-admin-shell">
-      <aside className="sidebar">
+      {mobileNavOpen && (
+        <div className="pc-sidebar-backdrop" onClick={() => setMobileNavOpen(false)} />
+      )}
+
+      <aside className={`sidebar ${mobileNavOpen ? 'sidebar-mobile-open' : ''}`}>
         <nav className="sidebar-nav">
           {(
             [
@@ -1197,7 +1209,10 @@ export default function AdminDashboard() {
           ).map((t) => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => {
+                setTab(t.key)
+                setMobileNavOpen(false)
+              }}
               className={`sidebar-link ${tab === t.key ? 'sidebar-link-active' : ''}`}
               aria-current={tab === t.key ? 'page' : undefined}
             >
@@ -3107,6 +3122,16 @@ function Styles() {
         font-size: 15px;
         letter-spacing: -0.01em;
       }
+      .pc-topbar-hamburger {
+        display: none;
+        background: none;
+        border: none;
+        color: #ffffff;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px 8px 4px 0;
+        line-height: 1;
+      }
       .pc-topbar-search {
         flex: 1;
         max-width: 640px;
@@ -4300,20 +4325,33 @@ function Styles() {
       @media (max-width: 720px) {
         .pc-topbar-search { display: none; }
         .pc-topbar-store-pill { display: none; }
+        .pc-topbar-hamburger { display: inline-flex; }
         .pc-admin-shell {
           flex-direction: column;
         }
         .sidebar {
-          width: 100%;
-          height: auto;
-          position: static;
-          flex-direction: row;
-          align-items: center;
-          padding: 16px;
-          overflow-x: auto;
+          position: fixed;
+          top: 56px;
+          left: 0;
+          height: calc(100vh - 56px);
+          width: 260px;
+          flex-direction: column;
+          transform: translateX(-100%);
+          transition: transform 0.25s ease;
+          z-index: 1500;
+          box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+        }
+        .sidebar-mobile-open {
+          transform: translateX(0);
         }
         .sidebar-nav {
-          flex-direction: row;
+          flex-direction: column;
+        }
+        .pc-sidebar-backdrop {
+          position: fixed;
+          inset: 56px 0 0 0;
+          background: rgba(0, 0, 0, 0.4);
+          z-index: 1400;
         }
         .main-content {
           padding: 24px 18px 40px;
