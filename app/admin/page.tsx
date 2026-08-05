@@ -8,6 +8,8 @@ type Overview = {
   newSignupsThisWeek: number
   revenueThisWeek: number
   ordersThisWeek: number
+  averageLtv?: number
+  ltvCustomerCount?: number
 }
 
 type Customer = {
@@ -153,6 +155,18 @@ export default function AdminDashboard() {
   const [copiedListKey, setCopiedListKey] = useState<string | null>(null)
   const [dishPairs, setDishPairs] = useState<{ dishA: string; dishB: string; count: number }[]>([])
   const [dishPairsLoaded, setDishPairsLoaded] = useState(false)
+  const [productDishes, setProductDishes] = useState<
+    {
+      name: string
+      orders: number
+      unitsSold: number
+      revenue: number
+      attachmentRate: number
+      repeatPurchasePct: number | null
+      firstOrderPct: number | null
+    }[]
+  >([])
+  const [productDashboardLoaded, setProductDashboardLoaded] = useState(false)
   const leafletMapRef = useRef<HTMLDivElement>(null)
   const leafletInstanceRef = useRef<any>(null)
 
@@ -435,6 +449,27 @@ export default function AdminDashboard() {
     }
   }
 
+  const loadProductDashboard = async () => {
+    try {
+      const res = await fetch('/api/admin/product-dashboard')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setProductDishes([])
+        setProductDashboardLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setProductDishes(data.dishes || [])
+      setProductDashboardLoaded(true)
+    } catch {
+      setProductDishes([])
+      setProductDashboardLoaded(true)
+    }
+  }
+
   // Loads Leaflet from a CDN (same approach as the ops hub) so we get a
   // real OpenStreetMap-backed map with actual roads/coastline, without
   // adding a new npm dependency to the build.
@@ -536,6 +571,7 @@ export default function AdminDashboard() {
     if (tab === 'insights' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
     if (tab === 'insights' && customers.length === 0) loadCustomers()
     if (tab === 'insights' && !dishPairsLoaded) loadDishPairs()
+    if (tab === 'insights' && !productDashboardLoaded) loadProductDashboard()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -883,6 +919,10 @@ export default function AdminDashboard() {
             <StatCard label="Active subscriptions" value={overview.activeSubscriptions} />
             <StatCard label="New signups (7d)" value={overview.newSignupsThisWeek} />
             <StatCard label="Orders (7d)" value={overview.ordersThisWeek} />
+            <StatCard
+              label="Avg. customer LTV"
+              value={money(overview.averageLtv || 0)}
+            />
             <StatCard label="Revenue (7d)" value={money(overview.revenueThisWeek)} accent />
           </div>
         )}
@@ -1505,6 +1545,50 @@ export default function AdminDashboard() {
 
         {tab === 'insights' && (
           <section>
+            <div className="insights-block">
+              <h2 className="insights-block-title">Product dashboard</h2>
+              <p className="map-intro">
+                Per-dish performance from real order data. Profit, margin, and refund % aren't
+                shown — there's no cost or refund data tracked yet to compute them honestly.
+              </p>
+              {productDishes.length === 0 ? (
+                <div className="empty-panel">No order data yet.</div>
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Dish</th>
+                        <th>Orders</th>
+                        <th>Units sold</th>
+                        <th>Revenue</th>
+                        <th>Attachment rate</th>
+                        <th>Repeat purchase %</th>
+                        <th>First-order %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productDishes.map((d) => (
+                        <tr key={d.name}>
+                          <td>{d.name}</td>
+                          <td className="num">{d.orders}</td>
+                          <td className="num">{d.unitsSold}</td>
+                          <td className="num">{money(d.revenue)}</td>
+                          <td className="num">{d.attachmentRate}%</td>
+                          <td className="num">
+                            {d.repeatPurchasePct !== null ? `${d.repeatPurchasePct}%` : '—'}
+                          </td>
+                          <td className="num">
+                            {d.firstOrderPct !== null ? `${d.firstOrderPct}%` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             <div className="insights-block">
               <h2 className="insights-block-title">Email marketing lists</h2>
               <p className="map-intro">

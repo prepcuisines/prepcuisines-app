@@ -68,11 +68,36 @@ export async function GET(req: NextRequest) {
     0
   )
 
+  // Average LTV — total revenue per identified customer who has actually
+  // ordered. PAYG/guest orders (no customer_id) aren't attributable to a
+  // specific customer, so they're excluded from this average.
+  const { data: allOrdersForLtv } = await supabase
+    .from('customer_window_orders')
+    .select('customer_id, total_amount')
+    .gte('created_at', LAUNCH_CUTOFF)
+    .not('customer_id', 'is', null)
+
+  const spendByCustomer = new Map<string, number>()
+  for (const o of allOrdersForLtv || []) {
+    if (!o.customer_id) continue
+    spendByCustomer.set(
+      o.customer_id,
+      (spendByCustomer.get(o.customer_id) || 0) + (o.total_amount || 0)
+    )
+  }
+  const spendValues = Array.from(spendByCustomer.values())
+  const averageLtv =
+    spendValues.length > 0
+      ? spendValues.reduce((sum, v) => sum + v, 0) / spendValues.length
+      : 0
+
   return NextResponse.json({
     totalCustomers: totalCustomers || 0,
     activeSubscriptions: activeSubscriptions || 0,
     newSignupsThisWeek: newSignupsThisWeek || 0,
     revenueThisWeek,
     ordersThisWeek: (recentOrders || []).length,
+    averageLtv,
+    ltvCustomerCount: spendValues.length,
   })
 }
