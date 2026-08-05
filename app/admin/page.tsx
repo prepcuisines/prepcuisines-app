@@ -271,7 +271,7 @@ export default function AdminDashboard() {
 
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
-    const res = await fetch('/api/admin/overview')
+    const res = await fetch('/api/admin/overview', { cache: 'no-store' })
     if (res.status === 401) {
       setAuthenticated(false)
       setCheckingAuth(false)
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
     setOverview(data)
 
     try {
-      const failRes = await fetch('/api/admin/payment-failures')
+      const failRes = await fetch('/api/admin/payment-failures', { cache: 'no-store' })
       if (failRes.ok) {
         const failData = await failRes.json()
         const unresolved = (failData.failures || []).filter((f: any) => !f.resolved).length
@@ -318,7 +318,7 @@ export default function AdminDashboard() {
   const loadCustomers = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/customers')
+      const res = await fetch('/api/admin/customers', { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -338,7 +338,7 @@ export default function AdminDashboard() {
 
   const loadMarketingLeads = async () => {
     try {
-      const res = await fetch('/api/admin/marketing-leads')
+      const res = await fetch('/api/admin/marketing-leads', { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -358,7 +358,7 @@ export default function AdminDashboard() {
   const loadOrders = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/orders')
+      const res = await fetch('/api/admin/orders', { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -444,7 +444,7 @@ export default function AdminDashboard() {
   const loadMenu = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/menu')
+      const res = await fetch('/api/admin/menu', { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -512,7 +512,7 @@ export default function AdminDashboard() {
       const url = dateFilter
         ? `/api/admin/order-locations?date=${dateFilter}`
         : '/api/admin/order-locations'
-      const res = await fetch(url)
+      const res = await fetch(url, { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -536,7 +536,7 @@ export default function AdminDashboard() {
   const loadTopDishes = async (period: 'week' | 'month' | 'all') => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/top-dishes?period=${period}`)
+      const res = await fetch(`/api/admin/top-dishes?period=${period}`, { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -559,7 +559,7 @@ export default function AdminDashboard() {
 
   const loadDishPairs = async () => {
     try {
-      const res = await fetch('/api/admin/dish-pairs')
+      const res = await fetch('/api/admin/dish-pairs', { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -580,7 +580,7 @@ export default function AdminDashboard() {
 
   const loadProductDashboard = async () => {
     try {
-      const res = await fetch('/api/admin/product-dashboard')
+      const res = await fetch('/api/admin/product-dashboard', { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -609,7 +609,7 @@ export default function AdminDashboard() {
       if (period === 'custom' && customFrom) {
         url += `&from=${customFrom}${customTo ? `&to=${customTo}` : ''}`
       }
-      const res = await fetch(url)
+      const res = await fetch(url, { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -631,7 +631,7 @@ export default function AdminDashboard() {
 
   const loadOpsHub = async () => {
     try {
-      const res = await fetch('/api/admin/ops-hub')
+      const res = await fetch('/api/admin/ops-hub', { cache: 'no-store' })
       if (res.status === 401) {
         setAuthenticated(false)
         return
@@ -673,7 +673,7 @@ export default function AdminDashboard() {
     setOrderActionError(null)
     setChargeAmountInput('')
     try {
-      const res = await fetch(`/api/admin/order-detail?id=${orderId}`)
+      const res = await fetch(`/api/admin/order-detail?id=${orderId}`, { cache: 'no-store' })
       if (!res.ok) {
         setOrderDetailLoading(false)
         return
