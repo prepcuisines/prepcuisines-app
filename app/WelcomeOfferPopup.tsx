@@ -75,7 +75,7 @@ export default function WelcomeOfferPopup() {
       <Link href="/menu" className="pc-welcome-popup-link">
         <div className="pc-welcome-popup-title">Get Offer</div>
         <div className="pc-welcome-popup-text">
-          Get 40% off your 1st week + 20% off weeks 2 and 3
+          Get 40% off your 1st week + 20% off your next 5 orders
         </div>
       </Link>
       <button
