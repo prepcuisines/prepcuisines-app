@@ -146,12 +146,12 @@ export default function Home() {
               <div className="pc-plan-body">
                 <div className="pc-plan-name">{plan.name}</div>
                 <p className="pc-plan-desc">{plan.desc}</p>
-                <div className="pc-plan-footer">
-                  <Link href="/menu" className={`pc-plan-btn ${i === 0 ? 'featured' : ''}`}>View Menu</Link>
-                </div>
               </div>
             </div>
           ))}
+        </div>
+        <div className="pc-plans-cta">
+          <Link href="/menu" className="pc-plans-view-menu-btn">View Menu</Link>
         </div>
       </section>
 
