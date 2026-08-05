@@ -158,8 +158,8 @@ export async function sendOrderConfirmationEmailToCustomer(
         Thank you for your <em style="font-style:italic;">first order!</em>
       </p>
       <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
-        Hey ${firstName}, we're so glad you're here. Your first box of chef-made meals is on its
-        way for your ${deliveryDay} delivery, and we think it's going to be one of the best
+        Hey ${firstName}, we're so glad you're here. Your first box of chef-made meals is all
+        booked in for your ${deliveryDay} delivery, and we think it's going to be one of the best
         decisions you make this week. Fresh ingredients, real flavour, zero hassle — here's
         what's coming your way.
       </p>`
