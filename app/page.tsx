@@ -129,6 +129,9 @@ export default function Home() {
             </div>
           ))}
         </div>
+        <div className="pc-plans-cta">
+          <Link href="/menu" className="pc-plans-view-menu-btn">View Menu &amp; Order Now</Link>
+        </div>
       </section>
 
       <section className="pc-plans-section">
