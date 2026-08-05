@@ -548,6 +548,9 @@ export default function DashboardPage() {
               <a href="/update-payment-method" className="pc-checkout-btn secondary" style={{ textDecoration: 'none', textAlign: 'center' }}>
                 Update Payment Method
               </a>
+              <a href="/change-password" className="pc-checkout-btn secondary" style={{ textDecoration: 'none', textAlign: 'center' }}>
+                Change Password
+              </a>
               <button
                 className="pc-checkout-btn secondary"
                 onClick={toggleSkip}
