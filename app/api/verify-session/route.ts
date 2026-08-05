@@ -113,6 +113,15 @@ export async function GET(req: NextRequest) {
           })
 
           if (shipProfile?.email) {
+            await sendOrderConfirmationEmailToCustomer(
+              shipProfile.email,
+              (shipProfile.full_name || 'there').split(' ')[0],
+              (session.amount_total || 0) / 100,
+              deliveryDay || 'your',
+              orderItemsSnapshot,
+              'signup_order',
+              true
+            )
             await klaviyoTrackEvent(
               shipProfile.email,
               'Placed Order',
@@ -185,7 +194,10 @@ export async function GET(req: NextRequest) {
             email,
             (fullName || 'there').split(' ')[0],
             (session.amount_total || 0) / 100,
-            deliveryDay || 'your'
+            deliveryDay || 'your',
+            orderItemsSnapshot,
+            'payg_order',
+            false
           )
           await klaviyoTrackEvent(
             email,

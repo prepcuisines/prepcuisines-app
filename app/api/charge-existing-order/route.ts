@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { sendPaymentFailedEmailToCustomer } from '@/lib/send-email'
+import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
@@ -238,6 +238,15 @@ export async function POST(req: NextRequest) {
         })
 
         if (profile.email) {
+          await sendOrderConfirmationEmailToCustomer(
+            profile.email,
+            (profile.full_name || 'there').split(' ')[0],
+            totalAmount / 100,
+            deliveryDay || 'your',
+            orderItemsSnapshot,
+            'manually_ordered',
+            true
+          )
           await klaviyoTrackEvent(
             profile.email,
             'Placed Order',

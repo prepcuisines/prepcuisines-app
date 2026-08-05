@@ -100,22 +100,140 @@ export async function sendPaymentFailedEmailToCustomer(
   )
 }
 
+type OrderConfirmationItem = { name: string; price: number; qty: number }
+
+function orderTypeLabel(orderType: string, isSubscribed: boolean) {
+  if (orderType === 'payg_order') return 'Pay As You Go order'
+  if (isSubscribed) return 'Subscription order'
+  return 'Order'
+}
+
 export async function sendOrderConfirmationEmailToCustomer(
   toEmail: string,
   firstName: string,
   amount: number,
-  deliveryDay: string
+  deliveryDay: string,
+  items: OrderConfirmationItem[] = [],
+  orderType: string = '',
+  isSubscribed: boolean = false
 ) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const realItems = items.filter((i) => i.name && i.name !== 'Delivery')
+
+  const itemRows = realItems
+    .map(
+      (i) => `
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #e8e0d0;font-size:14px;color:#1a2e1a;">
+            ${i.qty}× ${i.name}
+          </td>
+          <td align="right" style="padding:10px 0;border-bottom:1px solid #e8e0d0;font-size:14px;color:#1a2e1a;">
+            £${(i.price * i.qty).toFixed(2)}
+          </td>
+        </tr>`
+    )
+    .join('')
+
+  const subscriptionNote = isSubscribed
+    ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
+        You're on an active subscription — this order was charged automatically as part of that.
+        You can change your delivery day, choose your favourite meals, skip a week, or cancel any
+        time from your account.
+      </p>`
+    : `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
+        This was a one-off Pay As You Go order — you're not on a subscription, so nothing will be
+        charged again automatically. If you'd like weekly deliveries and better pricing, you can
+        set up a subscription any time.
+      </p>`
+
   await sendEmailViaNeo(
     toEmail,
     'Your prepcuisines order is confirmed',
     `
-      <p>Hi ${firstName},</p>
-      <p>Your order is confirmed — £${amount.toFixed(2)} has been charged to your card
-      for your ${deliveryDay} delivery.</p>
-      <p>You can view your order any time from your account:</p>
-      <p><a href="${process.env.NEXT_PUBLIC_SITE_URL}/order-history">View order history</a></p>
-      <p>Thanks,<br/>prepcuisines</p>
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr>
+        <td align="center">
+          <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
+            <tr>
+              <td align="center" style="background:#1a2e1a;padding:20px 32px;">
+                <span style="font-family:Georgia,serif;font-size:22px;color:#f5f0e8;">prepcuisines</span>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="background:#c9a84c;padding:12px 20px;">
+                <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">
+                  ✅ ORDER CONFIRMED
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:40px 36px 32px;">
+                <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
+                  ${orderTypeLabel(orderType, isSubscribed)}
+                </p>
+                <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
+                  Your order is <em style="font-style:italic;">confirmed.</em>
+                </p>
+                <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+                  Hey ${firstName},<br/><br/>
+                  Thanks for your order — here's a summary of what's coming for your
+                  ${deliveryDay} delivery.
+                </p>
+
+                <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
+                  <tr>
+                    <td style="padding:20px 24px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        ${itemRows}
+                        <tr>
+                          <td style="padding:14px 0 0;font-size:15px;font-weight:700;color:#1a2e1a;">
+                            Total
+                          </td>
+                          <td align="right" style="padding:14px 0 0;font-size:15px;font-weight:700;color:#1a2e1a;">
+                            £${amount.toFixed(2)}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                ${subscriptionNote}
+
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td style="border-top:1px solid #e8e0d0;padding-top:20px;">
+                      <p style="font-size:13px;color:#888888;line-height:1.75;margin:0 0 16px;">
+                        Manage your account any time:
+                      </p>
+                      <p style="font-size:13px;margin:0 0 6px;">
+                        <a href="${siteUrl}/dashboard" style="color:#1a2e1a;">View your account</a>
+                      </p>
+                      <p style="font-size:13px;margin:0 0 6px;">
+                        <a href="${siteUrl}/favourites" style="color:#1a2e1a;">Choose your favourite meals</a>
+                      </p>
+                      <p style="font-size:13px;margin:0 0 6px;">
+                        <a href="${siteUrl}/change-delivery-day" style="color:#1a2e1a;">Change your delivery day</a>
+                      </p>
+                      <p style="font-size:13px;margin:0;">
+                        Any questions, just reply to this email — we're always happy to help.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="background:#1a2e1a;padding:24px 32px;">
+                <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">
+                  Chef-made · Fresh · Delivered
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
     `
   )
 }

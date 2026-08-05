@@ -237,7 +237,10 @@ export async function GET(req: NextRequest) {
           profile.email,
           (profile.full_name || 'there').split(' ')[0],
           totalAmount / 100,
-          deliveryDay || 'your'
+          deliveryDay || 'your',
+          orderItemsSnapshot,
+          'manually_ordered',
+          true
         )
       }
 
