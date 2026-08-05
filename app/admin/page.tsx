@@ -83,6 +83,13 @@ function money(n: number | null | undefined) {
   return `£${(n || 0).toFixed(2)}`
 }
 
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
 function initials(name: string | null) {
   if (!name) return '?'
   const parts = name.trim().split(/\s+/)
@@ -134,6 +141,8 @@ export default function AdminDashboard() {
   const [opsHub, setOpsHub] = useState<any>(null)
   const [opsHubLoaded, setOpsHubLoaded] = useState(false)
   const [newTaskText, setNewTaskText] = useState('')
+  const [topSearchValue, setTopSearchValue] = useState('')
+  const [showNotifications, setShowNotifications] = useState(false)
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -223,6 +232,8 @@ export default function AdminDashboard() {
   const leafletMapRef = useRef<HTMLDivElement>(null)
   const leafletInstanceRef = useRef<any>(null)
 
+  const [topAlertsCount, setTopAlertsCount] = useState(0)
+
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
     const res = await fetch('/api/admin/overview')
@@ -235,6 +246,17 @@ export default function AdminDashboard() {
     setCheckingAuth(false)
     const data = await res.json()
     setOverview(data)
+
+    try {
+      const failRes = await fetch('/api/admin/payment-failures')
+      if (failRes.ok) {
+        const failData = await failRes.json()
+        const unresolved = (failData.failures || []).filter((f: any) => !f.resolved).length
+        setTopAlertsCount(unresolved)
+      }
+    } catch {
+      // Non-critical — the bell just shows 0 if this fails.
+    }
   }
 
   useEffect(() => {
@@ -971,16 +993,19 @@ export default function AdminDashboard() {
 
   if (checkingAuth) {
     return (
-      <div className="pc-admin-shell pc-admin-center">
-        <div className="pc-admin-loading">Loading…</div>
-        <Styles />
+      <div className="pc-admin-root">
+        <div className="pc-admin-shell pc-admin-center">
+          <div className="pc-admin-loading">Loading…</div>
+          <Styles />
+        </div>
       </div>
     )
   }
 
   if (!authenticated) {
     return (
-      <div className="pc-admin-shell pc-admin-center">
+      <div className="pc-admin-root">
+        <div className="pc-admin-shell pc-admin-center">
         <div className="login-card">
           <div className="login-eyebrow">prepcuisines</div>
           <h1 className="login-title">Admin</h1>
@@ -1004,28 +1029,81 @@ export default function AdminDashboard() {
           </form>
         </div>
         <Styles />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="pc-admin-shell">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="sidebar-eyebrow">prepcuisines</div>
-          <div className="sidebar-title">Admin</div>
+    <div className="pc-admin-root">
+      <header className="pc-topbar">
+        <div className="pc-topbar-left">
+          <span className="pc-topbar-logo">prepcuisines</span>
         </div>
+        <form
+          className="pc-topbar-search"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!topSearchValue.trim()) return
+            setTab('customers')
+            setCustomerSearch(topSearchValue.trim())
+            setTopSearchValue('')
+          }}
+        >
+          <input
+            className="pc-topbar-search-input"
+            placeholder="Search customers, orders…"
+            value={topSearchValue}
+            onChange={(e) => setTopSearchValue(e.target.value)}
+            aria-label="Search"
+          />
+          <kbd className="pc-topbar-search-kbd">⌘K</kbd>
+        </form>
+        <div className="pc-topbar-right">
+          <div className="pc-topbar-notif-wrap">
+            <button
+              className="pc-topbar-icon-btn"
+              aria-label="Notifications"
+              onClick={() => setShowNotifications((v) => !v)}
+            >
+              🔔
+              {topAlertsCount > 0 && <span className="pc-topbar-badge">{topAlertsCount}</span>}
+            </button>
+            {showNotifications && (
+              <div className="pc-topbar-notif-dropdown">
+                {topAlertsCount > 0 ? (
+                  <button
+                    className="pc-topbar-notif-item"
+                    onClick={() => {
+                      setShowNotifications(false)
+                      setTab('ops-hub')
+                    }}
+                  >
+                    {topAlertsCount} unresolved failed payment{topAlertsCount !== 1 ? 's' : ''}
+                  </button>
+                ) : (
+                  <div className="pc-topbar-notif-empty">No alerts right now</div>
+                )}
+              </div>
+            )}
+          </div>
+          <span className="pc-topbar-store-pill">prepcuisines</span>
+        </div>
+      </header>
+
+      <div className="pc-admin-shell">
+      <aside className="sidebar">
         <nav className="sidebar-nav">
           {(
             [
-              { key: 'overview', label: 'Overview' },
-              { key: 'customers', label: 'Customers' },
+              { key: 'overview', label: 'Home' },
               { key: 'orders', label: 'Orders' },
-              { key: 'menu', label: 'Menu' },
-              { key: 'map', label: 'Map' },
-              { key: 'insights', label: 'Insights' },
+              { key: 'menu', label: 'Products' },
+              { key: 'customers', label: 'Customers' },
+              { key: 'insights', label: 'Analytics' },
               { key: 'product-analytics', label: 'Product Analytics' },
-              { key: 'ops-hub', label: 'Ops Hub' },
+              { key: 'map', label: 'Map' },
+              { key: 'ops-hub', label: 'Operations' },
             ] as const
           ).map((t) => (
             <button
@@ -1060,6 +1138,53 @@ export default function AdminDashboard() {
               : 'Ops Hub'}
           </h1>
         </header>
+
+        {tab === 'overview' && (
+          <div className="pc-greeting-block">
+            <div className="pc-greeting-title">{getGreeting()}!</div>
+            <div className="pc-greeting-sub">Let's see how prepcuisines is doing.</div>
+            <form
+              className="pc-ask-box"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!topSearchValue.trim()) return
+                setTab('customers')
+                setCustomerSearch(topSearchValue.trim())
+                setTopSearchValue('')
+              }}
+            >
+              <input
+                className="pc-ask-input"
+                placeholder="Search a customer, order, or dish…"
+                value={topSearchValue}
+                onChange={(e) => setTopSearchValue(e.target.value)}
+              />
+              <button type="submit" className="pc-ask-submit" aria-label="Search">
+                →
+              </button>
+            </form>
+            <div className="pc-quick-actions">
+              <button
+                className="pc-quick-action-pill"
+                onClick={() => setTab('ops-hub')}
+              >
+                Next delivery {nextDelivery ? `· ${nextDelivery.totalOrders} orders` : ''}
+              </button>
+              <button
+                className="pc-quick-action-pill"
+                onClick={() => setTab('ops-hub')}
+              >
+                Failed payments <span className="pc-quick-action-count">{topAlertsCount}</span>
+              </button>
+              <button
+                className="pc-quick-action-pill"
+                onClick={() => setTab('customers')}
+              >
+                New signups (7d) <span className="pc-quick-action-count">{overview?.newSignupsThisWeek ?? 0}</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {overview && (
           <>
@@ -2534,6 +2659,7 @@ export default function AdminDashboard() {
           </section>
         )}
       </main>
+      </div>
       <Styles />
     </div>
   )
@@ -2559,8 +2685,162 @@ function StatCard({
 function Styles() {
   return (
     <style jsx global>{`
-      .pc-admin-shell {
+      .pc-admin-root {
+        /* Remaps the brand colors this whole file already references (via
+           var(--pc-x, #fallback)) to a neutral, Shopify-like palette —
+           one change here instead of touching hundreds of individual
+           rules. Sidebar/topbar have their own explicit overrides below
+           since they need a genuinely different treatment (light sidebar,
+           near-black top bar) rather than just following this remap. */
+        --pc-green: #202223;
+        --pc-green-mid: #6d7175;
+        --pc-green-light: #8c9196;
+        --pc-cream: #f6f6f7;
+        --pc-cream-dark: #e3e3e3;
+        --pc-gold: #008060;
+        --pc-gold-light: #c9f0e2;
+        --pc-gold-dark: #006e52;
+        --pc-white: #ffffff;
         min-height: 100vh;
+        font-family: var(--font-montserrat), system-ui, sans-serif;
+      }
+
+      .pc-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        height: 56px;
+        background: #1a1a1a;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+      }
+      .pc-topbar-left {
+        display: flex;
+        align-items: center;
+        min-width: 160px;
+      }
+      .pc-topbar-logo {
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: -0.01em;
+      }
+      .pc-topbar-search {
+        flex: 1;
+        max-width: 640px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 0 12px;
+        height: 36px;
+      }
+      .pc-topbar-search-input {
+        flex: 1;
+        background: none;
+        border: none;
+        color: #ffffff;
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+      }
+      .pc-topbar-search-input::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .pc-topbar-search-kbd {
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 11px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-family: inherit;
+      }
+      .pc-topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 160px;
+        justify-content: flex-end;
+      }
+      .pc-topbar-notif-wrap {
+        position: relative;
+      }
+      .pc-topbar-icon-btn {
+        position: relative;
+        background: none;
+        border: none;
+        color: #ffffff;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        line-height: 1;
+      }
+      .pc-topbar-icon-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .pc-topbar-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background: #d82c0d;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        border-radius: 999px;
+        min-width: 14px;
+        height: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 3px;
+      }
+      .pc-topbar-notif-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: #ffffff;
+        color: #202223;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+        min-width: 240px;
+        overflow: hidden;
+        z-index: 1001;
+      }
+      .pc-topbar-notif-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        padding: 12px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #d82c0d;
+        cursor: pointer;
+      }
+      .pc-topbar-notif-item:hover {
+        background: #f6f6f7;
+      }
+      .pc-topbar-notif-empty {
+        padding: 14px;
+        font-size: 13px;
+        color: #6d7175;
+      }
+      .pc-topbar-store-pill {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 999px;
+      }
+
+      .pc-admin-shell {
+        min-height: calc(100vh - 56px);
         display: flex;
         background: var(--pc-cream, #f5f2ec);
         color: var(--pc-green, #2d3510);
@@ -2618,35 +2898,21 @@ function Styles() {
         margin: 10px 0 0;
       }
 
-      /* Sidebar */
+      /* Sidebar — light, Shopify-style: white bg, near-black text, light
+         gray active state, not the old dark green panel. */
       .sidebar {
-        width: 224px;
+        width: 240px;
         flex-shrink: 0;
-        background: var(--pc-green, #2d3510);
-        color: var(--pc-white, #faf8f4);
-        padding: 28px 16px;
+        background: #ffffff;
+        color: #202223;
+        padding: 16px 12px;
         display: flex;
         flex-direction: column;
         gap: 28px;
         position: sticky;
-        top: 0;
-        height: 100vh;
-      }
-      .sidebar-brand {
-        padding: 0 8px;
-      }
-      .sidebar-eyebrow {
-        font-size: 11px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--pc-gold-light, #e8d5b0);
-        font-weight: 600;
-      }
-      .sidebar-title {
-        font-family: var(--font-playfair), serif;
-        font-size: 22px;
-        font-weight: 900;
-        margin-top: 2px;
+        top: 56px;
+        height: calc(100vh - 56px);
+        border-right: 1px solid #e3e3e3;
       }
       .sidebar-nav {
         display: flex;
@@ -2657,29 +2923,28 @@ function Styles() {
         text-align: left;
         background: none;
         border: none;
-        color: var(--pc-cream, #f5f2ec);
-        opacity: 0.75;
+        color: #202223;
+        opacity: 0.85;
         font-family: inherit;
         font-size: 14px;
-        font-weight: 600;
-        padding: 10px 12px;
+        font-weight: 500;
+        padding: 9px 12px;
         border-radius: 8px;
         cursor: pointer;
-        border-left: 3px solid transparent;
         transition: background 0.15s ease, opacity 0.15s ease;
       }
       .sidebar-link:hover {
-        background: rgba(255, 255, 255, 0.06);
+        background: #f1f1f1;
         opacity: 1;
       }
       .sidebar-link:focus-visible {
-        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline: 2px solid #008060;
         outline-offset: 2px;
       }
       .sidebar-link-active {
         opacity: 1;
-        background: rgba(201, 168, 76, 0.14);
-        border-left-color: var(--pc-gold, #c9a84c);
+        background: #f1f1f1;
+        font-weight: 700;
       }
 
       /* Main content */
@@ -2700,6 +2965,81 @@ function Styles() {
         font-weight: 900;
         margin: 0;
         color: var(--pc-green, #2d3510);
+      }
+
+      .pc-greeting-block {
+        margin-bottom: 28px;
+      }
+      .pc-greeting-title {
+        font-family: var(--font-playfair), serif;
+        font-size: 30px;
+        font-weight: 900;
+        color: #202223;
+        margin-bottom: 4px;
+      }
+      .pc-greeting-sub {
+        font-size: 14px;
+        color: #6d7175;
+        margin-bottom: 20px;
+      }
+      .pc-ask-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #ffffff;
+        border: 1px solid #e3e3e3;
+        border-radius: 10px;
+        padding: 10px 14px;
+        max-width: 640px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      .pc-ask-input {
+        flex: 1;
+        border: none;
+        background: none;
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+        color: #202223;
+      }
+      .pc-ask-submit {
+        background: #202223;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .pc-quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pc-quick-action-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #ffffff;
+        border: 1px solid #e3e3e3;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #202223;
+        cursor: pointer;
+      }
+      .pc-quick-action-pill:hover {
+        border-color: #b5b5b5;
+      }
+      .pc-quick-action-count {
+        background: #f1f1f1;
+        border-radius: 999px;
+        padding: 1px 8px;
+        font-size: 12px;
+        font-weight: 700;
       }
 
       /* Stat cards */
@@ -3572,6 +3912,8 @@ function Styles() {
       }
 
       @media (max-width: 720px) {
+        .pc-topbar-search { display: none; }
+        .pc-topbar-store-pill { display: none; }
         .pc-admin-shell {
           flex-direction: column;
         }
@@ -3582,6 +3924,7 @@ function Styles() {
           flex-direction: row;
           align-items: center;
           padding: 16px;
+          overflow-x: auto;
         }
         .sidebar-nav {
           flex-direction: row;
