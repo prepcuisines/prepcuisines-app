@@ -106,9 +106,9 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
 
-  const [tab, setTab] = useState<'overview' | 'customers' | 'orders' | 'menu' | 'map' | 'insights'>(
-    'overview'
-  )
+  const [tab, setTab] = useState<
+    'overview' | 'customers' | 'orders' | 'menu' | 'map' | 'insights' | 'product-analytics'
+  >('overview')
 
   const [overview, setOverview] = useState<Overview | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -122,6 +122,7 @@ export default function AdminDashboard() {
   const [customerDateTo, setCustomerDateTo] = useState('')
   const [customerSingleDate, setCustomerSingleDate] = useState('')
   const [showCustomerDateFilter, setShowCustomerDateFilter] = useState(false)
+  const [showEmailLists, setShowEmailLists] = useState(false)
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -171,11 +172,43 @@ export default function AdminDashboard() {
     }[]
   >([])
   const [productDashboardLoaded, setProductDashboardLoaded] = useState(false)
-  const [hourCounts, setHourCounts] = useState<number[]>([])
-  const [revenueByFirstMeal, setRevenueByFirstMeal] = useState<
-    { name: string; customerCount: number; avgLifetimeValue: number }[]
-  >([])
-  const [customerInsightsLoaded, setCustomerInsightsLoaded] = useState(false)
+
+  const [insightsPeriod, setInsightsPeriod] = useState<
+    'today' | 'week' | 'month' | 'all' | 'custom'
+  >('week')
+  const [insightsCustomFrom, setInsightsCustomFrom] = useState('')
+  const [insightsCustomTo, setInsightsCustomTo] = useState('')
+  const [nextDelivery, setNextDelivery] = useState<{
+    date: string
+    dayName: string
+    totalOrders: number
+    totalMeals: number
+    revenue: number
+    avgOrderValue: number
+    avgMealsPerOrder: number
+    subscriptionOrders: number
+    paygOrders: number
+    topDishes: { name: string; qty: number }[]
+    proteinBreakdown: { protein: string; qty: number }[]
+  } | null>(null)
+  const [insightsCustomerSummary, setInsightsCustomerSummary] = useState<{
+    newCustomers: number
+    returningCustomers: number
+    repeatPurchaseRate: number
+    avgReorderDays: number | null
+    activeSubscriptions: number
+    customersWithOrders: number
+  } | null>(null)
+  const [insightsFinancial, setInsightsFinancial] = useState<{
+    revenue: number
+    ordersCount: number
+    deliveryCostEstimate: number
+  } | null>(null)
+  const [insightsAlerts, setInsightsAlerts] = useState<{
+    failedPaymentsCount: number
+    lowSellingDishes: { name: string; qty: number }[]
+  } | null>(null)
+  const [insightsOverviewLoaded, setInsightsOverviewLoaded] = useState(false)
   const leafletMapRef = useRef<HTMLDivElement>(null)
   const leafletInstanceRef = useRef<any>(null)
 
@@ -479,27 +512,33 @@ export default function AdminDashboard() {
     }
   }
 
-  const loadCustomerInsights = async () => {
+  const loadInsightsOverview = async (
+    period: typeof insightsPeriod,
+    customFrom?: string,
+    customTo?: string
+  ) => {
     try {
-      const res = await fetch('/api/admin/customer-insights')
+      let url = `/api/admin/insights-overview?period=${period}`
+      if (period === 'custom' && customFrom) {
+        url += `&from=${customFrom}${customTo ? `&to=${customTo}` : ''}`
+      }
+      const res = await fetch(url)
       if (res.status === 401) {
         setAuthenticated(false)
         return
       }
       if (!res.ok) {
-        setHourCounts([])
-        setRevenueByFirstMeal([])
-        setCustomerInsightsLoaded(true)
+        setInsightsOverviewLoaded(true)
         return
       }
       const data = await res.json()
-      setHourCounts(data.hourCounts || [])
-      setRevenueByFirstMeal(data.revenueByFirstMeal || [])
-      setCustomerInsightsLoaded(true)
+      setNextDelivery(data.nextDelivery || null)
+      setInsightsCustomerSummary(data.customerSummary || null)
+      setInsightsFinancial(data.financial || null)
+      setInsightsAlerts(data.alerts || null)
+      setInsightsOverviewLoaded(true)
     } catch {
-      setHourCounts([])
-      setRevenueByFirstMeal([])
-      setCustomerInsightsLoaded(true)
+      setInsightsOverviewLoaded(true)
     }
   }
 
@@ -601,11 +640,11 @@ export default function AdminDashboard() {
     if (tab === 'orders' && orders.length === 0) loadOrders()
     if (tab === 'menu' && !menuLoaded) loadMenu()
     if (tab === 'map' && !mapLoaded) loadMapPoints()
-    if (tab === 'insights' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
+    if (tab === 'insights' && !insightsOverviewLoaded) loadInsightsOverview(insightsPeriod)
     if (tab === 'insights' && customers.length === 0) loadCustomers()
-    if (tab === 'insights' && !dishPairsLoaded) loadDishPairs()
-    if (tab === 'insights' && !productDashboardLoaded) loadProductDashboard()
-    if (tab === 'insights' && !customerInsightsLoaded) loadCustomerInsights()
+    if (tab === 'product-analytics' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
+    if (tab === 'product-analytics' && !dishPairsLoaded) loadDishPairs()
+    if (tab === 'product-analytics' && !productDashboardLoaded) loadProductDashboard()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -916,6 +955,7 @@ export default function AdminDashboard() {
               { key: 'menu', label: 'Menu' },
               { key: 'map', label: 'Map' },
               { key: 'insights', label: 'Insights' },
+              { key: 'product-analytics', label: 'Product Analytics' },
             ] as const
           ).map((t) => (
             <button
@@ -943,7 +983,9 @@ export default function AdminDashboard() {
               ? 'Menu'
               : tab === 'map'
               ? 'Order Map'
-              : 'Insights'}
+              : tab === 'insights'
+              ? 'Insights'
+              : 'Product Analytics'}
           </h1>
         </header>
 
@@ -980,7 +1022,14 @@ export default function AdminDashboard() {
               <StatCard label="Active subscriptions" value={overview.activeSubscriptions} />
               <StatCard label="New signups (7d)" value={overview.newSignupsThisWeek} />
               <StatCard label="Orders (7d)" value={overview.ordersThisWeek} />
-              <StatCard label="Avg. customer LTV" value={money(overview.averageLtv || 0)} />
+              <StatCard
+                label="Avg. customer LTV"
+                value={
+                  (overview.ltvCustomerCount || 0) >= 3
+                    ? money(overview.averageLtv || 0)
+                    : 'Not enough data yet'
+                }
+              />
               <StatCard label="Revenue (7d)" value={money(overview.revenueThisWeek)} accent />
             </div>
           </>
@@ -1027,6 +1076,42 @@ export default function AdminDashboard() {
                 <div className="status-card-value">{statusBreakdown.total}</div>
               </button>
             </div>
+
+            <div className="date-filter-toggle-row">
+              <button className="date-filter-toggle" onClick={() => setShowEmailLists((v) => !v)}>
+                {showEmailLists ? '▾' : '▸'} Email marketing lists
+              </button>
+            </div>
+
+            {showEmailLists && (
+              <div className="insights-block">
+                <p className="map-intro">
+                  One-click copy — pastes as a comma-separated list ready for your email tool.
+                </p>
+                <div className="email-lists-grid">
+                  {emailLists.map((list) => (
+                    <div key={list.key} className="email-list-card">
+                      <div className="email-list-header">
+                        <span className="email-list-label">{list.label}</span>
+                        <span className="email-list-count">{list.customers.length}</span>
+                      </div>
+                      <button
+                        className="btn-primary"
+                        disabled={list.customers.length === 0}
+                        onClick={() =>
+                          copyEmailList(
+                            list.key,
+                            list.customers.map((c) => c.email).filter(Boolean) as string[]
+                          )
+                        }
+                      >
+                        {copiedListKey === list.key ? 'Copied!' : 'Copy emails'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="toolbar">
               <div className="segment-pills" role="tablist" aria-label="Customer segment">
@@ -1604,6 +1689,223 @@ export default function AdminDashboard() {
 
         {tab === 'insights' && (
           <section>
+            <div className="insights-period-row">
+              <div className="segment-pills" role="tablist" aria-label="Insights date filter">
+                {(
+                  [
+                    { key: 'today', label: 'Today' },
+                    { key: 'week', label: 'This week' },
+                    { key: 'month', label: 'This month' },
+                    { key: 'all', label: 'All time' },
+                    { key: 'custom', label: 'Custom' },
+                  ] as const
+                ).map((p) => (
+                  <button
+                    key={p.key}
+                    className={`segment-pill ${insightsPeriod === p.key ? 'segment-pill-active' : ''}`}
+                    onClick={() => {
+                      setInsightsPeriod(p.key)
+                      if (p.key !== 'custom') loadInsightsOverview(p.key)
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              {insightsPeriod === 'custom' && (
+                <>
+                  <input
+                    type="date"
+                    className="text-input search-input"
+                    value={insightsCustomFrom}
+                    onChange={(e) => setInsightsCustomFrom(e.target.value)}
+                  />
+                  <input
+                    type="date"
+                    className="text-input search-input"
+                    value={insightsCustomTo}
+                    onChange={(e) => setInsightsCustomTo(e.target.value)}
+                  />
+                  <button
+                    className="btn-primary"
+                    onClick={() =>
+                      loadInsightsOverview('custom', insightsCustomFrom, insightsCustomTo)
+                    }
+                  >
+                    Apply
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* 1. Next delivery */}
+            <div className="insights-block">
+              <h2 className="insights-block-title">
+                Next delivery
+                {nextDelivery ? ` — ${nextDelivery.dayName} (w/c ${new Date(nextDelivery.date).toLocaleDateString('en-GB')})` : ''}
+              </h2>
+              {!nextDelivery ? (
+                <div className="empty-panel">No upcoming delivery window found.</div>
+              ) : (
+                <>
+                  <div className="stat-grid">
+                    <StatCard label="Total orders" value={nextDelivery.totalOrders} />
+                    <StatCard label="Total meals" value={nextDelivery.totalMeals} />
+                    <StatCard label="Revenue" value={money(nextDelivery.revenue)} accent />
+                    <StatCard label="Avg. order value" value={money(nextDelivery.avgOrderValue)} />
+                    <StatCard
+                      label="Avg. meals/order"
+                      value={nextDelivery.avgMealsPerOrder.toFixed(1)}
+                    />
+                    <StatCard label="Subscription orders" value={nextDelivery.subscriptionOrders} />
+                    <StatCard label="PAYG orders" value={nextDelivery.paygOrders} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 2. Customer summary */}
+            <div className="insights-block">
+              <h2 className="insights-block-title">Customer summary</h2>
+              {!insightsCustomerSummary ? (
+                <div className="empty-panel">Loading…</div>
+              ) : (
+                <div className="stat-grid">
+                  <StatCard label="New customers" value={insightsCustomerSummary.newCustomers} />
+                  <StatCard
+                    label="Returning customers"
+                    value={insightsCustomerSummary.returningCustomers}
+                  />
+                  <StatCard
+                    label="Repeat purchase rate"
+                    value={`${insightsCustomerSummary.repeatPurchaseRate}%`}
+                  />
+                  <StatCard
+                    label="Avg. reorder time"
+                    value={
+                      insightsCustomerSummary.avgReorderDays !== null
+                        ? `${insightsCustomerSummary.avgReorderDays}d`
+                        : '—'
+                    }
+                  />
+                  <StatCard
+                    label="Active subscriptions"
+                    value={insightsCustomerSummary.activeSubscriptions}
+                    accent
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 3. Production summary */}
+            <div className="insights-block">
+              <h2 className="insights-block-title">Production summary — next delivery</h2>
+              {!nextDelivery || nextDelivery.topDishes.length === 0 ? (
+                <div className="empty-panel">No orders for the next window yet.</div>
+              ) : (
+                <>
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Top 5 dishes needed</th>
+                          <th>Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {nextDelivery.topDishes.map((d) => (
+                          <tr key={d.name}>
+                            <td>{d.name}</td>
+                            <td className="num">{d.qty}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="map-intro" style={{ marginTop: 14 }}>
+                    Protein breakdown (approximate — based on dish name keywords, not a real
+                    ingredient database):{' '}
+                    {nextDelivery.proteinBreakdown.map((p) => `${p.protein} ${p.qty}`).join(' · ')}
+                  </p>
+                  <div className="empty-panel" style={{ marginTop: 10 }}>
+                    Ingredients required and packaging required aren't shown — there's no recipe
+                    or ingredient database set up in this system yet, so these can't be computed
+                    honestly.
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 4. Financial summary */}
+            <div className="insights-block">
+              <h2 className="insights-block-title">Financial summary</h2>
+              {!insightsFinancial ? (
+                <div className="empty-panel">Loading…</div>
+              ) : (
+                <>
+                  <div className="stat-grid">
+                    <StatCard label="Revenue" value={money(insightsFinancial.revenue)} accent />
+                    <StatCard label="Discounts" value="—" />
+                    <StatCard
+                      label="Delivery cost (est.)"
+                      value={money(insightsFinancial.deliveryCostEstimate)}
+                    />
+                  </div>
+                  <div className="empty-panel" style={{ marginTop: 10 }}>
+                    Ingredient costs, packaging costs, gross profit, margin, and profit per
+                    order/meal aren't shown — no cost data has been entered yet. Add ingredient
+                    and packaging cost data to unlock real profit figures instead of guessed ones.
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 5. Alerts and actions */}
+            <div className="insights-block">
+              <h2 className="insights-block-title">Alerts & actions</h2>
+              {!insightsAlerts ? (
+                <div className="empty-panel">Loading…</div>
+              ) : (
+                <div className="alerts-grid">
+                  <div className="alert-card">
+                    <div className="alert-card-value">{insightsAlerts.failedPaymentsCount}</div>
+                    <div className="alert-card-label">Failed payments</div>
+                  </div>
+                  <div className="alert-card">
+                    <div className="alert-card-value">
+                      {emailLists.find((l) => l.key === 'win_back')?.customers.length ?? 0}
+                    </div>
+                    <div className="alert-card-label">Customers due a reorder email</div>
+                  </div>
+                  <div className="alert-card alert-card-muted">
+                    <div className="alert-card-value">—</div>
+                    <div className="alert-card-label">Orders requiring attention (not tracked yet)</div>
+                  </div>
+                  <div className="alert-card alert-card-muted">
+                    <div className="alert-card-value">—</div>
+                    <div className="alert-card-label">Late/failed deliveries (not tracked yet)</div>
+                  </div>
+                  <div className="alert-card">
+                    <div className="alert-card-value">
+                      {insightsAlerts.lowSellingDishes[0]?.name || '—'}
+                    </div>
+                    <div className="alert-card-label">Lowest-selling dish (all-time)</div>
+                  </div>
+                </div>
+              )}
+              <button
+                className="btn-primary"
+                style={{ marginTop: 14 }}
+                onClick={() => setTab('product-analytics')}
+              >
+                View full Product Analytics report
+              </button>
+            </div>
+          </section>
+        )}
+
+        {tab === 'product-analytics' && (
+          <section>
             <div className="insights-block">
               <h2 className="insights-block-title">Product dashboard</h2>
               <p className="map-intro">
@@ -1648,114 +1950,6 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <div className="insights-block">
-              <h2 className="insights-block-title">Revenue by first meal</h2>
-              <p className="map-intro">
-                Average lifetime spend of customers whose very first order included this dish —
-                shows which meals create your most valuable customers, not just which sell most.
-              </p>
-              {revenueByFirstMeal.length === 0 ? (
-                <div className="empty-panel">Not enough identified customer data yet.</div>
-              ) : (
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>First meal</th>
-                        <th>Customers</th>
-                        <th>Avg. lifetime value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {revenueByFirstMeal.map((d) => (
-                        <tr key={d.name}>
-                          <td>{d.name}</td>
-                          <td className="num">{d.customerCount}</td>
-                          <td className="num">{money(d.avgLifetimeValue)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="insights-block">
-              <h2 className="insights-block-title">Order time distribution</h2>
-              <p className="map-intro">
-                What hour of day orders come in — useful for timing marketing emails.
-              </p>
-              {hourCounts.length === 0 || hourCounts.every((c) => c === 0) ? (
-                <div className="empty-panel">Not enough order data yet.</div>
-              ) : (
-                <div className="hour-chart">
-                  {hourCounts.map((count, hour) => {
-                    const max = Math.max(1, ...hourCounts)
-                    const heightPct = Math.round((count / max) * 100)
-                    return (
-                      <div key={hour} className="hour-bar-col" title={`${hour}:00 — ${count} orders`}>
-                        <div className="hour-bar-track">
-                          <div className="hour-bar-fill" style={{ height: `${heightPct}%` }} />
-                        </div>
-                        {hour % 3 === 0 && <span className="hour-bar-label">{hour}</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="insights-block">
-              <h2 className="insights-block-title">Email marketing lists</h2>
-              <p className="map-intro">
-                One-click copy — pastes as a comma-separated list ready for your email tool.
-              </p>
-              <div className="email-lists-grid">
-                {emailLists.map((list) => (
-                  <div key={list.key} className="email-list-card">
-                    <div className="email-list-header">
-                      <span className="email-list-label">{list.label}</span>
-                      <span className="email-list-count">{list.customers.length}</span>
-                    </div>
-                    <button
-                      className="btn-primary"
-                      disabled={list.customers.length === 0}
-                      onClick={() =>
-                        copyEmailList(
-                          list.key,
-                          list.customers.map((c) => c.email).filter(Boolean) as string[]
-                        )
-                      }
-                    >
-                      {copiedListKey === list.key ? 'Copied!' : 'Copy emails'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="insights-block">
-              <h2 className="insights-block-title">Repeat purchase & reorder timing</h2>
-              <p className="map-intro">
-                Based on {repeatPurchaseStats.customersWithOrders} customer
-                {repeatPurchaseStats.customersWithOrders !== 1 ? 's' : ''} who've ordered at
-                least once.
-              </p>
-              <div className="stat-grid">
-                <StatCard label="Ordered 2+ times" value={`${repeatPurchaseStats.second}%`} />
-                <StatCard label="Ordered 3+ times" value={`${repeatPurchaseStats.third}%`} />
-                <StatCard label="Ordered 4+ times" value={`${repeatPurchaseStats.fourth}%`} />
-                <StatCard
-                  label="Avg. days between orders"
-                  value={
-                    repeatPurchaseStats.avgReorderDays !== null
-                      ? `${repeatPurchaseStats.avgReorderDays}d`
-                      : '—'
-                  }
-                  accent
-                />
-              </div>
-            </div>
 
             <div className="insights-block">
               <div className="insights-block-header">
@@ -1830,7 +2024,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dishPairs.map((p) => (
+                      {dishPairs.slice(0, 5).map((p) => (
                         <tr key={`${p.dishA}-${p.dishB}`}>
                           <td>{p.dishA}</td>
                           <td>{p.dishB}</td>
@@ -2230,6 +2424,41 @@ function Styles() {
 
       .insights-block {
         margin-bottom: 20px;
+      }
+      .insights-period-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .alerts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .alert-card {
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-top: 3px solid var(--pc-gold, #c9a84c);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .alert-card-muted {
+        border-top-color: var(--pc-cream-dark, #ede8de);
+        opacity: 0.65;
+      }
+      .alert-card-value {
+        font-family: var(--font-playfair), serif;
+        font-size: 20px;
+        font-weight: 900;
+        color: var(--pc-green, #2d3510);
+        line-height: 1.2;
+      }
+      .alert-card-label {
+        font-size: 11.5px;
+        color: var(--pc-green-mid, #3a4516);
+        margin-top: 4px;
       }
       .insights-block-header {
         display: flex;
