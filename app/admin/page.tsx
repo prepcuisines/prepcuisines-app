@@ -155,6 +155,10 @@ export default function AdminDashboard() {
   } | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 })
+  const [marketingLeads, setMarketingLeads] = useState<
+    { id: string; email: string; full_name: string | null; phone: string | null }[]
+  >([])
+  const [marketingLeadsLoaded, setMarketingLeadsLoaded] = useState(false)
 
   const [opsHub, setOpsHub] = useState<any>(null)
   const [opsHubLoaded, setOpsHubLoaded] = useState(false)
@@ -329,6 +333,25 @@ export default function AdminDashboard() {
       setCustomers([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMarketingLeads = async () => {
+    try {
+      const res = await fetch('/api/admin/marketing-leads')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setMarketingLeadsLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setMarketingLeads(data.leads || [])
+      setMarketingLeadsLoaded(true)
+    } catch {
+      setMarketingLeadsLoaded(true)
     }
   }
 
@@ -819,6 +842,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authenticated) return
     if (tab === 'customers' && customers.length === 0) loadCustomers()
+    if (tab === 'customers' && !marketingLeadsLoaded) loadMarketingLeads()
     if (tab === 'orders' && orders.length === 0) loadOrders()
     if (tab === 'menu' && !menuLoaded) loadMenu()
     if (tab === 'map' && !mapLoaded) loadMapPoints()
@@ -920,6 +944,11 @@ export default function AdminDashboard() {
     // Klaviyo later.
     const consented = customers.filter((c) => c.marketing_consent === true)
 
+    // Marketing leads (e.g. imported from Shopify) aren't real ordering
+    // customers, so they don't have the full Customer shape — only email
+    // matters for this card, so they're merged in as minimal stand-ins.
+    const leadsAsEntries = marketingLeads.map((l) => ({ email: l.email }) as Customer)
+
     const topSpenders = consented
       .slice()
       .sort((a, b) => b.totalSpend - a.totalSpend)
@@ -929,7 +958,12 @@ export default function AdminDashboard() {
       {
         key: 'all_subscribed',
         label: 'All marketing opt-ins',
-        customers: consented,
+        customers: [...consented, ...leadsAsEntries],
+      },
+      {
+        key: 'shopify_leads',
+        label: 'Imported Shopify leads',
+        customers: leadsAsEntries,
       },
       {
         key: 'lapsed_30',
@@ -962,7 +996,7 @@ export default function AdminDashboard() {
         customers: topSpenders,
       },
     ]
-  }, [customers])
+  }, [customers, marketingLeads])
 
   const copyEmailList = (key: string, emails: string[]) => {
     const text = emails.join(', ')
@@ -1026,6 +1060,7 @@ export default function AdminDashboard() {
           setImportSummary(aggregate)
           setImportStatus('done')
           loadCustomers()
+          loadMarketingLeads()
         } catch {
           setImportError('Network error partway through the import')
           setImportStatus('error')
