@@ -80,7 +80,7 @@ const segmentFilters = [
   { key: 'loyal', label: 'Loyal' },
   { key: 'new_this_week', label: 'New this week' },
   { key: 'win_back', label: 'Win-back' },
-  { key: 'email_subscribed', label: 'Email subscribers' },
+  { key: 'email_subscribed', label: 'Marketing opted-in' },
 ]
 
 function money(n: number | null | undefined) {
@@ -913,7 +913,7 @@ export default function AdminDashboard() {
     return [
       {
         key: 'all_subscribed',
-        label: 'All subscribed customers',
+        label: 'All marketing opt-ins',
         customers: consented,
       },
       {
@@ -1543,7 +1543,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th>Customer</th>
                       <th>Status</th>
-                      <th>Email subscription</th>
+                      <th>Marketing emails</th>
                       <th>Orders</th>
                       <th>Total spend</th>
                       <th>Last order</th>
@@ -1568,9 +1568,9 @@ export default function AdminDashboard() {
                         </td>
                         <td>
                           {c.marketing_consent === true ? (
-                            <span className="pill pill-active">Subscribed</span>
+                            <span className="pill pill-active">Opted in</span>
                           ) : c.marketing_consent === false ? (
-                            <span className="pill pill-muted">Not subscribed</span>
+                            <span className="pill pill-muted">Opted out</span>
                           ) : (
                             <span className="pill pill-warn">Unknown</span>
                           )}
