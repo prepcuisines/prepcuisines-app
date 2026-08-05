@@ -53,9 +53,10 @@ export async function GET(req: NextRequest) {
   const { data: windowOrders } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, customer_id, status, items, total_amount, delivery_instructions, ship_full_name, ship_postcode'
+      'id, customer_id, status, items, total_amount, delivery_instructions, ship_full_name, ship_postcode, cancelled'
     )
     .eq('menu_window_id', nextWindow.id)
+    .or('cancelled.is.null,cancelled.eq.false')
 
   const orders = windowOrders || []
 

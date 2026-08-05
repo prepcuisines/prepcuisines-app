@@ -60,6 +60,8 @@ type Order = {
   customer_name: string
   customer_email: string | null
   menu_windows: { week_start_date: string } | null
+  fulfilled?: boolean
+  cancelled?: boolean
 }
 
 const statusLabels: Record<string, string> = {
@@ -143,6 +145,17 @@ export default function AdminDashboard() {
   const [newTaskText, setNewTaskText] = useState('')
   const [topSearchValue, setTopSearchValue] = useState('')
   const [showNotifications, setShowNotifications] = useState(false)
+
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [orderDetail, setOrderDetail] = useState<any>(null)
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false)
+  const [editingItems, setEditingItems] = useState<{ name: string; price: number; qty: number }[]>(
+    []
+  )
+  const [editingDeliveryDay, setEditingDeliveryDay] = useState('')
+  const [orderActionStatus, setOrderActionStatus] = useState<'idle' | 'saving' | 'error'>('idle')
+  const [orderActionError, setOrderActionError] = useState<string | null>(null)
+  const [chargeAmountInput, setChargeAmountInput] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -609,6 +622,67 @@ export default function AdminDashboard() {
       // Silent failure is acceptable here — the toggle just won't stick,
       // and the next full reload will show the real persisted state.
     }
+  }
+
+  const openOrderDetail = async (orderId: string) => {
+    setSelectedOrderId(orderId)
+    setOrderDetail(null)
+    setOrderDetailLoading(true)
+    setOrderActionStatus('idle')
+    setOrderActionError(null)
+    setChargeAmountInput('')
+    try {
+      const res = await fetch(`/api/admin/order-detail?id=${orderId}`)
+      if (!res.ok) {
+        setOrderDetailLoading(false)
+        return
+      }
+      const data = await res.json()
+      setOrderDetail(data)
+      setEditingItems(data.order.items || [])
+      setEditingDeliveryDay(data.order.delivery_day || '')
+    } catch {
+      // leave orderDetail null — the modal shows a loading/error state
+    } finally {
+      setOrderDetailLoading(false)
+    }
+  }
+
+  const closeOrderDetail = () => {
+    setSelectedOrderId(null)
+    setOrderDetail(null)
+  }
+
+  const orderDetailAction = async (action: string, payload?: any) => {
+    if (!selectedOrderId) return
+    setOrderActionStatus('saving')
+    setOrderActionError(null)
+    try {
+      const res = await fetch('/api/admin/order-detail', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedOrderId, action, payload }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setOrderActionError(data.error || 'Something went wrong')
+        setOrderActionStatus('error')
+        return
+      }
+      setOrderActionStatus('idle')
+      // Refresh both the detail view and the underlying orders list so
+      // everything stays consistent after any change.
+      await openOrderDetail(selectedOrderId)
+      loadOrders()
+    } catch {
+      setOrderActionError('Network error — please try again')
+      setOrderActionStatus('error')
+    }
+  }
+
+  const saveEditedItems = () => {
+    const totalAmount = editingItems.reduce((sum, i) => sum + i.price * i.qty, 0)
+    orderDetailAction('update_items', { items: editingItems, totalAmount })
   }
 
   const printKitchenSheet = () => {
@@ -1703,6 +1777,8 @@ export default function AdminDashboard() {
                       <th>Delivery week</th>
                       <th>Postcode</th>
                       <th>Placed</th>
+                      <th>Status</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1755,6 +1831,20 @@ export default function AdminDashboard() {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
+                        </td>
+                        <td>
+                          {o.cancelled ? (
+                            <span className="pill pill-warn">Cancelled</span>
+                          ) : o.fulfilled ? (
+                            <span className="pill pill-active">Fulfilled</span>
+                          ) : (
+                            <span className="pill pill-muted">Unfulfilled</span>
+                          )}
+                        </td>
+                        <td>
+                          <button className="segment-pill" onClick={() => openOrderDetail(o.id)}>
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -2658,6 +2748,187 @@ export default function AdminDashboard() {
             )}
           </section>
         )}
+      {selectedOrderId && (
+        <div className="pc-modal-overlay" onClick={closeOrderDetail}>
+          <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-modal-header">
+              <h2 className="pc-modal-title">Order detail</h2>
+              <button className="pc-modal-close" onClick={closeOrderDetail} aria-label="Close">
+                ×
+              </button>
+            </div>
+
+            {orderDetailLoading || !orderDetail ? (
+              <div className="empty-panel">Loading…</div>
+            ) : (
+              <div className="pc-modal-body">
+                <div className="pc-modal-section">
+                  <div className="pc-modal-customer-name">{orderDetail.customerName}</div>
+                  {orderDetail.customerEmail && (
+                    <div className="pc-modal-customer-email">{orderDetail.customerEmail}</div>
+                  )}
+                  <div className="pc-modal-status-row">
+                    {orderDetail.order.cancelled ? (
+                      <span className="pill pill-warn">Cancelled</span>
+                    ) : orderDetail.order.fulfilled ? (
+                      <span className="pill pill-active">Fulfilled</span>
+                    ) : (
+                      <span className="pill pill-muted">Unfulfilled</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">Delivery day</label>
+                  <div className="pc-modal-inline-row">
+                    <input
+                      className="text-input"
+                      value={editingDeliveryDay}
+                      onChange={(e) => setEditingDeliveryDay(e.target.value)}
+                      placeholder="Wednesday or Sunday"
+                    />
+                    <button
+                      className="btn-primary"
+                      onClick={() =>
+                        orderDetailAction('set_delivery_day', { deliveryDay: editingDeliveryDay })
+                      }
+                      disabled={orderActionStatus === 'saving'}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">Items</label>
+                  {editingItems.map((item, idx) => (
+                    <div key={idx} className="pc-modal-item-row">
+                      <input
+                        className="text-input"
+                        style={{ flex: 1 }}
+                        value={item.name}
+                        onChange={(e) => {
+                          const next = [...editingItems]
+                          next[idx] = { ...next[idx], name: e.target.value }
+                          setEditingItems(next)
+                        }}
+                      />
+                      <input
+                        type="number"
+                        className="text-input"
+                        style={{ width: 70 }}
+                        value={item.qty}
+                        onChange={(e) => {
+                          const next = [...editingItems]
+                          next[idx] = { ...next[idx], qty: Number(e.target.value) }
+                          setEditingItems(next)
+                        }}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="text-input"
+                        style={{ width: 90 }}
+                        value={item.price}
+                        onChange={(e) => {
+                          const next = [...editingItems]
+                          next[idx] = { ...next[idx], price: Number(e.target.value) }
+                          setEditingItems(next)
+                        }}
+                      />
+                      <button
+                        className="segment-pill"
+                        onClick={() => setEditingItems(editingItems.filter((_, i) => i !== idx))}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
+                    <button
+                      className="segment-pill"
+                      onClick={() =>
+                        setEditingItems([...editingItems, { name: '', price: 0, qty: 1 }])
+                      }
+                    >
+                      + Add item
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={saveEditedItems}
+                      disabled={orderActionStatus === 'saving'}
+                    >
+                      Save items
+                    </button>
+                  </div>
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    Editing items updates your records only — it does not automatically charge
+                    or refund the difference in Stripe.
+                  </p>
+                </div>
+
+                <div className="pc-modal-section">
+                  <div className="pc-modal-inline-row">
+                    <button
+                      className="btn-primary"
+                      onClick={() =>
+                        orderDetailAction('set_fulfilled', { value: !orderDetail.order.fulfilled })
+                      }
+                      disabled={orderActionStatus === 'saving'}
+                    >
+                      {orderDetail.order.fulfilled ? 'Mark unfulfilled' : 'Mark fulfilled'}
+                    </button>
+                    <button
+                      className="segment-pill"
+                      onClick={() =>
+                        orderDetailAction('set_cancelled', { value: !orderDetail.order.cancelled })
+                      }
+                      disabled={orderActionStatus === 'saving'}
+                    >
+                      {orderDetail.order.cancelled ? 'Reinstate order' : 'Cancel order'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">Charge additional amount</label>
+                  {orderDetail.canCharge ? (
+                    <div className="pc-modal-inline-row">
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="text-input"
+                        placeholder="£0.00"
+                        value={chargeAmountInput}
+                        onChange={(e) => setChargeAmountInput(e.target.value)}
+                      />
+                      <button
+                        className="btn-primary"
+                        disabled={orderActionStatus === 'saving' || !chargeAmountInput}
+                        onClick={() =>
+                          orderDetailAction('charge_additional', {
+                            amount: Number(chargeAmountInput),
+                          })
+                        }
+                      >
+                        Charge card on file
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="empty-panel">
+                      No saved card on file for this customer — this order can't be charged
+                      further from here.
+                    </div>
+                  )}
+                </div>
+
+                {orderActionError && <p className="error-text">{orderActionError}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       </main>
       </div>
       <Styles />
@@ -2685,6 +2956,86 @@ function StatCard({
 function Styles() {
   return (
     <style jsx global>{`
+      .pc-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 40px 16px;
+        overflow-y: auto;
+      }
+      .pc-modal {
+        background: #ffffff;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 620px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+      }
+      .pc-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 22px;
+        border-bottom: 1px solid #e3e3e3;
+      }
+      .pc-modal-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #202223;
+        margin: 0;
+      }
+      .pc-modal-close {
+        background: none;
+        border: none;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+        color: #6d7175;
+        padding: 4px;
+      }
+      .pc-modal-body {
+        padding: 20px 22px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .pc-modal-section {
+        border-bottom: 1px solid #f1f1f1;
+        padding-bottom: 18px;
+      }
+      .pc-modal-section:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .pc-modal-customer-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #202223;
+      }
+      .pc-modal-customer-email {
+        font-size: 13px;
+        color: #6d7175;
+        margin-top: 2px;
+      }
+      .pc-modal-status-row {
+        margin-top: 10px;
+      }
+      .pc-modal-inline-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .pc-modal-item-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
       .pc-admin-root {
         /* Remaps the brand colors this whole file already references (via
            var(--pc-x, #fallback)) to a neutral, Shopify-like palette —
