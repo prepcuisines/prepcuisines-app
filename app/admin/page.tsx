@@ -143,6 +143,14 @@ export default function AdminDashboard() {
   const [showCustomerDateFilter, setShowCustomerDateFilter] = useState(false)
   const [showEmailLists, setShowEmailLists] = useState(false)
   const [showImportLeads, setShowImportLeads] = useState(false)
+  const [klaviyoSyncStatus, setKlaviyoSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>(
+    'idle'
+  )
+  const [klaviyoSyncResult, setKlaviyoSyncResult] = useState<{
+    totalUniqueEmails: number
+    synced: number
+  } | null>(null)
+  const [klaviyoSyncError, setKlaviyoSyncError] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<'idle' | 'parsing' | 'importing' | 'done' | 'error'>(
     'idle'
   )
@@ -1082,6 +1090,25 @@ export default function AdminDashboard() {
     })
   }
 
+  const runKlaviyoSync = async () => {
+    setKlaviyoSyncStatus('syncing')
+    setKlaviyoSyncError(null)
+    try {
+      const res = await fetch('/api/admin/klaviyo-sync-all', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setKlaviyoSyncError(data.error || 'Sync failed')
+        setKlaviyoSyncStatus('error')
+        return
+      }
+      setKlaviyoSyncResult(data)
+      setKlaviyoSyncStatus('done')
+    } catch {
+      setKlaviyoSyncError('Network error — please try again')
+      setKlaviyoSyncStatus('error')
+    }
+  }
+
   const handleShopifyCsvImport = (file: File) => {
     setImportStatus('parsing')
     setImportError(null)
@@ -1676,6 +1703,31 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Klaviyo</label>
+                  <p className="map-intro">
+                    Pushes every currently-consented customer and imported lead into your
+                    Klaviyo list. Safe to re-run any time (e.g. after a new import) — it just
+                    updates existing profiles rather than duplicating them.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    onClick={runKlaviyoSync}
+                    disabled={klaviyoSyncStatus === 'syncing'}
+                  >
+                    {klaviyoSyncStatus === 'syncing' ? 'Syncing…' : 'Sync all to Klaviyo'}
+                  </button>
+                  {klaviyoSyncStatus === 'error' && klaviyoSyncError && (
+                    <p className="error-text">{klaviyoSyncError}</p>
+                  )}
+                  {klaviyoSyncStatus === 'done' && klaviyoSyncResult && (
+                    <p className="map-intro" style={{ marginTop: 8 }}>
+                      Synced {klaviyoSyncResult.synced} of {klaviyoSyncResult.totalUniqueEmails}{' '}
+                      unique emails to Klaviyo.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 

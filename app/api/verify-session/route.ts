@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
+import { klaviyoTrackEvent } from '@/lib/klaviyo'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
       try {
         const { data: shipProfile } = await supabase
           .from('customer_profiles')
-          .select('full_name, phone, house_number, street, postcode, standing_delivery_instructions')
+          .select('full_name, email, phone, house_number, street, postcode, standing_delivery_instructions')
           .eq('id', userId)
           .single()
 
@@ -110,6 +111,19 @@ export async function GET(req: NextRequest) {
             ship_postcode: shipProfile?.postcode || null,
             delivery_instructions: shipProfile?.standing_delivery_instructions || null,
           })
+
+          if (shipProfile?.email) {
+            await klaviyoTrackEvent(
+              shipProfile.email,
+              'Placed Order',
+              {
+                items: orderItemsSnapshot,
+                delivery_day: deliveryDay,
+                order_type: 'signup_order',
+              },
+              (session.amount_total || 0) / 100
+            )
+          }
         }
       } catch (historyErr) {
         // Never let order-history logging break the actual signup —
@@ -172,6 +186,16 @@ export async function GET(req: NextRequest) {
             (fullName || 'there').split(' ')[0],
             (session.amount_total || 0) / 100,
             deliveryDay || 'your'
+          )
+          await klaviyoTrackEvent(
+            email,
+            'Placed Order',
+            {
+              items: orderItemsSnapshot,
+              delivery_day: deliveryDay,
+              order_type: 'payg_order',
+            },
+            (session.amount_total || 0) / 100
           )
         }
       } catch (paygErr) {

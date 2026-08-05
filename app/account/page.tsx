@@ -149,6 +149,19 @@ export default function AccountPage() {
           setLoading(false)
           return
         }
+
+        // Fire-and-forget — never blocks or fails signup if Klaviyo is
+        // slow or not configured yet.
+        fetch('/api/klaviyo/sync-customer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            firstName: fullName.trim().split(' ')[0],
+            lastName: fullName.trim().split(' ').slice(1).join(' '),
+            marketingConsent,
+          }),
+        }).catch(() => {})
       }
 
       if (!data.user) {
