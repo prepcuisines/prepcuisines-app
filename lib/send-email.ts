@@ -2,6 +2,8 @@
 // Requires RESEND_API_KEY in .env.local — sign up at resend.com to get one.
 // Uses their test/shared sending domain until you verify your own.
 
+import nodemailer from 'nodemailer'
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY!
 const FROM_ADDRESS = process.env.RESEND_FROM_ADDRESS || 'prepcuisines <onboarding@resend.dev>'
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || ''
@@ -30,6 +32,55 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
+// Sends via Neo's own mail servers instead of Resend, using the mailbox
+// credentials in NEO_EMAIL / NEO_EMAIL_PASSWORD. Used specifically for
+// order confirmations, per request — everything else still goes through
+// Resend. Note: Neo can block sending from IPs it doesn't recognise, and
+// serverless platforms like Vercel don't use one fixed outbound IP by
+// default, so if this starts silently failing, that's the first thing to
+// check with Neo's support (hello@neo.space).
+let neoTransporter: nodemailer.Transporter | null = null
+function getNeoTransporter() {
+  if (!process.env.NEO_EMAIL || !process.env.NEO_EMAIL_PASSWORD) return null
+  if (!neoTransporter) {
+    neoTransporter = nodemailer.createTransport({
+      host: 'smtp0001.neo.space',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.NEO_EMAIL,
+        pass: process.env.NEO_EMAIL_PASSWORD,
+      },
+    })
+  }
+  return neoTransporter
+}
+
+async function sendEmailViaNeo(to: string, subject: string, html: string) {
+  const transporter = getNeoTransporter()
+  if (!transporter) {
+    console.error(
+      'NEO_EMAIL or NEO_EMAIL_PASSWORD is not set — falling back to Resend for:',
+      subject,
+      'to',
+      to
+    )
+    await sendEmail(to, subject, html)
+    return
+  }
+  try {
+    await transporter.sendMail({
+      from: process.env.NEO_EMAIL,
+      to,
+      subject,
+      html,
+    })
+  } catch (err) {
+    console.error('Neo email send failed, falling back to Resend:', err)
+    await sendEmail(to, subject, html)
+  }
+}
+
 export async function sendPaymentFailedEmailToCustomer(
   toEmail: string,
   firstName: string,
@@ -55,7 +106,7 @@ export async function sendOrderConfirmationEmailToCustomer(
   amount: number,
   deliveryDay: string
 ) {
-  await sendEmail(
+  await sendEmailViaNeo(
     toEmail,
     'Your prepcuisines order is confirmed',
     `
