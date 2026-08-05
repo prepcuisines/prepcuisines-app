@@ -7,6 +7,8 @@ import Header from '../Header'
 export default function ChangePasswordPage() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
@@ -17,6 +19,7 @@ export default function ChangePasswordPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       setUserId(data.user?.id || null)
+      setUserEmail(data.user?.email || null)
       setLoading(false)
     })
   }, [])
@@ -26,17 +29,40 @@ export default function ChangePasswordPage() {
     setError(null)
     setSaved(false)
 
+    if (!currentPassword) {
+      setError('Please enter your current password.')
+      return
+    }
     if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters.')
+      setError('New password must be at least 8 characters.')
       return
     }
     if (newPassword !== confirmPassword) {
-      setError('Passwords don\u2019t match.')
+      setError('New passwords don\u2019t match.')
+      return
+    }
+    if (!userEmail) {
+      setError('Could not find your account email — please refresh and try again.')
       return
     }
 
     setSaving(true)
     const supabase = createClient()
+
+    // Verify the current password is actually correct before allowing any
+    // change — signing in again with it is the standard way to do this
+    // with Supabase, since there's no separate "verify password" call.
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: currentPassword,
+    })
+
+    if (verifyError) {
+      setError('Your current password is incorrect.')
+      setSaving(false)
+      return
+    }
+
     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
 
     if (updateError) {
@@ -46,6 +72,7 @@ export default function ChangePasswordPage() {
     }
 
     setSaved(true)
+    setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
     setSaving(false)
@@ -89,14 +116,22 @@ export default function ChangePasswordPage() {
               Change Your <em>Password</em>
             </h1>
             <p className="pc-mp-subtitle">
-              You're already logged in, so there's no need to enter your current password —
-              just choose a new one below.
+              For your security, enter your current password along with your new one.
             </p>
           </div>
 
-          <div className="pc-mp-plans-label" style={{ marginTop: 32 }}>New Password</div>
+          <div className="pc-mp-plans-label" style={{ marginTop: 32 }}>Change Password</div>
 
           <form className="pc-account-form" onSubmit={save}>
+            <label className="pc-account-label">Current Password</label>
+            <input
+              type="password"
+              className="pc-account-input"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+
             <label className="pc-account-label">New Password</label>
             <input
               type="password"
