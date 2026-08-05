@@ -151,6 +151,11 @@ export default function AdminDashboard() {
     synced: number
   } | null>(null)
   const [klaviyoSyncError, setKlaviyoSyncError] = useState<string | null>(null)
+  const [testEmailAddress, setTestEmailAddress] = useState('')
+  const [testEmailStatus, setTestEmailStatus] = useState<'idle' | 'sending' | 'done' | 'error'>(
+    'idle'
+  )
+  const [testEmailError, setTestEmailError] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<'idle' | 'parsing' | 'importing' | 'done' | 'error'>(
     'idle'
   )
@@ -1163,6 +1168,29 @@ export default function AdminDashboard() {
     })
   }
 
+  const sendTestNeoEmail = async () => {
+    if (!testEmailAddress) return
+    setTestEmailStatus('sending')
+    setTestEmailError(null)
+    try {
+      const res = await fetch('/api/admin/test-neo-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmailAddress }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setTestEmailError(data.error || 'Send failed')
+        setTestEmailStatus('error')
+        return
+      }
+      setTestEmailStatus('done')
+    } catch {
+      setTestEmailError('Network error — please try again')
+      setTestEmailStatus('error')
+    }
+  }
+
   const runKlaviyoSync = async () => {
     setKlaviyoSyncStatus('syncing')
     setKlaviyoSyncError(null)
@@ -1801,6 +1829,39 @@ export default function AdminDashboard() {
                       Synced {klaviyoSyncResult.synced} of {klaviyoSyncResult.totalUniqueEmails}{' '}
                       unique emails to Klaviyo.
                     </p>
+                  )}
+                </div>
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Test Neo email</label>
+                  <p className="map-intro">
+                    Sends a real test email directly through Neo's SMTP servers, bypassing the
+                    Resend fallback, so a failure here means something real with the Neo
+                    connection itself.
+                  </p>
+                  <div className="pc-modal-inline-row">
+                    <input
+                      className="text-input"
+                      style={{ flex: 1 }}
+                      placeholder="you@example.com"
+                      value={testEmailAddress}
+                      onChange={(e) => setTestEmailAddress(e.target.value)}
+                    />
+                    <button
+                      className="btn-primary"
+                      onClick={sendTestNeoEmail}
+                      disabled={testEmailStatus === 'sending' || !testEmailAddress}
+                    >
+                      {testEmailStatus === 'sending' ? 'Sending…' : 'Send test email'}
+                    </button>
+                  </div>
+                  {testEmailStatus === 'done' && (
+                    <p className="map-intro" style={{ marginTop: 8 }}>
+                      Sent — check that inbox now.
+                    </p>
+                  )}
+                  {testEmailStatus === 'error' && testEmailError && (
+                    <p className="error-text">{testEmailError}</p>
                   )}
                 </div>
               </div>
