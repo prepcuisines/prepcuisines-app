@@ -33,6 +33,7 @@ type Customer = {
   second_delivery_day: string | null
   deliveries_per_week: number | null
   created_at: string
+  marketing_consent: boolean | null
   lastOrderAt: string | null
   daysSinceLastOrder: number | null
   orderCount: number
@@ -79,6 +80,7 @@ const segmentFilters = [
   { key: 'loyal', label: 'Loyal' },
   { key: 'new_this_week', label: 'New this week' },
   { key: 'win_back', label: 'Win-back' },
+  { key: 'email_subscribed', label: 'Email subscribers' },
 ]
 
 function money(n: number | null | undefined) {
@@ -846,6 +848,8 @@ export default function AdminDashboard() {
               return c.isNewThisWeek
             case 'win_back':
               return c.isWinBackCandidate
+            case 'email_subscribed':
+              return c.marketing_consent === true
             default:
               return true
           }
@@ -894,7 +898,13 @@ export default function AdminDashboard() {
   )
 
   const emailLists = useMemo(() => {
-    const topSpenders = customers
+    // Only customers who explicitly ticked "Keep me updated" at signup —
+    // this is a real consent record, not just anyone with an email
+    // address, so these lists stay safe to actually email or sync to
+    // Klaviyo later.
+    const consented = customers.filter((c) => c.marketing_consent === true)
+
+    const topSpenders = consented
       .slice()
       .sort((a, b) => b.totalSpend - a.totalSpend)
       .slice(0, 10)
@@ -903,27 +913,27 @@ export default function AdminDashboard() {
       {
         key: 'lapsed_30',
         label: 'Lapsed 30+ days',
-        customers: customers.filter((c) => c.lapsedTier === '30'),
+        customers: consented.filter((c) => c.lapsedTier === '30'),
       },
       {
         key: 'lapsed_60',
         label: 'Lapsed 60+ days',
-        customers: customers.filter((c) => c.lapsedTier === '60'),
+        customers: consented.filter((c) => c.lapsedTier === '60'),
       },
       {
         key: 'lapsed_90',
         label: 'Lapsed 90+ days',
-        customers: customers.filter((c) => c.lapsedTier === '90+'),
+        customers: consented.filter((c) => c.lapsedTier === '90+'),
       },
       {
         key: 'new_this_week',
         label: 'New this week',
-        customers: customers.filter((c) => c.isNewThisWeek),
+        customers: consented.filter((c) => c.isNewThisWeek),
       },
       {
         key: 'win_back',
         label: 'Win-back candidates',
-        customers: customers.filter((c) => c.isWinBackCandidate),
+        customers: consented.filter((c) => c.isWinBackCandidate),
       },
       {
         key: 'top_spenders',
@@ -1358,6 +1368,7 @@ export default function AdminDashboard() {
               <div className="insights-block">
                 <p className="map-intro">
                   One-click copy — pastes as a comma-separated list ready for your email tool.
+                  Only includes customers who ticked "Keep me updated" at signup.
                 </p>
                 <div className="email-lists-grid">
                   {emailLists.map((list) => (
@@ -1509,6 +1520,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th>Customer</th>
                       <th>Status</th>
+                      <th>Email subscription</th>
                       <th>Orders</th>
                       <th>Total spend</th>
                       <th>Last order</th>
@@ -1530,6 +1542,15 @@ export default function AdminDashboard() {
                         </td>
                         <td>
                           <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
+                        </td>
+                        <td>
+                          {c.marketing_consent === true ? (
+                            <span className="pill pill-active">Subscribed</span>
+                          ) : c.marketing_consent === false ? (
+                            <span className="pill pill-muted">Not subscribed</span>
+                          ) : (
+                            <span className="pill pill-warn">Unknown</span>
+                          )}
                         </td>
                         <td>{c.orderCount}</td>
                         <td className="num">{money(c.totalSpend)}</td>
