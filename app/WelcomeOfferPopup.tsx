@@ -4,14 +4,14 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 
-// Shows once per visit, only to people who are genuinely still eligible
-// for the welcome offer — anonymous visitors, or logged-in customers who
-// haven't ordered yet. Anyone with a completed order or an active
-// subscription never sees it, since offering them a "first week" discount
-// would be misleading.
+// Shows while scrolling through the page (hidden at the very top and very
+// bottom), only to people who are genuinely still eligible for the welcome
+// offer — anonymous visitors, or logged-in customers who haven't ordered
+// yet. Anyone with a completed order or an active subscription never sees
+// it, since offering them a "first week" discount would be misleading.
 export default function WelcomeOfferPopup() {
   const [eligible, setEligible] = useState(false)
-  const [pastHero, setPastHero] = useState(false)
+  const [showByScroll, setShowByScroll] = useState(false)
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
@@ -54,21 +54,32 @@ export default function WelcomeOfferPopup() {
 
   useEffect(() => {
     const hero = document.getElementById('pc-hero')
-    if (!hero) return
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) {
-          setPastHero(true)
-        }
-      },
-      { threshold: 0 }
-    )
-    observer.observe(hero)
-    return () => observer.disconnect()
+    // Live scroll check, not a one-off flag — this way the popup hides
+    // itself again if the visitor scrolls back to the very top, and also
+    // hides at the very bottom of the page so it doesn't sit on top of
+    // the footer with nowhere left to scroll.
+    function updateVisibility() {
+      const heroBottom = hero ? hero.getBoundingClientRect().bottom : 0
+      const scrolledPastHero = heroBottom <= 0
+
+      const atTop = window.scrollY <= 4
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4
+
+      setShowByScroll(scrolledPastHero && !atTop && !atBottom)
+    }
+
+    updateVisibility()
+    window.addEventListener('scroll', updateVisibility, { passive: true })
+    window.addEventListener('resize', updateVisibility)
+    return () => {
+      window.removeEventListener('scroll', updateVisibility)
+      window.removeEventListener('resize', updateVisibility)
+    }
   }, [])
 
-  if (!eligible || !pastHero || dismissed) return null
+  if (!eligible || !showByScroll || dismissed) return null
 
   return (
     <div className="pc-welcome-popup" role="dialog" aria-label="Welcome offer">
