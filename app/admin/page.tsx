@@ -10,6 +10,10 @@ type Overview = {
   ordersThisWeek: number
   averageLtv?: number
   ltvCustomerCount?: number
+  todaysOrderCount?: number
+  todaysMeals?: number
+  todaysAvgBasket?: number
+  avgMealsPerOrder?: number
 }
 
 type Customer = {
@@ -167,6 +171,11 @@ export default function AdminDashboard() {
     }[]
   >([])
   const [productDashboardLoaded, setProductDashboardLoaded] = useState(false)
+  const [hourCounts, setHourCounts] = useState<number[]>([])
+  const [revenueByFirstMeal, setRevenueByFirstMeal] = useState<
+    { name: string; customerCount: number; avgLifetimeValue: number }[]
+  >([])
+  const [customerInsightsLoaded, setCustomerInsightsLoaded] = useState(false)
   const leafletMapRef = useRef<HTMLDivElement>(null)
   const leafletInstanceRef = useRef<any>(null)
 
@@ -470,6 +479,30 @@ export default function AdminDashboard() {
     }
   }
 
+  const loadCustomerInsights = async () => {
+    try {
+      const res = await fetch('/api/admin/customer-insights')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setHourCounts([])
+        setRevenueByFirstMeal([])
+        setCustomerInsightsLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setHourCounts(data.hourCounts || [])
+      setRevenueByFirstMeal(data.revenueByFirstMeal || [])
+      setCustomerInsightsLoaded(true)
+    } catch {
+      setHourCounts([])
+      setRevenueByFirstMeal([])
+      setCustomerInsightsLoaded(true)
+    }
+  }
+
   // Loads Leaflet from a CDN (same approach as the ops hub) so we get a
   // real OpenStreetMap-backed map with actual roads/coastline, without
   // adding a new npm dependency to the build.
@@ -572,6 +605,7 @@ export default function AdminDashboard() {
     if (tab === 'insights' && customers.length === 0) loadCustomers()
     if (tab === 'insights' && !dishPairsLoaded) loadDishPairs()
     if (tab === 'insights' && !productDashboardLoaded) loadProductDashboard()
+    if (tab === 'insights' && !customerInsightsLoaded) loadCustomerInsights()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -914,17 +948,42 @@ export default function AdminDashboard() {
         </header>
 
         {overview && (
-          <div className="stat-grid">
-            <StatCard label="Total customers" value={overview.totalCustomers} />
-            <StatCard label="Active subscriptions" value={overview.activeSubscriptions} />
-            <StatCard label="New signups (7d)" value={overview.newSignupsThisWeek} />
-            <StatCard label="Orders (7d)" value={overview.ordersThisWeek} />
-            <StatCard
-              label="Avg. customer LTV"
-              value={money(overview.averageLtv || 0)}
-            />
-            <StatCard label="Revenue (7d)" value={money(overview.revenueThisWeek)} accent />
-          </div>
+          <>
+            <div className="today-snapshot">
+              <div className="today-snapshot-title">Today</div>
+              <div className="today-snapshot-row">
+                <div className="today-snapshot-item">
+                  <span className="today-snapshot-value">{overview.todaysOrderCount ?? 0}</span>
+                  <span className="today-snapshot-label">Orders</span>
+                </div>
+                <div className="today-snapshot-item">
+                  <span className="today-snapshot-value">{overview.todaysMeals ?? 0}</span>
+                  <span className="today-snapshot-label">Meals</span>
+                </div>
+                <div className="today-snapshot-item">
+                  <span className="today-snapshot-value">
+                    {(overview.todaysAvgBasket ?? 0).toFixed(1)}
+                  </span>
+                  <span className="today-snapshot-label">Avg. basket</span>
+                </div>
+                <div className="today-snapshot-item">
+                  <span className="today-snapshot-value">
+                    {(overview.avgMealsPerOrder ?? 0).toFixed(1)}
+                  </span>
+                  <span className="today-snapshot-label">Avg. meals/order (all-time)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-grid">
+              <StatCard label="Total customers" value={overview.totalCustomers} />
+              <StatCard label="Active subscriptions" value={overview.activeSubscriptions} />
+              <StatCard label="New signups (7d)" value={overview.newSignupsThisWeek} />
+              <StatCard label="Orders (7d)" value={overview.ordersThisWeek} />
+              <StatCard label="Avg. customer LTV" value={money(overview.averageLtv || 0)} />
+              <StatCard label="Revenue (7d)" value={money(overview.revenueThisWeek)} accent />
+            </div>
+          </>
         )}
 
         {tab === 'overview' && (
@@ -1590,6 +1649,63 @@ export default function AdminDashboard() {
             </div>
 
             <div className="insights-block">
+              <h2 className="insights-block-title">Revenue by first meal</h2>
+              <p className="map-intro">
+                Average lifetime spend of customers whose very first order included this dish —
+                shows which meals create your most valuable customers, not just which sell most.
+              </p>
+              {revenueByFirstMeal.length === 0 ? (
+                <div className="empty-panel">Not enough identified customer data yet.</div>
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>First meal</th>
+                        <th>Customers</th>
+                        <th>Avg. lifetime value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {revenueByFirstMeal.map((d) => (
+                        <tr key={d.name}>
+                          <td>{d.name}</td>
+                          <td className="num">{d.customerCount}</td>
+                          <td className="num">{money(d.avgLifetimeValue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="insights-block">
+              <h2 className="insights-block-title">Order time distribution</h2>
+              <p className="map-intro">
+                What hour of day orders come in — useful for timing marketing emails.
+              </p>
+              {hourCounts.length === 0 || hourCounts.every((c) => c === 0) ? (
+                <div className="empty-panel">Not enough order data yet.</div>
+              ) : (
+                <div className="hour-chart">
+                  {hourCounts.map((count, hour) => {
+                    const max = Math.max(1, ...hourCounts)
+                    const heightPct = Math.round((count / max) * 100)
+                    return (
+                      <div key={hour} className="hour-bar-col" title={`${hour}:00 — ${count} orders`}>
+                        <div className="hour-bar-track">
+                          <div className="hour-bar-fill" style={{ height: `${heightPct}%` }} />
+                        </div>
+                        {hour % 3 === 0 && <span className="hour-bar-label">{hour}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="insights-block">
               <h2 className="insights-block-title">Email marketing lists</h2>
               <p className="map-intro">
                 One-click copy — pastes as a comma-separated list ready for your email tool.
@@ -2130,6 +2246,41 @@ function Styles() {
         color: var(--pc-green, #2d3510);
         margin: 0;
       }
+      .hour-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        height: 140px;
+        background: var(--pc-white, #faf8f4);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 14px 10px 6px;
+      }
+      .hour-bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100%;
+        justify-content: flex-end;
+      }
+      .hour-bar-track {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: flex-end;
+      }
+      .hour-bar-fill {
+        width: 100%;
+        background: var(--pc-gold, #c9a84c);
+        border-radius: 2px 2px 0 0;
+        min-height: 2px;
+      }
+      .hour-bar-label {
+        font-size: 9px;
+        color: var(--pc-green-mid, #3a4516);
+        margin-top: 4px;
+      }
       .email-lists-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -2248,6 +2399,42 @@ function Styles() {
         font-size: 24px;
         font-weight: 900;
         color: var(--pc-green, #2d3510);
+      }
+
+      .today-snapshot {
+        background: var(--pc-green, #2d3510);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+      }
+      .today-snapshot-title {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--pc-gold-light, #e8d5b0);
+        margin-bottom: 10px;
+      }
+      .today-snapshot-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 28px;
+      }
+      .today-snapshot-item {
+        display: flex;
+        flex-direction: column;
+      }
+      .today-snapshot-value {
+        font-family: var(--font-playfair), serif;
+        font-size: 26px;
+        font-weight: 900;
+        color: var(--pc-white, #faf8f4);
+        line-height: 1;
+      }
+      .today-snapshot-label {
+        font-size: 11px;
+        color: var(--pc-gold-light, #e8d5b0);
+        margin-top: 4px;
       }
 
       .stat-grid {

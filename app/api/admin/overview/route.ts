@@ -91,6 +91,45 @@ export async function GET(req: NextRequest) {
       ? spendValues.reduce((sum, v) => sum + v, 0) / spendValues.length
       : 0
 
+  // Today's snapshot — genuinely "today" in UK terms (midnight to now).
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const { data: todaysOrders } = await supabase
+    .from('customer_window_orders')
+    .select('items')
+    .gte('created_at', startOfToday.toISOString())
+
+  const todaysOrderCount = (todaysOrders || []).length
+  const todaysMeals = (todaysOrders || []).reduce(
+    (sum, o) =>
+      sum +
+      (o.items || []).reduce(
+        (s: number, i: any) => s + (i.name !== 'Delivery' ? i.qty || 0 : 0),
+        0
+      ),
+    0
+  )
+  const todaysAvgBasket = todaysOrderCount > 0 ? todaysMeals / todaysOrderCount : 0
+
+  // Average meals per order across everything since launch — a proxy for
+  // whether bundles/upsells are working.
+  const { data: allItemsOrders } = await supabase
+    .from('customer_window_orders')
+    .select('items')
+    .gte('created_at', LAUNCH_CUTOFF)
+
+  const totalMealsAllTime = (allItemsOrders || []).reduce(
+    (sum, o) =>
+      sum +
+      (o.items || []).reduce(
+        (s: number, i: any) => s + (i.name !== 'Delivery' ? i.qty || 0 : 0),
+        0
+      ),
+    0
+  )
+  const avgMealsPerOrder =
+    (allItemsOrders || []).length > 0 ? totalMealsAllTime / (allItemsOrders || []).length : 0
+
   return NextResponse.json({
     totalCustomers: totalCustomers || 0,
     activeSubscriptions: activeSubscriptions || 0,
@@ -99,5 +138,9 @@ export async function GET(req: NextRequest) {
     ordersThisWeek: (recentOrders || []).length,
     averageLtv,
     ltvCustomerCount: spendValues.length,
+    todaysOrderCount,
+    todaysMeals,
+    todaysAvgBasket,
+    avgMealsPerOrder,
   })
 }
