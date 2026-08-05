@@ -107,7 +107,14 @@ export default function AdminDashboard() {
   const [loginError, setLoginError] = useState<string | null>(null)
 
   const [tab, setTab] = useState<
-    'overview' | 'customers' | 'orders' | 'menu' | 'map' | 'insights' | 'product-analytics'
+    | 'overview'
+    | 'customers'
+    | 'orders'
+    | 'menu'
+    | 'map'
+    | 'insights'
+    | 'product-analytics'
+    | 'ops-hub'
   >('overview')
 
   const [overview, setOverview] = useState<Overview | null>(null)
@@ -123,6 +130,10 @@ export default function AdminDashboard() {
   const [customerSingleDate, setCustomerSingleDate] = useState('')
   const [showCustomerDateFilter, setShowCustomerDateFilter] = useState(false)
   const [showEmailLists, setShowEmailLists] = useState(false)
+
+  const [opsHub, setOpsHub] = useState<any>(null)
+  const [opsHubLoaded, setOpsHubLoaded] = useState(false)
+  const [newTaskText, setNewTaskText] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -542,6 +553,63 @@ export default function AdminDashboard() {
     }
   }
 
+  const loadOpsHub = async () => {
+    try {
+      const res = await fetch('/api/admin/ops-hub')
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) {
+        setOpsHubLoaded(true)
+        return
+      }
+      const data = await res.json()
+      setOpsHub(data)
+      setOpsHubLoaded(true)
+    } catch {
+      setOpsHubLoaded(true)
+    }
+  }
+
+  const postOpsAction = async (action: string, payload?: any) => {
+    if (!opsHub?.nextWindow?.id) return
+    try {
+      const res = await fetch('/api/admin/ops-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ menuWindowId: opsHub.nextWindow.id, action, payload }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setOpsHub((prev: any) => (prev ? { ...prev, opsStatus: data.opsStatus } : prev))
+    } catch {
+      // Silent failure is acceptable here — the toggle just won't stick,
+      // and the next full reload will show the real persisted state.
+    }
+  }
+
+  const printKitchenSheet = () => {
+    if (!opsHub?.kitchen) return
+    const w = window.open('', '_blank')
+    if (!w) return
+    const rows = opsHub.kitchen.dishesToCook
+      .map((d: any) => `<tr><td style="padding:10px 0;border-bottom:1px solid #ddd;font-size:16px;">${d.name}</td><td style="padding:10px 0;border-bottom:1px solid #ddd;font-size:20px;font-weight:800;text-align:right;">×${d.qty}</td></tr>`)
+      .join('')
+    const ingredientRows = opsHub.kitchen.ingredientsRequired
+      .map((i: any) => `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;">${i.name}</td><td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${i.kg}kg</td></tr>`)
+      .join('')
+    w.document.write(`<html><head><style>@media print{@page{margin:10mm;}}body{font-family:Arial,sans-serif;padding:20px;}</style></head><body>
+      <h1>Kitchen Sheet — ${opsHub.nextWindow?.dayName} (w/c ${opsHub.nextWindow ? new Date(opsHub.nextWindow.date).toLocaleDateString('en-GB') : ''})</h1>
+      <h2>Meals to cook</h2>
+      <table style="width:100%;border-collapse:collapse;">${rows}</table>
+      <h2 style="margin-top:24px;">Ingredients required (approximate)</h2>
+      <table style="width:100%;border-collapse:collapse;">${ingredientRows}</table>
+    </body></html>`)
+    w.document.close()
+    w.print()
+  }
+
   // Loads Leaflet from a CDN (same approach as the ops hub) so we get a
   // real OpenStreetMap-backed map with actual roads/coastline, without
   // adding a new npm dependency to the build.
@@ -645,6 +713,7 @@ export default function AdminDashboard() {
     if (tab === 'product-analytics' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
     if (tab === 'product-analytics' && !dishPairsLoaded) loadDishPairs()
     if (tab === 'product-analytics' && !productDashboardLoaded) loadProductDashboard()
+    if (tab === 'ops-hub' && !opsHubLoaded) loadOpsHub()
   }, [tab, authenticated])
 
   const statusBreakdown = useMemo(() => {
@@ -956,6 +1025,7 @@ export default function AdminDashboard() {
               { key: 'map', label: 'Map' },
               { key: 'insights', label: 'Insights' },
               { key: 'product-analytics', label: 'Product Analytics' },
+              { key: 'ops-hub', label: 'Ops Hub' },
             ] as const
           ).map((t) => (
             <button
@@ -985,7 +1055,9 @@ export default function AdminDashboard() {
               ? 'Order Map'
               : tab === 'insights'
               ? 'Insights'
-              : 'Product Analytics'}
+              : tab === 'product-analytics'
+              ? 'Product Analytics'
+              : 'Ops Hub'}
           </h1>
         </header>
 
@@ -2038,6 +2110,429 @@ export default function AdminDashboard() {
             </div>
           </section>
         )}
+
+        {tab === 'ops-hub' && (
+          <section>
+            {!opsHub || !opsHub.nextWindow ? (
+              <div className="empty-panel">
+                {opsHubLoaded ? 'No upcoming delivery window found.' : 'Loading…'}
+              </div>
+            ) : (
+              (() => {
+                const cooked = opsHub.opsStatus?.dishes_cooked || []
+                const packed = opsHub.opsStatus?.orders_packed || []
+                const labelsPrinted = !!opsHub.opsStatus?.labels_printed
+                const dispatchDone = !!opsHub.opsStatus?.dispatch_done
+                const deliveriesDone = !!opsHub.opsStatus?.deliveries_done
+                const timeline = opsHub.opsStatus?.timeline || []
+                const tasks = opsHub.opsStatus?.tasks || []
+                const driverAssignments = opsHub.opsStatus?.driver_assignments || {}
+
+                const cookingPct = opsHub.kitchen.dishesToCook.length
+                  ? Math.round((cooked.length / opsHub.kitchen.dishesToCook.length) * 100)
+                  : 0
+                const packingPct = opsHub.packing.totalOrders
+                  ? Math.round((packed.length / opsHub.packing.totalOrders) * 100)
+                  : 0
+                const labelsPct = labelsPrinted ? 100 : 0
+                const dispatchPct = dispatchDone ? 100 : 0
+                const deliveriesPct = deliveriesDone ? 100 : 0
+
+                const milestones = [
+                  'Start cooking',
+                  'Packing started',
+                  'Labels printed',
+                  'Driver loading',
+                  'First deliveries leave',
+                ]
+                const loggedLabels = new Set(timeline.map((t: any) => t.label))
+
+                return (
+                  <>
+                    {/* Overview */}
+                    <div className="insights-block">
+                      <h2 className="insights-block-title">
+                        Next delivery — {opsHub.nextWindow.dayName} (w/c{' '}
+                        {new Date(opsHub.nextWindow.date).toLocaleDateString('en-GB')})
+                      </h2>
+                      <div className="stat-grid">
+                        <StatCard label="Orders" value={opsHub.overview.totalOrders} />
+                        <StatCard label="Meals" value={opsHub.overview.totalMeals} />
+                        <StatCard label="Revenue" value={money(opsHub.overview.revenue)} accent />
+                        <StatCard
+                          label="Subscription orders"
+                          value={opsHub.overview.subscriptionOrders}
+                        />
+                        <StatCard label="PAYG orders" value={opsHub.overview.paygOrders} />
+                      </div>
+                    </div>
+
+                    {/* Live progress */}
+                    <div className="insights-block">
+                      <h2 className="insights-block-title">Live progress</h2>
+                      <div className="progress-rows">
+                        {[
+                          ['Cooking', cookingPct],
+                          ['Packing', packingPct],
+                          ['Labels', labelsPct],
+                          ['Dispatch', dispatchPct],
+                          ['Deliveries', deliveriesPct],
+                        ].map(([label, pct]) => (
+                          <div key={label as string} className="progress-row">
+                            <span className="progress-row-label">{label}</span>
+                            <div className="progress-row-track">
+                              <div
+                                className="progress-row-fill"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="progress-row-pct">{pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <h3 className="ops-subtitle">Preparation timeline</h3>
+                      <div className="timeline-list">
+                        {milestones.map((label) => {
+                          const entry = timeline.find((t: any) => t.label === label)
+                          return (
+                            <div key={label} className="timeline-row">
+                              <span className={entry ? 'timeline-done' : 'timeline-pending'}>
+                                {entry
+                                  ? new Date(entry.completedAt).toLocaleTimeString('en-GB', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })
+                                  : '—'}
+                              </span>
+                              <span className="timeline-label">{label}</span>
+                              {!entry && (
+                                <button
+                                  className="segment-pill"
+                                  onClick={() => postOpsAction('log_timeline', { label })}
+                                >
+                                  Mark done
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Kitchen */}
+                    <div className="insights-block">
+                      <div className="insights-block-header">
+                        <h2 className="insights-block-title">Kitchen</h2>
+                        <button className="btn-primary" onClick={printKitchenSheet}>
+                          Print kitchen sheet
+                        </button>
+                      </div>
+                      <div className="table-wrap">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Dish</th>
+                              <th>Qty needed</th>
+                              <th>Cooked</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {opsHub.kitchen.dishesToCook.map((d: any) => (
+                              <tr key={d.name}>
+                                <td>{d.name}</td>
+                                <td className="num">{d.qty}</td>
+                                <td>
+                                  <button
+                                    role="switch"
+                                    aria-checked={cooked.includes(d.name)}
+                                    className={`menu-toggle ${cooked.includes(d.name) ? 'menu-toggle-on' : ''}`}
+                                    onClick={() => postOpsAction('toggle_dish_cooked', { dish: d.name })}
+                                  >
+                                    <span className="menu-toggle-knob" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {opsHub.kitchen.ingredientsRequired.length > 0 && (
+                        <>
+                          <h3 className="ops-subtitle">
+                            Ingredients required (approximate — standard recipe portions)
+                          </h3>
+                          <div className="table-wrap">
+                            <table className="data-table">
+                              <thead>
+                                <tr>
+                                  <th>Ingredient</th>
+                                  <th>Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {opsHub.kitchen.ingredientsRequired.map((i: any) => (
+                                  <tr key={i.name}>
+                                    <td>{i.name}</td>
+                                    <td className="num">{i.kg}kg</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+                      {opsHub.kitchen.dishesWithoutRecipe.length > 0 && (
+                        <p className="map-intro" style={{ marginTop: 10 }}>
+                          No recipe data yet for: {opsHub.kitchen.dishesWithoutRecipe.join(', ')}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Packing */}
+                    <div className="insights-block">
+                      <h2 className="insights-block-title">Packing</h2>
+                      <div className="stat-grid">
+                        <StatCard label="Meals packed" value={`${packed.length} / ${opsHub.packing.totalOrders}`} />
+                        <StatCard
+                          label="Remaining orders"
+                          value={opsHub.packing.totalOrders - packed.length}
+                        />
+                        <StatCard label="Labels to print" value={opsHub.packing.totalOrders} />
+                        <StatCard
+                          label="Containers (approx., 1/meal)"
+                          value={opsHub.packing.totalMeals}
+                        />
+                      </div>
+                      <div className="toolbar" style={{ marginTop: 14 }}>
+                        <button
+                          className={`segment-pill ${labelsPrinted ? 'segment-pill-active' : ''}`}
+                          onClick={() => postOpsAction('set_labels_printed', { value: !labelsPrinted })}
+                        >
+                          {labelsPrinted ? '✓ Labels printed' : 'Mark labels printed'}
+                        </button>
+                      </div>
+                      <div className="table-wrap" style={{ marginTop: 12 }}>
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Order</th>
+                              <th>Postcode</th>
+                              <th>Packed</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[...opsHub.delivery.stokeOrders, ...opsHub.delivery.dpdOrders].map(
+                              (o: any) => (
+                                <tr key={o.id}>
+                                  <td>{o.name}</td>
+                                  <td>{o.postcode}</td>
+                                  <td>
+                                    <button
+                                      role="switch"
+                                      aria-checked={packed.includes(o.id)}
+                                      className={`menu-toggle ${packed.includes(o.id) ? 'menu-toggle-on' : ''}`}
+                                      onClick={() => postOpsAction('toggle_order_packed', { orderId: o.id })}
+                                    >
+                                      <span className="menu-toggle-knob" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Delivery */}
+                    <div className="insights-block">
+                      <h2 className="insights-block-title">Delivery</h2>
+                      <div className="toolbar">
+                        <button
+                          className={`segment-pill ${dispatchDone ? 'segment-pill-active' : ''}`}
+                          onClick={() => postOpsAction('set_dispatch_done', { value: !dispatchDone })}
+                        >
+                          {dispatchDone ? '✓ DPD parcels dispatched' : 'Mark DPD dispatched'}
+                        </button>
+                        <button
+                          className={`segment-pill ${deliveriesDone ? 'segment-pill-active' : ''}`}
+                          onClick={() => postOpsAction('set_deliveries_done', { value: !deliveriesDone })}
+                        >
+                          {deliveriesDone ? '✓ Stoke deliveries out' : 'Mark Stoke deliveries out'}
+                        </button>
+                      </div>
+
+                      <h3 className="ops-subtitle">
+                        Stoke deliveries ({opsHub.delivery.stokeOrders.length}) — in-house
+                      </h3>
+                      <div className="table-wrap">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Customer</th>
+                              <th>Postcode</th>
+                              <th>Driver</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {opsHub.delivery.stokeOrders.map((o: any) => (
+                              <tr key={o.id}>
+                                <td>{o.name}</td>
+                                <td>
+                                  <a
+                                    href={`https://maps.google.com/?q=${encodeURIComponent(o.postcode)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    {o.postcode}
+                                  </a>
+                                </td>
+                                <td>
+                                  <input
+                                    className="text-input"
+                                    style={{ width: 120 }}
+                                    defaultValue={driverAssignments[o.id] || ''}
+                                    placeholder="Driver name"
+                                    onBlur={(e) =>
+                                      postOpsAction('set_driver_assignment', {
+                                        orderId: o.id,
+                                        driver: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <h3 className="ops-subtitle">
+                        DPD parcels ({opsHub.delivery.dpdOrders.length})
+                      </h3>
+                      <div className="table-wrap">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Customer</th>
+                              <th>Postcode</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {opsHub.delivery.dpdOrders.map((o: any) => (
+                              <tr key={o.id}>
+                                <td>{o.name}</td>
+                                <td>{o.postcode}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Tasks */}
+                    <div className="insights-block">
+                      <h2 className="insights-block-title">Tasks & alerts</h2>
+                      <div className="alerts-grid">
+                        <div className="alert-card">
+                          <div className="alert-card-value">{opsHub.tasks.failedPaymentsCount}</div>
+                          <div className="alert-card-label">Failed payments</div>
+                        </div>
+                        <div className="alert-card alert-card-muted">
+                          <div className="alert-card-value">—</div>
+                          <div className="alert-card-label">Low stock (not tracked yet)</div>
+                        </div>
+                      </div>
+
+                      {opsHub.customerNotes.length > 0 && (
+                        <>
+                          <h3 className="ops-subtitle">Delivery instructions this window</h3>
+                          <div className="table-wrap">
+                            <table className="data-table">
+                              <thead>
+                                <tr>
+                                  <th>Customer</th>
+                                  <th>Instructions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {opsHub.customerNotes.map((o: any) => (
+                                  <tr key={o.id}>
+                                    <td>{o.name}</td>
+                                    <td>{o.deliveryInstructions}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+
+                      <h3 className="ops-subtitle">Outstanding tasks</h3>
+                      <div className="toolbar">
+                        <input
+                          className="text-input search-input"
+                          placeholder="Add a task…"
+                          value={newTaskText}
+                          onChange={(e) => setNewTaskText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newTaskText.trim()) {
+                              postOpsAction('add_task', { text: newTaskText.trim() })
+                              setNewTaskText('')
+                            }
+                          }}
+                        />
+                        <button
+                          className="btn-primary"
+                          onClick={() => {
+                            if (newTaskText.trim()) {
+                              postOpsAction('add_task', { text: newTaskText.trim() })
+                              setNewTaskText('')
+                            }
+                          }}
+                        >
+                          Add
+                        </button>
+                      </div>
+                      {tasks.length === 0 ? (
+                        <div className="empty-panel">No tasks yet.</div>
+                      ) : (
+                        <div className="timeline-list">
+                          {tasks.map((t: any) => (
+                            <div key={t.id} className="timeline-row">
+                              <button
+                                role="switch"
+                                aria-checked={t.done}
+                                className={`menu-toggle ${t.done ? 'menu-toggle-on' : ''}`}
+                                onClick={() => postOpsAction('toggle_task', { taskId: t.id })}
+                              >
+                                <span className="menu-toggle-knob" />
+                              </button>
+                              <span
+                                className="timeline-label"
+                                style={t.done ? { textDecoration: 'line-through', opacity: 0.6 } : {}}
+                              >
+                                {t.text}
+                              </span>
+                              <button
+                                className="segment-pill"
+                                onClick={() => postOpsAction('delete_task', { taskId: t.id })}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )
+              })()
+            )}
+          </section>
+        )}
       </main>
       <Styles />
     </div>
@@ -2459,6 +2954,74 @@ function Styles() {
         font-size: 11.5px;
         color: var(--pc-green-mid, #3a4516);
         margin-top: 4px;
+      }
+      .ops-subtitle {
+        font-family: var(--font-playfair), serif;
+        font-size: 15px;
+        font-weight: 900;
+        color: var(--pc-green, #2d3510);
+        margin: 20px 0 10px;
+      }
+      .progress-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .progress-row {
+        display: grid;
+        grid-template-columns: 90px 1fr 40px;
+        align-items: center;
+        gap: 10px;
+      }
+      .progress-row-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pc-green, #2d3510);
+      }
+      .progress-row-track {
+        background: var(--pc-cream, #f5f2ec);
+        border-radius: 999px;
+        height: 10px;
+        overflow: hidden;
+      }
+      .progress-row-fill {
+        background: var(--pc-gold, #c9a84c);
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.3s ease;
+      }
+      .progress-row-pct {
+        font-size: 12.5px;
+        text-align: right;
+        color: var(--pc-green-mid, #3a4516);
+        font-variant-numeric: tabular-nums;
+      }
+      .timeline-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .timeline-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+      }
+      .timeline-done {
+        font-weight: 700;
+        color: var(--pc-gold-dark, #9a7c45);
+        min-width: 52px;
+      }
+      .timeline-pending {
+        color: var(--pc-green-mid, #3a4516);
+        opacity: 0.5;
+        min-width: 52px;
+      }
+      .timeline-label {
+        flex: 1;
+        font-size: 13.5px;
+        color: var(--pc-green, #2d3510);
       }
       .insights-block-header {
         display: flex;
