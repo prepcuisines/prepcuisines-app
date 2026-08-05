@@ -65,10 +65,6 @@ const statusLabels: Record<string, string> = {
 }
 
 const segmentFilters = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Subscribed' },
-  { key: 'cancelled', label: 'Cancelled' },
-  { key: 'payg', label: 'PAYG' },
   { key: 'lapsed_30', label: 'Lapsed 30+' },
   { key: 'lapsed_60', label: 'Lapsed 60+' },
   { key: 'lapsed_90', label: 'Lapsed 90+' },
@@ -119,6 +115,7 @@ export default function AdminDashboard() {
   const [customerDateFrom, setCustomerDateFrom] = useState('')
   const [customerDateTo, setCustomerDateTo] = useState('')
   const [customerSingleDate, setCustomerSingleDate] = useState('')
+  const [showCustomerDateFilter, setShowCustomerDateFilter] = useState(false)
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -955,80 +952,94 @@ export default function AdminDashboard() {
               />
             </div>
 
-            <div className="toolbar">
-              <label className="field-label" htmlFor="cust-date-field" style={{ marginBottom: 0 }}>
-                Filter by
-              </label>
-              <select
-                id="cust-date-field"
-                className="text-input search-input"
-                value={customerDateField}
-                onChange={(e) => {
-                  setCustomerDateField(e.target.value as typeof customerDateField)
-                  setCustomerDateFrom('')
-                  setCustomerDateTo('')
-                  setCustomerSingleDate('')
-                }}
+            <div className="date-filter-toggle-row">
+              <button
+                className="date-filter-toggle"
+                onClick={() => setShowCustomerDateFilter((v) => !v)}
               >
-                <option value="signup">Signed up date</option>
-                <option value="last_order">Last order date</option>
-                <option value="delivery_day">Delivery day (Wed/Sun match)</option>
-              </select>
-
-              {customerDateField === 'delivery_day' ? (
-                <>
-                  <label className="field-label" htmlFor="cust-date-single" style={{ marginBottom: 0 }}>
-                    On date
-                  </label>
-                  <input
-                    id="cust-date-single"
-                    type="date"
-                    className="text-input search-input"
-                    value={customerSingleDate}
-                    onChange={(e) => setCustomerSingleDate(e.target.value)}
-                  />
-                  {customerSingleDate && (
-                    <button className="segment-pill" onClick={() => setCustomerSingleDate('')}>
-                      Clear date
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <label className="field-label" htmlFor="cust-date-from" style={{ marginBottom: 0 }}>
-                    from
-                  </label>
-                  <input
-                    id="cust-date-from"
-                    type="date"
-                    className="text-input search-input"
-                    value={customerDateFrom}
-                    onChange={(e) => setCustomerDateFrom(e.target.value)}
-                  />
-                  <label className="field-label" htmlFor="cust-date-to" style={{ marginBottom: 0 }}>
-                    to
-                  </label>
-                  <input
-                    id="cust-date-to"
-                    type="date"
-                    className="text-input search-input"
-                    value={customerDateTo}
-                    onChange={(e) => setCustomerDateTo(e.target.value)}
-                  />
-                  {(customerDateFrom || customerDateTo) && (
-                    <button
-                      className="segment-pill"
-                      onClick={() => {
-                        setCustomerDateFrom('')
-                        setCustomerDateTo('')
-                      }}
-                    >
-                      Clear dates
-                    </button>
-                  )}
-                </>
-              )}
+                {showCustomerDateFilter ? '▾' : '▸'} Filter by date
+                {(customerDateFrom || customerDateTo || customerSingleDate) && !showCustomerDateFilter
+                  ? ' · active'
+                  : ''}
+              </button>
             </div>
+
+            {showCustomerDateFilter && (
+              <div className="toolbar">
+                <label className="field-label" htmlFor="cust-date-field" style={{ marginBottom: 0 }}>
+                  Filter by
+                </label>
+                <select
+                  id="cust-date-field"
+                  className="text-input search-input"
+                  value={customerDateField}
+                  onChange={(e) => {
+                    setCustomerDateField(e.target.value as typeof customerDateField)
+                    setCustomerDateFrom('')
+                    setCustomerDateTo('')
+                    setCustomerSingleDate('')
+                  }}
+                >
+                  <option value="signup">Signed up date</option>
+                  <option value="last_order">Last order date</option>
+                  <option value="delivery_day">Delivery day (Wed/Sun match)</option>
+                </select>
+
+                {customerDateField === 'delivery_day' ? (
+                  <>
+                    <label className="field-label" htmlFor="cust-date-single" style={{ marginBottom: 0 }}>
+                      On date
+                    </label>
+                    <input
+                      id="cust-date-single"
+                      type="date"
+                      className="text-input search-input"
+                      value={customerSingleDate}
+                      onChange={(e) => setCustomerSingleDate(e.target.value)}
+                    />
+                    {customerSingleDate && (
+                      <button className="segment-pill" onClick={() => setCustomerSingleDate('')}>
+                        Clear date
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <label className="field-label" htmlFor="cust-date-from" style={{ marginBottom: 0 }}>
+                      from
+                    </label>
+                    <input
+                      id="cust-date-from"
+                      type="date"
+                      className="text-input search-input"
+                      value={customerDateFrom}
+                      onChange={(e) => setCustomerDateFrom(e.target.value)}
+                    />
+                    <label className="field-label" htmlFor="cust-date-to" style={{ marginBottom: 0 }}>
+                      to
+                    </label>
+                    <input
+                      id="cust-date-to"
+                      type="date"
+                      className="text-input search-input"
+                      value={customerDateTo}
+                      onChange={(e) => setCustomerDateTo(e.target.value)}
+                    />
+                    {(customerDateFrom || customerDateTo) && (
+                      <button
+                        className="segment-pill"
+                        onClick={() => {
+                          setCustomerDateFrom('')
+                          setCustomerDateTo('')
+                        }}
+                      >
+                        Clear dates
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="result-count">{filteredCustomers.length} customers</div>
 
@@ -2278,6 +2289,26 @@ function Styles() {
         font-size: 12.5px;
         color: var(--pc-green-mid, #3a4516);
         margin-bottom: 10px;
+      }
+      .date-filter-toggle-row {
+        margin-bottom: 10px;
+      }
+      .date-filter-toggle {
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--pc-green-mid, #3a4516);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px 0;
+      }
+      .date-filter-toggle:hover {
+        color: var(--pc-green, #2d3510);
+      }
+      .date-filter-toggle:focus-visible {
+        outline: 2px solid var(--pc-gold, #c9a84c);
+        outline-offset: 2px;
       }
 
       /* Tally chips */
