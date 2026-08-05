@@ -189,7 +189,7 @@ export async function sendOrderConfirmationEmailToCustomer(
           <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
             <tr>
               <td align="center" style="background:#1a2e1a;padding:20px 32px;">
-                <span style="font-family:Georgia,serif;font-size:22px;color:#f5f0e8;">prepcuisines</span>
+                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
               </td>
             </tr>
             <tr>
@@ -230,6 +230,7 @@ export async function sendOrderConfirmationEmailToCustomer(
             </tr>
             <tr>
               <td align="center" style="background:#1a2e1a;padding:24px 32px;">
+                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
                 <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">
                   Chef-made · Fresh · Delivered
                 </p>
@@ -260,7 +261,7 @@ export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstNa
           <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
             <tr>
               <td align="center" style="background:#1a2e1a;padding:20px 32px;">
-                <span style="font-family:Georgia,serif;font-size:22px;color:#f5f0e8;">prepcuisines</span>
+                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
               </td>
             </tr>
             <tr>
@@ -304,6 +305,7 @@ export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstNa
             </tr>
             <tr>
               <td align="center" style="background:#1a2e1a;padding:24px 32px;">
+                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
                 <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">
                   Chef-made · Fresh · Delivered
                 </p>
