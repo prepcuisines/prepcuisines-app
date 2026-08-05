@@ -175,9 +175,7 @@ export async function POST(req: NextRequest) {
       sessionParams.customer_email = customerEmail
     }
 
-    if (!isSubscribe) {
-      sessionParams.allow_promotion_codes = false
-    }
+    sessionParams.allow_promotion_codes = true
 
     // 40% off is already baked into the food item prices above — no Stripe
     // coupon needed, which is exactly what keeps delivery from being discounted.
