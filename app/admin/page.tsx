@@ -168,6 +168,9 @@ export default function AdminDashboard() {
     { description: string; networkCode: string }[]
   >([])
   const [dpdLookupError, setDpdLookupError] = useState<string | null>(null)
+  const [printLabelsStatus, setPrintLabelsStatus] = useState<'idle' | 'working'>('idle')
+  const [printLabelsProgress, setPrintLabelsProgress] = useState('')
+  const [printLabelsError, setPrintLabelsError] = useState<string | null>(null)
   const [dpdTestResult, setDpdTestResult] = useState<{
     connected: boolean
     message: string
@@ -1675,6 +1678,165 @@ export default function AdminDashboard() {
       .sort((a, b) => b.count - a.count)
   }, [filteredOrders])
 
+  const isStokeOrder = (o: Order) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
+
+  const generatePackingSlipHtml = (o: Order) => {
+    const name = o.ship_full_name || o.customer_name || 'Customer'
+    const address = [o.ship_house_number, o.ship_street, o.ship_postcode].filter(Boolean).join(', ')
+    const itemRows = (o.items || [])
+      .filter((i) => i.name && i.name !== 'Delivery')
+      .map(
+        (i) =>
+          `<tr><td style="padding:10px 0;font-size:18px;border-bottom:1px solid #ddd;">${i.name}</td><td style="padding:10px 0;font-size:20px;font-weight:800;border-bottom:1px solid #ddd;text-align:right;color:#1a2e1a;white-space:nowrap;">x ${i.qty}</td></tr>`
+      )
+      .join('')
+    const totalItems = (o.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+    const noteHtml = o.delivery_instructions
+      ? `<div style="margin-top:12px;padding:12px 16px;background:#fff8e1;border-left:4px solid #f39c12;font-size:16px;"><strong>NOTE:</strong> ${o.delivery_instructions}</div>`
+      : ''
+    return `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px;page-break-after:always;page-break-inside:avoid;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:3px solid #1a2e1a;padding-bottom:16px;">
+        <div><div style="font-size:26px;font-weight:700;letter-spacing:2px;color:#1a2e1a;">prepcuisines</div>
+        <div style="font-size:14px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Packing Slip</div></div>
+        <div style="text-align:right;"><div style="font-size:32px;font-weight:800;color:#1a2e1a;">${o.delivery_day || ''}</div>
+        <div style="font-size:14px;color:#888;margin-top:2px;">${new Date(o.created_at).toLocaleDateString('en-GB')}</div></div>
+      </div>
+      <div style="margin-bottom:20px;"><div style="font-size:34px;font-weight:800;color:#1a2e1a;line-height:1.1;">${name}</div>
+        ${address ? `<div style="font-size:18px;color:#555;margin-top:8px;line-height:1.6;">${address}</div>` : ''}
+        ${o.ship_phone ? `<div style="font-size:18px;color:#555;margin-top:6px;">${o.ship_phone}</div>` : ''}
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;"><tbody>${itemRows}</tbody></table>
+      <div style="border-top:3px solid #1a2e1a;padding-top:12px;font-size:22px;font-weight:800;">TOTAL ITEMS: ${totalItems}</div>
+      ${noteHtml}
+    </div>`
+  }
+
+  const generateShippingLabelHtml = (o: Order) => {
+    const name = o.ship_full_name || o.customer_name || 'Customer'
+    const address = [o.ship_house_number, o.ship_street, o.ship_postcode].filter(Boolean).join(', ')
+    const totalItems = (o.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+    return `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px;page-break-after:always;page-break-inside:avoid;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:3px solid #1a2e1a;padding-bottom:16px;">
+        <div><div style="font-size:26px;font-weight:700;letter-spacing:2px;color:#1a2e1a;">prepcuisines</div>
+        <div style="font-size:14px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Shipping Label</div></div>
+        <div style="text-align:right;"><div style="font-size:32px;font-weight:800;color:#1a2e1a;">${o.delivery_day || ''}</div>
+        <div style="font-size:14px;color:#888;margin-top:2px;">${totalItems} item${totalItems === 1 ? '' : 's'}</div>
+        ${o.dpd_consignment_number ? `<div style="font-size:13px;color:#888;margin-top:2px;">DPD: ${o.dpd_consignment_number}</div>` : ''}</div>
+      </div>
+      <div><div style="font-size:34px;font-weight:800;color:#1a2e1a;line-height:1.1;">${name}</div>
+        ${address ? `<div style="font-size:20px;color:#333;margin-top:10px;line-height:1.6;font-weight:600;">${address}</div>` : ''}
+        ${o.ship_phone ? `<div style="font-size:16px;color:#555;margin-top:8px;">${o.ship_phone}</div>` : ''}
+      </div>
+      ${o.delivery_instructions ? `<div style="margin-top:12px;padding:12px 16px;background:#fff8e1;border-left:4px solid #f39c12;font-size:16px;"><strong>NOTE:</strong> ${o.delivery_instructions}</div>` : ''}
+    </div>`
+  }
+
+  const printHtmlPages = (pages: string[]) => {
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.write('<html><head><style>@media print{@page{margin:10mm;}}</style></head><body>')
+    pages.forEach((p) => w.document.write(p))
+    w.document.write('</body></html>')
+    w.document.close()
+    w.print()
+  }
+
+  const printSingleStokePackingLabel = (o: Order) => {
+    printHtmlPages([generatePackingSlipHtml(o)])
+  }
+
+  const printSingleShippingLabel = async (o: Order) => {
+    setPrintLabelsError(null)
+    let shipmentId = o.dpd_shipment_id
+    if (!shipmentId) {
+      const res = await fetch('/api/admin/create-dpd-shipment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: o.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPrintLabelsError(`${o.customer_name}: ${data.error || 'Failed to create shipment'}`)
+        return
+      }
+      shipmentId = data.shipmentId
+    }
+    const labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
+    const labelData = await labelRes.json()
+    if (!labelRes.ok || !labelData.labels?.[0]) {
+      setPrintLabelsError(`${o.customer_name}: ${labelData.error || 'Could not fetch label'}`)
+      return
+    }
+    printHtmlPages([labelData.labels[0]])
+    loadOrders()
+  }
+
+  const printAllStokePackingLabels = () => {
+    const stokeOrders = filteredOrders.filter(isStokeOrder)
+    if (!stokeOrders.length) {
+      setPrintLabelsError('No Stoke-on-Trent orders in the current list')
+      return
+    }
+    printHtmlPages(stokeOrders.map(generatePackingSlipHtml))
+  }
+
+  const printAllShippingLabels = async () => {
+    const shippingOrders = filteredOrders.filter((o) => !isStokeOrder(o))
+    if (!shippingOrders.length) {
+      setPrintLabelsError('No non-Stoke orders in the current list')
+      return
+    }
+    setPrintLabelsStatus('working')
+    setPrintLabelsError(null)
+    const labelPages: string[] = []
+    const failures: string[] = []
+
+    for (let i = 0; i < shippingOrders.length; i++) {
+      const o = shippingOrders[i]
+      setPrintLabelsProgress(`${i + 1} of ${shippingOrders.length} — ${o.customer_name}`)
+      try {
+        let shipmentId = o.dpd_shipment_id
+        if (!shipmentId) {
+          const res = await fetch('/api/admin/create-dpd-shipment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: o.id }),
+          })
+          const data = await res.json()
+          if (!res.ok) {
+            failures.push(`${o.customer_name}: ${data.error || 'Failed to create shipment'}`)
+            continue
+          }
+          shipmentId = data.shipmentId
+        }
+        const labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, {
+          cache: 'no-store',
+        })
+        const labelData = await labelRes.json()
+        if (!labelRes.ok || !labelData.labels?.[0]) {
+          failures.push(`${o.customer_name}: ${labelData.error || 'Could not fetch label'}`)
+          continue
+        }
+        labelPages.push(labelData.labels[0])
+      } catch {
+        failures.push(`${o.customer_name}: network error`)
+      }
+    }
+
+    setPrintLabelsStatus('idle')
+    setPrintLabelsProgress('')
+    loadOrders()
+
+    if (labelPages.length > 0) {
+      printHtmlPages(labelPages)
+    }
+    if (failures.length > 0) {
+      setPrintLabelsError(
+        `${failures.length} label${failures.length === 1 ? '' : 's'} failed — never skip these, retry individually below: ${failures.join('; ')}`
+      )
+    }
+  }
+
   const stokeOrderCount = useMemo(
     () => filteredOrders.filter((o) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
     [filteredOrders]
@@ -2530,6 +2692,38 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            <div className="pc-modal-section" style={{ marginTop: 12 }}>
+              <label className="field-label">🏷 Print Labels</label>
+              <p className="map-intro">
+                Uses whatever orders are currently listed above (respects your search/date). Stoke-on-Trent
+                postcodes get a packing slip only — delivered in-house, no DPD needed. Everyone else gets a
+                real DPD shipping label, creating the shipment first if one doesn't exist yet.
+              </p>
+              <div className="pc-modal-inline-row">
+                <button
+                  className="btn-primary"
+                  onClick={printAllShippingLabels}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  {printLabelsStatus === 'working'
+                    ? `Working… ${printLabelsProgress}`
+                    : `🚚 Print ALL Shipping Labels (${filteredOrders.length - stokeOrderCount})`}
+                </button>
+                <button
+                  className="segment-pill"
+                  onClick={printAllStokePackingLabels}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  📦 Print ALL Stoke Packing Labels ({stokeOrderCount})
+                </button>
+              </div>
+              {printLabelsError && (
+                <p className="error-text" style={{ marginTop: 8 }}>
+                  {printLabelsError}
+                </p>
+              )}
+            </div>
+
             {showOrdersReport && (
               <>
                 <div className="location-summary">
@@ -2930,6 +3124,17 @@ export default function AdminDashboard() {
                         <td>
                           <button className="segment-pill" onClick={() => openOrderDetail(o.id)}>
                             View
+                          </button>
+                          <button
+                            className="segment-pill"
+                            style={{ marginLeft: 6 }}
+                            onClick={() =>
+                              isStokeOrder(o)
+                                ? printSingleStokePackingLabel(o)
+                                : printSingleShippingLabel(o)
+                            }
+                          >
+                            Print
                           </button>
                         </td>
                       </tr>
