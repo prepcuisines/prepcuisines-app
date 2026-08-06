@@ -2153,6 +2153,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th>Customer</th>
                       <th>Status</th>
+                      <th>Delivery</th>
                       <th>Marketing emails</th>
                       <th>Orders</th>
                       <th>Total spend</th>
@@ -2176,6 +2177,17 @@ export default function AdminDashboard() {
                         </td>
                         <td>
                           <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
+                        </td>
+                        <td>
+                          {c.second_delivery_day ? (
+                            <span title="Twice a week">
+                              2x/week: {c.standing_delivery_day || '—'}, {c.second_delivery_day}
+                            </span>
+                          ) : c.standing_delivery_day ? (
+                            <span title="Once a week">1x/week: {c.standing_delivery_day}</span>
+                          ) : (
+                            '—'
+                          )}
                         </td>
                         <td>
                           {c.marketing_consent === true ? (
