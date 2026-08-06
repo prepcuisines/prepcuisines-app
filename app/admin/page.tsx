@@ -260,6 +260,14 @@ export default function AdminDashboard() {
   const [topDishesPeriod, setTopDishesPeriod] = useState<'week' | 'month' | 'all'>('week')
   const [topDishesLoaded, setTopDishesLoaded] = useState(false)
   const [copiedListKey, setCopiedListKey] = useState<string | null>(null)
+  const [emailWindowOptions, setEmailWindowOptions] = useState<
+    { id: string; delivery_day: string; week_start_date: string }[]
+  >([])
+  const [selectedEmailWindowId, setSelectedEmailWindowId] = useState('')
+  const [emailWindowCopyStatus, setEmailWindowCopyStatus] = useState<
+    'idle' | 'loading' | 'copied'
+  >('idle')
+  const [emailWindowCopyCount, setEmailWindowCopyCount] = useState<number | null>(null)
   const [dishPairs, setDishPairs] = useState<{ dishA: string; dishB: string; count: number }[]>([])
   const [dishPairsLoaded, setDishPairsLoaded] = useState(false)
   const [productDishes, setProductDishes] = useState<
@@ -1245,6 +1253,39 @@ export default function AdminDashboard() {
     })
   }
 
+  const loadEmailWindowOptions = async () => {
+    try {
+      const res = await fetch('/api/admin/emails-by-window', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      setEmailWindowOptions(data.windows || [])
+    } catch {
+      // leave options empty — the picker just shows nothing to select
+    }
+  }
+
+  const copyEmailsForWindow = async (windowId: string) => {
+    if (!windowId) return
+    setEmailWindowCopyStatus('loading')
+    try {
+      const res = await fetch(`/api/admin/emails-by-window?windowId=${windowId}`, {
+        cache: 'no-store',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setEmailWindowCopyStatus('idle')
+        return
+      }
+      const text = (data.emails || []).join(', ')
+      await navigator.clipboard.writeText(text)
+      setEmailWindowCopyCount(data.emails?.length || 0)
+      setEmailWindowCopyStatus('copied')
+      setTimeout(() => setEmailWindowCopyStatus((s) => (s === 'copied' ? 'idle' : s)), 2500)
+    } catch {
+      setEmailWindowCopyStatus('idle')
+    }
+  }
+
   const sendTestNeoEmail = async () => {
     if (!testEmailAddress) return
     setTestEmailStatus('sending')
@@ -1778,7 +1819,15 @@ export default function AdminDashboard() {
             </div>
 
             <div className="date-filter-toggle-row">
-              <button className="date-filter-toggle" onClick={() => setShowEmailLists((v) => !v)}>
+              <button
+                className="date-filter-toggle"
+                onClick={() => {
+                  setShowEmailLists((v) => !v)
+                  if (!showEmailLists && emailWindowOptions.length === 0) {
+                    loadEmailWindowOptions()
+                  }
+                }}
+              >
                 {showEmailLists ? '▾' : '▸'} Email marketing lists
               </button>
             </div>
@@ -1813,6 +1862,41 @@ export default function AdminDashboard() {
                       </button>
                     </div>
                   ))}
+
+                  <div className="email-list-card">
+                    <div className="email-list-header">
+                      <span className="email-list-label">Ordered for a specific delivery</span>
+                    </div>
+                    <select
+                      className="text-input"
+                      style={{ width: '100%', marginBottom: 8 }}
+                      value={selectedEmailWindowId}
+                      onChange={(e) => setSelectedEmailWindowId(e.target.value)}
+                    >
+                      <option value="">Select a delivery date…</option>
+                      {emailWindowOptions.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.delivery_day} {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn-primary"
+                      disabled={!selectedEmailWindowId || emailWindowCopyStatus === 'loading'}
+                      onClick={() => copyEmailsForWindow(selectedEmailWindowId)}
+                    >
+                      {emailWindowCopyStatus === 'loading'
+                        ? 'Loading…'
+                        : emailWindowCopyStatus === 'copied'
+                        ? 'Copied!'
+                        : 'Copy emails'}
+                    </button>
+                    {emailWindowCopyCount !== null && emailWindowCopyStatus === 'copied' && (
+                      <p className="map-intro" style={{ marginTop: 6 }}>
+                        {emailWindowCopyCount} email{emailWindowCopyCount === 1 ? '' : 's'} copied.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
