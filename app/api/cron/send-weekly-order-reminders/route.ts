@@ -14,6 +14,10 @@ const supabase = createClient(
 // This is deliberately its own cron, separate from the billing cron, since
 // billing happens on the delivery day itself — far too late for a "pick
 // your meals" reminder to be useful.
+//
+// Audience: every active subscriber due for this delivery day who hasn't
+// already placed an order for this specific window — not the general
+// customer list, and not people who've already sorted their meals out.
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -34,17 +38,6 @@ export async function POST(req: NextRequest) {
     cutoffText = 'Friday at 8pm'
   } else {
     return NextResponse.json({ skipped: 'not a reminder day' })
-  }
-
-  const { data: recurringOrders } = await supabase
-    .from('recurring_manual_orders')
-    .select('id, email, customer_name, delivery_day, last_processed_window_id')
-    .eq('active', true)
-    .eq('repeat_mode', 'send_link')
-    .eq('delivery_day', targetDeliveryDay)
-
-  if (!recurringOrders || recurringOrders.length === 0) {
-    return NextResponse.json({ processed: 0 })
   }
 
   const { data: window } = await supabase
@@ -74,27 +67,47 @@ export async function POST(req: NextRequest) {
     .slice(0, 3)
     .map((item: any) => item.name)
 
+  // Every active subscriber due for this delivery day (either their
+  // standing day or their second day, for 2-delivery accounts).
+  const { data: subscribers } = await supabase
+    .from('customer_profiles')
+    .select('id, email, full_name')
+    .eq('subscription_status', 'active')
+    .not('standing_plan_size', 'is', null)
+    .or(`standing_delivery_day.eq.${targetDeliveryDay},second_delivery_day.eq.${targetDeliveryDay}`)
+
+  if (!subscribers || subscribers.length === 0) {
+    return NextResponse.json({ processed: 0 })
+  }
+
+  // Anyone who's already placed an order for this exact window doesn't
+  // need reminding — they've already sorted their meals out.
+  const { data: existingOrders } = await supabase
+    .from('customer_window_orders')
+    .select('customer_id')
+    .eq('menu_window_id', window.id)
+
+  const alreadyOrderedIds = new Set((existingOrders || []).map((o) => o.customer_id))
+
   const results: any[] = []
 
-  for (const ro of recurringOrders) {
-    if (ro.last_processed_window_id === window.id) {
-      results.push({ id: ro.id, skipped: 'already reminded for this window' })
+  for (const sub of subscribers) {
+    if (alreadyOrderedIds.has(sub.id)) {
+      results.push({ id: sub.id, skipped: 'already ordered for this window' })
       continue
     }
-    if (ro.email) {
+    if (sub.email) {
       await sendWeeklyOrderLinkToCustomer(
-        ro.email,
-        (ro.customer_name || 'there').split(' ')[0],
+        sub.email,
+        (sub.full_name || 'there').split(' ')[0],
         targetDeliveryDay,
         cutoffText,
         sampleDishNames
       )
+      results.push({ id: sub.id, sentReminder: true })
+    } else {
+      results.push({ id: sub.id, skipped: 'no email on file' })
     }
-    await supabase
-      .from('recurring_manual_orders')
-      .update({ last_processed_window_id: window.id })
-      .eq('id', ro.id)
-    results.push({ id: ro.id, sentReminder: true })
   }
 
   return NextResponse.json({ processed: results.length, results })
