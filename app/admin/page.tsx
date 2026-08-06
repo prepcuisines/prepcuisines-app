@@ -66,6 +66,7 @@ type Order = {
   cancelled?: boolean
   dpd_shipment_id?: string | null
   dpd_consignment_number?: string | null
+  label_printed_at?: string | null
 }
 
 const statusLabels: Record<string, string> = {
@@ -1770,10 +1771,50 @@ export default function AdminDashboard() {
     w.print()
   }
 
-  const printSingleStokePackingLabel = (o: Order) => {
-    printHtmlPages([generatePackingSlipHtml(o)])
+  const markLabelPrinted = async (orderId: string) => {
+    try {
+      await fetch('/api/admin/mark-label-printed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      })
+    } catch {
+      // non-critical — the print already happened, this just misses the tick
+    }
   }
 
+  // Which delivery day/week to work with — defaults to "all" (every date
+  // currently in filteredOrders) but can be narrowed to one specific
+  // window so the buttons only touch that day's orders.
+  const [printLabelsWindowKey, setPrintLabelsWindowKey] = useState<string>('all')
+
+  const printLabelsWindowOptions = useMemo(() => orderTally, [orderTally])
+
+  const printLabelsOrders = useMemo(() => {
+    if (printLabelsWindowKey === 'all') return filteredOrders
+    return filteredOrders.filter((o) => {
+      const week = o.menu_windows?.week_start_date
+        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
+        : null
+      const day = o.delivery_day || 'Unknown'
+      return `${week}__${day}` === printLabelsWindowKey
+    })
+  }, [filteredOrders, printLabelsWindowKey])
+
+  const printLabelsStokeCount = useMemo(
+    () => printLabelsOrders.filter(isStokeOrder).length,
+    [printLabelsOrders]
+  )
+
+  const printSingleStokePackingLabel = (o: Order) => {
+    printHtmlPages([generatePackingSlipHtml(o)])
+    markLabelPrinted(o.id)
+    loadOrders()
+  }
+
+  // Packing slip printed immediately before its shipping label, so the
+  // two physically travel together and can't get mixed up with a
+  // different box's label.
   const printSingleShippingLabel = async (o: Order) => {
     setPrintLabelsError(null)
     let shipmentId = o.dpd_shipment_id
@@ -1796,28 +1837,32 @@ export default function AdminDashboard() {
       setPrintLabelsError(`${o.customer_name}: ${labelData.error || 'Could not fetch label'}`)
       return
     }
-    printHtmlPages([labelData.labels[0]])
+    printHtmlPages([generatePackingSlipHtml(o), labelData.labels[0]])
+    markLabelPrinted(o.id)
     loadOrders()
   }
 
   const printAllStokePackingLabels = () => {
-    const stokeOrders = filteredOrders.filter(isStokeOrder)
+    const stokeOrders = printLabelsOrders.filter(isStokeOrder)
     if (!stokeOrders.length) {
-      setPrintLabelsError('No Stoke-on-Trent orders in the current list')
+      setPrintLabelsError('No Stoke-on-Trent orders in the selected date')
       return
     }
     printHtmlPages(stokeOrders.map(generatePackingSlipHtml))
+    stokeOrders.forEach((o) => markLabelPrinted(o.id))
+    loadOrders()
   }
 
   const printAllShippingLabels = async () => {
-    const shippingOrders = filteredOrders.filter((o) => !isStokeOrder(o))
+    const shippingOrders = printLabelsOrders.filter((o) => !isStokeOrder(o))
     if (!shippingOrders.length) {
-      setPrintLabelsError('No non-Stoke orders in the current list')
+      setPrintLabelsError('No non-Stoke orders in the selected date')
       return
     }
     setPrintLabelsStatus('working')
     setPrintLabelsError(null)
     const labelPages: string[] = []
+    const printedOrderIds: string[] = []
     const failures: string[] = []
 
     for (let i = 0; i < shippingOrders.length; i++) {
@@ -1846,7 +1891,10 @@ export default function AdminDashboard() {
           failures.push(`${o.customer_name}: ${labelData.error || 'Could not fetch label'}`)
           continue
         }
-        labelPages.push(labelData.labels[0])
+        // Packing slip immediately before its own shipping label, paired,
+        // so they can never get mismatched with another order's box.
+        labelPages.push(generatePackingSlipHtml(o), labelData.labels[0])
+        printedOrderIds.push(o.id)
       } catch {
         failures.push(`${o.customer_name}: network error`)
       }
@@ -1854,11 +1902,13 @@ export default function AdminDashboard() {
 
     setPrintLabelsStatus('idle')
     setPrintLabelsProgress('')
-    loadOrders()
 
     if (labelPages.length > 0) {
       printHtmlPages(labelPages)
     }
+    await Promise.all(printedOrderIds.map(markLabelPrinted))
+    loadOrders()
+
     if (failures.length > 0) {
       setPrintLabelsError(
         `${failures.length} label${failures.length === 1 ? '' : 's'} failed — never skip these, retry individually below: ${failures.join('; ')}`
@@ -2724,10 +2774,28 @@ export default function AdminDashboard() {
             <div className="pc-modal-section" style={{ marginTop: 12 }}>
               <label className="field-label">🏷 Print Labels</label>
               <p className="map-intro">
-                Uses whatever orders are currently listed above (respects your search/date). Stoke-on-Trent
-                postcodes get a packing slip only — delivered in-house, no DPD needed. Everyone else gets a
-                real DPD shipping label, creating the shipment first if one doesn't exist yet.
+                Packing slip prints immediately before its shipping label, so they always travel
+                together. Stoke-on-Trent postcodes get a packing slip only — delivered in-house,
+                no DPD needed. Everyone else gets a real DPD shipping label, creating the shipment
+                first if one doesn't exist yet.
               </p>
+              <label className="field-label" style={{ marginTop: 10 }}>
+                Delivery date
+              </label>
+              <select
+                className="text-input"
+                style={{ width: '100%', marginBottom: 10 }}
+                value={printLabelsWindowKey}
+                onChange={(e) => setPrintLabelsWindowKey(e.target.value)}
+              >
+                <option value="all">All dates currently listed</option>
+                {printLabelsWindowOptions.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.day}
+                    {t.week ? ` — w/c ${t.week}` : ''} ({t.count} order{t.count !== 1 ? 's' : ''})
+                  </option>
+                ))}
+              </select>
               <div className="pc-modal-inline-row">
                 <button
                   className="btn-primary"
@@ -2736,14 +2804,14 @@ export default function AdminDashboard() {
                 >
                   {printLabelsStatus === 'working'
                     ? `Working… ${printLabelsProgress}`
-                    : `🚚 Print ALL Shipping Labels (${filteredOrders.length - stokeOrderCount})`}
+                    : `🚚 Print ALL Shipping Labels (${printLabelsOrders.length - printLabelsStokeCount})`}
                 </button>
                 <button
                   className="segment-pill"
                   onClick={printAllStokePackingLabels}
                   disabled={printLabelsStatus === 'working'}
                 >
-                  📦 Print ALL Stoke Packing Labels ({stokeOrderCount})
+                  📦 Print ALL Stoke Packing Labels ({printLabelsStokeCount})
                 </button>
               </div>
               {printLabelsError && (
@@ -3183,8 +3251,13 @@ export default function AdminDashboard() {
                                 ? printSingleStokePackingLabel(o)
                                 : printSingleShippingLabel(o)
                             }
+                            title={
+                              o.label_printed_at
+                                ? `Already printed ${new Date(o.label_printed_at).toLocaleString('en-GB')}`
+                                : undefined
+                            }
                           >
-                            Print
+                            {o.label_printed_at ? '✓ Reprint' : 'Print'}
                           </button>
                         </td>
                       </tr>
