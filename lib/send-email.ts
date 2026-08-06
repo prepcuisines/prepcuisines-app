@@ -392,12 +392,14 @@ export async function sendWeeklyOrderLinkToCustomer(
     `
   )
 }
-
 // For people who aren't active subscribers — never ordered before, or a
 // past PAYG customer. Unlike active subscribers, they have no assigned
 // delivery day yet, so this mentions BOTH delivery options and their real
 // cutoffs, letting them pick whichever suits them, rather than assuming
-// they care about just one day.
+// they care about just one day. Deliberately doesn't include kcal/protein
+// figures like some reference templates do — there's no real nutritional
+// data stored against any dish in this system, so showing numbers would
+// mean making them up.
 export async function sendComeOrderInviteEmailToCustomer(
   toEmail: string,
   firstName: string,
@@ -406,27 +408,90 @@ export async function sendComeOrderInviteEmailToCustomer(
   sampleDishNames: string[] = []
 ) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
-  const dishesLine =
-    sampleDishNames.length > 0
-      ? `<p style="font-size:14px;color:#333333;margin:0 0 20px;line-height:1.7;">
-          A few things on this week's menu: <strong>${sampleDishNames.join(', ')}</strong>, and more.
-        </p>`
-      : ''
 
-  await sendEmail(
+  const dishRows = sampleDishNames
+    .map(
+      (name) => `
+        <tr><td style="border-bottom:1px solid #e8e0d0;padding-bottom:14px;padding-top:14px;">
+          <p style="font-size:15px;font-weight:700;color:#1a2e1a;margin:0;">${name}</p>
+        </td></tr>`
+    )
+    .join('')
+
+  const menuBlock = sampleDishNames.length
+    ? `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f7f3eb;border-radius:8px;" width="100%">
+        <tr><td style="padding:20px 24px;">
+          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 4px;">
+            A taste of what's on the menu
+          </p>
+          <table border="0" cellpadding="0" cellspacing="0" width="100%">${dishRows}</table>
+        </td></tr>
+      </table>`
+    : ''
+
+  await sendEmailViaNeo(
     toEmail,
     `Fancy trying prepcuisines this week?`,
     `
-      <p>Hi ${firstName},</p>
-      <p>We've got a fresh menu ready — chef-made meals, ready to heat and eat, no cooking
-      required. We deliver twice a week, so pick whichever day suits you:</p>
-      ${dishesLine}
-      <ul>
-        <li><strong>Wednesday delivery</strong> — order by ${wednesdayCutoffText}</li>
-        <li><strong>Sunday delivery</strong> — order by ${sundayCutoffText}</li>
-      </ul>
-      <p><a href="${siteUrl}/menu">Browse the menu and order</a></p>
-      <p>Thanks,<br/>prepcuisines</p>
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
+          <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+          </td></tr>
+          <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
+            <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🍽️ FRESH MENU, READY WHEN YOU ARE</span>
+          </td></tr>
+          <tr><td style="padding:40px 36px 36px;">
+            <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
+              Come try us
+            </p>
+            <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
+              Chef-made meals,<br/><em style="font-style:italic;">zero cooking required.</em>
+            </p>
+            <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+              Hey ${firstName}, we've got a fresh menu ready to go. Fresh ingredients, real
+              flavour, ready to heat and eat — no chopping, no washing up. We deliver twice a
+              week, so pick whichever day suits you.
+            </p>
+
+            ${menuBlock}
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
+              <tr><td style="padding:20px 24px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr><td style="padding:8px 0;font-size:14px;color:#1a2e1a;">
+                    <strong>Wednesday delivery</strong> — order by ${wednesdayCutoffText}
+                  </td></tr>
+                  <tr><td style="padding:8px 0;font-size:14px;color:#1a2e1a;border-top:1px solid #e8e0d0;">
+                    <strong>Sunday delivery</strong> — order by ${sundayCutoffText}
+                  </td></tr>
+                </table>
+              </td></tr>
+            </table>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
+              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
+                <a href="${siteUrl}/menu" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Browse the Menu &rarr;</a>
+              </td></tr>
+            </table>
+
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td style="border-top:1px solid #e8e0d0;padding-top:20px;">
+                <p style="font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
+                  Any questions, just reply here — I read every one.<br/><br/>
+                  <span style="font-style:normal;color:#1a2e1a;font-weight:600;">&mdash; Bukr</span>
+                </p>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
     `
   )
 }
