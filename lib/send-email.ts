@@ -364,15 +364,30 @@ export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstNa
 export async function sendWeeklyOrderLinkToCustomer(
   toEmail: string,
   firstName: string,
-  deliveryDay: string
+  deliveryDay: string,
+  cutoffText: string,
+  sampleDishNames: string[] = []
 ) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const dishesLine =
+    sampleDishNames.length > 0
+      ? `<p style="font-size:14px;color:#333333;margin:0 0 20px;line-height:1.7;">
+          A few things on this week's menu: <strong>${sampleDishNames.join(', ')}</strong>, and more.
+        </p>`
+      : ''
+
   await sendEmail(
     toEmail,
-    `Time to choose your meals for ${deliveryDay}`,
+    `Don't forget to pick your meals for ${deliveryDay}`,
     `
       <p>Hi ${firstName},</p>
-      <p>It's time to pick your meals for this week's ${deliveryDay} delivery.</p>
-      <p><a href="${process.env.NEXT_PUBLIC_SITE_URL}/menu">Choose your meals</a></p>
+      <p>Don't forget to pick your meals for this week's ${deliveryDay} delivery.</p>
+      ${dishesLine}
+      <p><a href="${siteUrl}/menu">Choose your meals</a></p>
+      <p style="color:#888888;">Cutoff is ${cutoffText} — after that we'll go with your usual
+      favourites instead.</p>
+      <p>Haven't set your favourites yet? <a href="${siteUrl}/favourites">Pick them here</a> so
+      we always know what you love.</p>
       <p>Thanks,<br/>prepcuisines</p>
     `
   )

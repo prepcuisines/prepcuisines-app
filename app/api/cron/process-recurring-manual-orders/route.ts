@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { sendWeeklyOrderLinkToCustomer } from '@/lib/send-email'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -54,21 +53,11 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      if (ro.repeat_mode === 'send_link') {
-        if (ro.email) {
-          await sendWeeklyOrderLinkToCustomer(
-            ro.email,
-            (ro.customer_name || 'there').split(' ')[0],
-            ro.delivery_day
-          )
-        }
-        await supabase
-          .from('recurring_manual_orders')
-          .update({ last_processed_window_id: window.id })
-          .eq('id', ro.id)
-        results.push({ id: ro.id, sentLink: true })
-        continue
-      }
+      // "send_link" is handled by its own dedicated cron
+      // (send-weekly-order-reminders) which runs 2 days before the actual
+      // cutoff, not on this same-schedule-as-billing cron — sending a
+      // "pick your meals" reminder right when billing runs would often be
+      // too late for the customer to actually act on it.
 
       if (ro.repeat_mode === 'manual') {
         await supabase.from('customer_window_orders').insert({

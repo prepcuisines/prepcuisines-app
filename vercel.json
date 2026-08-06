@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/retry-failed-payments",
       "schedule": "30 23 * * 4,0"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "0 10 * * 3,5"
     }
   ]
 }
