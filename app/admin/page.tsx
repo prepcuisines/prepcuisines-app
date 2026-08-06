@@ -157,7 +157,6 @@ export default function AdminDashboard() {
   )
   const [testEmailError, setTestEmailError] = useState<string | null>(null)
   const [dpdTestStatus, setDpdTestStatus] = useState<'idle' | 'testing' | 'done'>('idle')
-  const [dpdTestEnv, setDpdTestEnv] = useState<'sandbox' | 'live'>('sandbox')
   const [dpdLookupPostcode, setDpdLookupPostcode] = useState('')
   const [dpdLookupTown, setDpdLookupTown] = useState('')
   const [dpdLookupStatus, setDpdLookupStatus] = useState<'idle' | 'loading' | 'done' | 'error'>(
@@ -1377,7 +1376,7 @@ export default function AdminDashboard() {
     setDpdTestStatus('testing')
     setDpdTestResult(null)
     try {
-      const res = await fetch(`/api/admin/test-dpd?env=${dpdTestEnv}`, { cache: 'no-store' })
+      const res = await fetch(`/api/admin/test-dpd?env=live`, { cache: 'no-store' })
       const data = await res.json()
       setDpdTestResult({
         connected: !!data.connected,
@@ -1402,7 +1401,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           deliveryPostcode: dpdLookupPostcode,
           deliveryTown: dpdLookupTown,
-          env: dpdTestEnv,
+          env: 'live',
         }),
       })
       const data = await res.json()
@@ -2139,31 +2138,16 @@ export default function AdminDashboard() {
                 <div className="ao-repeat-section">
                   <label className="field-label">Test DPD connection</label>
                   <p className="map-intro">
-                    Gets a real access token from DPD using your saved credentials, then
-                    immediately revokes it. Confirms the connection works end to end — safe to
-                    run against either environment, since this only tests authentication and
-                    never creates a real shipment.
+                    Gets a real access token from DPD using your saved Live credentials, then
+                    immediately revokes it. Confirms the connection works end to end — this only
+                    tests authentication and never creates a real shipment.
                   </p>
-                  <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
-                    <button
-                      className={`segment-pill ${dpdTestEnv === 'sandbox' ? 'segment-pill-active' : ''}`}
-                      onClick={() => setDpdTestEnv('sandbox')}
-                    >
-                      Sandbox
-                    </button>
-                    <button
-                      className={`segment-pill ${dpdTestEnv === 'live' ? 'segment-pill-active' : ''}`}
-                      onClick={() => setDpdTestEnv('live')}
-                    >
-                      Live
-                    </button>
-                  </div>
                   <button
                     className="btn-primary"
                     onClick={testDpdConnectionAction}
                     disabled={dpdTestStatus === 'testing'}
                   >
-                    {dpdTestStatus === 'testing' ? 'Testing…' : `Test ${dpdTestEnv} connection`}
+                    {dpdTestStatus === 'testing' ? 'Testing…' : 'Test connection'}
                   </button>
                   {dpdTestStatus === 'done' && dpdTestResult && (
                     <p
@@ -2206,7 +2190,7 @@ export default function AdminDashboard() {
                       dpdLookupStatus === 'loading' || !dpdLookupPostcode || !dpdLookupTown
                     }
                   >
-                    {dpdLookupStatus === 'loading' ? 'Looking up…' : `Look up (${dpdTestEnv})`}
+                    {dpdLookupStatus === 'loading' ? 'Looking up…' : 'Look up'}
                   </button>
                   {dpdLookupStatus === 'error' && dpdLookupError && (
                     <p className="error-text">{dpdLookupError}</p>
