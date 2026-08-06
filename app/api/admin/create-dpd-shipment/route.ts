@@ -77,15 +77,20 @@ export async function POST(req: NextRequest) {
       collectionAddress: COLLECTION_ADDRESS,
       deliveryAddress: {
         countryCode: 'GB',
-        street: `${order.ship_house_number || ''} ${order.ship_street || ''}`.trim(),
-        town: order.ship_street || '',
+        street: `${order.ship_house_number || ''} ${order.ship_street || ''}`.trim().slice(0, 35),
+        town: (order.ship_street || '').slice(0, 35),
         postcode: order.ship_postcode,
       },
       deliveryContact: {
-        contactName: order.ship_full_name,
-        telephone: order.ship_phone || undefined,
+        contactName: (order.ship_full_name || '').slice(0, 35),
+        // DPD only accepts digits with an optional leading + — strip
+        // spaces, brackets, and dashes that are otherwise fine to store
+        // normally.
+        telephone: order.ship_phone
+          ? order.ship_phone.replace(/[^\d+]/g, '').slice(0, 15)
+          : undefined,
       },
-      shippingRef1: order.id,
+      shippingRef1: order.id.slice(0, 25),
     },
     'live'
   )
