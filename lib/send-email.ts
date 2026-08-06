@@ -3,6 +3,7 @@
 // Uses their test/shared sending domain until you verify your own.
 
 import nodemailer from 'nodemailer'
+import { buildUnsubscribeUrl } from '@/lib/unsubscribe'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!
 const FROM_ADDRESS = process.env.RESEND_FROM_ADDRESS || 'prepcuisines <onboarding@resend.dev>'
@@ -487,7 +488,7 @@ export async function sendComeOrderInviteEmailToCustomer(
           </td></tr>
           <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
             <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
-            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered</p>
+            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
           </td></tr>
         </table>
       </td></tr>
