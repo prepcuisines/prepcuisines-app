@@ -150,6 +150,39 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
+  if (action === 'update_email') {
+    const newEmail = (payload.email || '').trim().toLowerCase()
+    if (!newEmail) {
+      return NextResponse.json({ error: 'Missing email' }, { status: 400 })
+    }
+
+    const { data: order } = await supabase
+      .from('customer_window_orders')
+      .select('customer_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    const { error } = await supabase
+      .from('customer_window_orders')
+      .update({ ship_email: newEmail })
+      .eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Keep the customer's own profile AND their actual login credentials
+    // in sync too, if this order belongs to a real account — otherwise a
+    // typo fixed here would still be wrong on their account, every future
+    // order, and they'd be unable to log in with the corrected address.
+    if (order?.customer_id) {
+      await supabase
+        .from('customer_profiles')
+        .update({ email: newEmail })
+        .eq('id', order.customer_id)
+      await supabase.auth.admin.updateUserById(order.customer_id, { email: newEmail })
+    }
+
+    return NextResponse.json({ success: true })
+  }
+
   if (action === 'update_items') {
     // Items and total are updated together so the record always reflects
     // what's actually being cooked/packed — this does NOT itself charge

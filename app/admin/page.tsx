@@ -207,6 +207,7 @@ export default function AdminDashboard() {
   const [orderActionStatus, setOrderActionStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [orderActionError, setOrderActionError] = useState<string | null>(null)
   const [chargeAmountInput, setChargeAmountInput] = useState('')
+  const [editEmailInput, setEditEmailInput] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -834,6 +835,7 @@ export default function AdminDashboard() {
       setOrderDetail(data)
       setEditingItems(data.order.items || [])
       setEditingDeliveryDay(data.order.delivery_day || '')
+      setEditEmailInput(data.order.ship_email || '')
     } catch {
       // leave orderDetail null — the modal shows a loading/error state
     } finally {
@@ -3663,6 +3665,29 @@ export default function AdminDashboard() {
                   >
                     Delete this order permanently
                   </button>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">Customer email</label>
+                  <p className="map-intro">
+                    Fixes a typo'd email so this customer actually receives future emails — also
+                    updates their account login email if this order belongs to one.
+                  </p>
+                  <div className="pc-modal-inline-row">
+                    <input
+                      className="text-input"
+                      style={{ flex: 1 }}
+                      value={editEmailInput}
+                      onChange={(e) => setEditEmailInput(e.target.value)}
+                    />
+                    <button
+                      className="btn-primary"
+                      onClick={() => orderDetailAction('update_email', { email: editEmailInput })}
+                      disabled={orderActionStatus === 'saving' || !editEmailInput}
+                    >
+                      {orderActionStatus === 'saving' ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="pc-modal-section">
