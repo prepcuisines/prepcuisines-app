@@ -43,13 +43,17 @@ export async function POST(req: NextRequest) {
   let email = order.ship_email || null
   let name = order.ship_full_name || 'there'
   let postcode = order.ship_postcode || ''
-  let isSubscribed = order.status !== 'payg_order'
+  // The order's own recorded status is the source of truth for what THIS
+  // order actually was — a customer's current subscription status can
+  // have changed since (cancelled, or newly subscribed), so it must never
+  // override what this specific historical order was.
+  const isSubscribed = order.status !== 'payg_order'
   let isFirstOrder = false
 
   if (order.customer_id) {
     const { data: profile } = await supabase
       .from('customer_profiles')
-      .select('email, full_name, postcode, subscription_status, standing_plan_size')
+      .select('email, full_name, postcode')
       .eq('id', order.customer_id)
       .maybeSingle()
 
@@ -57,7 +61,6 @@ export async function POST(req: NextRequest) {
       email = profile.email || email
       name = profile.full_name || name
       postcode = profile.postcode || postcode
-      isSubscribed = profile.subscription_status === 'active' && !!profile.standing_plan_size
     }
 
     // Whether this order was genuinely their first — checked against real
