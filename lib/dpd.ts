@@ -345,3 +345,70 @@ export async function getShipmentLabels(
     return { success: false, error: err.message || 'Network error contacting DPD' }
   }
 }
+
+// POST /v1/customer/shipping/reference/outboundservices — the correct,
+// official way to find which service/network codes are actually valid
+// for THIS account, rather than guessing. Returns every available
+// service with its human-readable description and the exact networkKey
+// to use as networkCode in createDomesticShipment.
+export async function getOutboundServices(
+  collectionPostcode: string,
+  collectionTown: string,
+  deliveryPostcode: string,
+  deliveryTown: string,
+  totalWeight: number,
+  numberOfParcels: number = 1,
+  env: DpdEnvironment = 'sandbox'
+): Promise<
+  | { success: true; services: { description: string; networkCode: string }[] }
+  | { success: false; error: string }
+> {
+  const authResult = await dpdAuthedHeaders(env)
+  if (!authResult.success) return { success: false, error: authResult.error }
+
+  const body = {
+    collectionDetails: {
+      address: { countryCode: 'GB', town: collectionTown, postcode: collectionPostcode },
+    },
+    deliveryDetails: {
+      address: { countryCode: 'GB', town: deliveryTown, postcode: deliveryPostcode },
+    },
+    totalWeight,
+    numberOfParcels,
+    shipmentType: 0,
+  }
+
+  try {
+    const res = await fetch(
+      `${BASE_URLS[env]}/v1/customer/shipping/reference/outboundservices`,
+      {
+        method: 'POST',
+        headers: {
+          ...authResult.headers,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    )
+
+    const responseBody = await res.json()
+
+    if (!res.ok) {
+      const firstError = Array.isArray(responseBody?.error) ? responseBody.error[0] : null
+      return {
+        success: false,
+        error: firstError?.message || `HTTP ${res.status}: ${res.statusText}`,
+      }
+    }
+
+    const services = (responseBody.data || []).map((s: any) => ({
+      description: s.networkDesc,
+      networkCode: s.networkKey,
+    }))
+
+    return { success: true, services }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error contacting DPD' }
+  }
+}

@@ -158,6 +158,15 @@ export default function AdminDashboard() {
   const [testEmailError, setTestEmailError] = useState<string | null>(null)
   const [dpdTestStatus, setDpdTestStatus] = useState<'idle' | 'testing' | 'done'>('idle')
   const [dpdTestEnv, setDpdTestEnv] = useState<'sandbox' | 'live'>('sandbox')
+  const [dpdLookupPostcode, setDpdLookupPostcode] = useState('')
+  const [dpdLookupTown, setDpdLookupTown] = useState('')
+  const [dpdLookupStatus, setDpdLookupStatus] = useState<'idle' | 'loading' | 'done' | 'error'>(
+    'idle'
+  )
+  const [dpdLookupServices, setDpdLookupServices] = useState<
+    { description: string; networkCode: string }[]
+  >([])
+  const [dpdLookupError, setDpdLookupError] = useState<string | null>(null)
   const [dpdTestResult, setDpdTestResult] = useState<{
     connected: boolean
     message: string
@@ -1382,6 +1391,34 @@ export default function AdminDashboard() {
     }
   }
 
+  const lookupDpdServicesAction = async () => {
+    setDpdLookupStatus('loading')
+    setDpdLookupError(null)
+    setDpdLookupServices([])
+    try {
+      const res = await fetch('/api/admin/dpd-outbound-services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryPostcode: dpdLookupPostcode,
+          deliveryTown: dpdLookupTown,
+          env: dpdTestEnv,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setDpdLookupError(data.error || 'Something went wrong')
+        setDpdLookupStatus('error')
+        return
+      }
+      setDpdLookupServices(data.services || [])
+      setDpdLookupStatus('done')
+    } catch {
+      setDpdLookupError('Network error — please try again')
+      setDpdLookupStatus('error')
+    }
+  }
+
   const runKlaviyoSync = async () => {
     setKlaviyoSyncStatus('syncing')
     setKlaviyoSyncError(null)
@@ -2137,6 +2174,64 @@ export default function AdminDashboard() {
                       {dpdTestResult.keyPreview && (
                         <><br />Key on file: {dpdTestResult.keyPreview}</>
                       )}
+                    </p>
+                  )}
+                </div>
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Find DPD Local service code</label>
+                  <p className="map-intro">
+                    Looks up which delivery services are actually available for your account,
+                    from your kitchen (ST1 4JR) to a sample delivery postcode — using DPD's own
+                    lookup, not a guessed code.
+                  </p>
+                  <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
+                    <input
+                      className="text-input"
+                      placeholder="Delivery postcode e.g. M1 2AB"
+                      value={dpdLookupPostcode}
+                      onChange={(e) => setDpdLookupPostcode(e.target.value)}
+                    />
+                    <input
+                      className="text-input"
+                      placeholder="Town e.g. Manchester"
+                      value={dpdLookupTown}
+                      onChange={(e) => setDpdLookupTown(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="btn-primary"
+                    onClick={lookupDpdServicesAction}
+                    disabled={
+                      dpdLookupStatus === 'loading' || !dpdLookupPostcode || !dpdLookupTown
+                    }
+                  >
+                    {dpdLookupStatus === 'loading' ? 'Looking up…' : `Look up (${dpdTestEnv})`}
+                  </button>
+                  {dpdLookupStatus === 'error' && dpdLookupError && (
+                    <p className="error-text">{dpdLookupError}</p>
+                  )}
+                  {dpdLookupStatus === 'done' && dpdLookupServices.length > 0 && (
+                    <table className="data-table" style={{ marginTop: 12 }}>
+                      <thead>
+                        <tr>
+                          <th>Service</th>
+                          <th>Network Code</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dpdLookupServices.map((s, i) => (
+                          <tr key={i}>
+                            <td>{s.description}</td>
+                            <td>{s.networkCode}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {dpdLookupStatus === 'done' && dpdLookupServices.length === 0 && (
+                    <p className="map-intro" style={{ marginTop: 8 }}>
+                      No services returned for this postcode.
                     </p>
                   )}
                 </div>
