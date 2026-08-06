@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import {
   sendWeeklyOrderLinkToCustomer,
   sendComeOrderInviteEmailToCustomer,
+  sendBulkEmailSummaryToAdmin,
 } from '@/lib/send-email'
 
 const supabase = createClient(
@@ -164,6 +165,16 @@ export async function POST(req: NextRequest) {
       .from('weekly_reminder_log')
       .insert({ customer_id: person.id, menu_window_id: subscriberWindow.id })
     results.push({ id: person.id, kind: person.kind, sent: true })
+  }
+
+  const subscribersSent = batch.filter((p) => p.kind === 'subscriber').length
+  const invitesSent = batch.filter((p) => p.kind === 'invite').length
+
+  if (batch.length > 0) {
+    await sendBulkEmailSummaryToAdmin('Weekly order reminder', [
+      { label: 'Subscriber reminders', count: subscribersSent },
+      { label: 'Come-try-us invites', count: invitesSent },
+    ])
   }
 
   return NextResponse.json({

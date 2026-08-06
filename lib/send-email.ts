@@ -518,3 +518,28 @@ export async function sendPaymentFailedEmailToAdmin(
     `
   )
 }
+
+// Summary notification for bulk/batch sends (weekly reminder + invite
+// crons) — one email per run, just a count, not a list of every
+// recipient. Only call this when something was actually sent, so quiet
+// runs don't clutter the inbox.
+export async function sendBulkEmailSummaryToAdmin(
+  emailName: string,
+  breakdown: { label: string; count: number }[]
+) {
+  if (!ADMIN_EMAIL) return
+  const totalCount = breakdown.reduce((sum, b) => sum + b.count, 0)
+  const breakdownLines = breakdown
+    .filter((b) => b.count > 0)
+    .map((b) => `<li>${b.label}: ${b.count}</li>`)
+    .join('')
+
+  await sendEmail(
+    ADMIN_EMAIL,
+    `${emailName} sent successfully — ${totalCount} email${totalCount === 1 ? '' : 's'}`,
+    `
+      <p>"${emailName}" was sent successfully.</p>
+      <ul>${breakdownLines}</ul>
+    `
+  )
+}
