@@ -65,6 +65,7 @@ export default async function LateOrderPage({
     <OrderingFlow
       windows={[targetWindow]}
       itemsByWindow={{ [targetWindow.id]: (items || []) as any }}
+      ignoreCutoff
     />
   )
 }

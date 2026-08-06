@@ -105,13 +105,15 @@ function DayCard({
   window,
   selected,
   onSelect,
+  ignoreCutoff,
 }: {
   window: MenuWindow
   selected: boolean
   onSelect: () => void
+  ignoreCutoff?: boolean
 }) {
   const countdown = useCountdown(window.cutoff_datetime)
-  const cutoffPassed = !countdown
+  const cutoffPassed = ignoreCutoff ? false : !countdown
   return (
     <div
       className={`pc-day-card ${selected ? 'pc-day-selected' : ''} ${cutoffPassed ? 'pc-day-disabled' : ''}`}
@@ -123,7 +125,7 @@ function DayCard({
       <div className="pc-day-date">
         {new Date(window.week_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}
       </div>
-      {countdown ? (
+      {ignoreCutoff ? null : countdown ? (
         <div className="pc-day-countdown">
           <span className="pc-day-countdown-dot" />
           Cutoff in{' '}
@@ -178,9 +180,11 @@ function DishCard({
 export default function OrderingFlow({
   windows,
   itemsByWindow,
+  ignoreCutoff,
 }: {
   windows: MenuWindow[]
   itemsByWindow: Record<string, WindowItem[]>
+  ignoreCutoff?: boolean
 }) {
   const router = useRouter()
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null)
@@ -267,6 +271,7 @@ export default function OrderingFlow({
                 window={w}
                 selected={selectedDayId === w.id}
                 onSelect={() => handleDaySelect(w.id)}
+                ignoreCutoff={ignoreCutoff}
               />
             ))}
           </div>
