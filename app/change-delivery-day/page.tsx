@@ -142,12 +142,13 @@ export default function ChangeDeliveryDayPage() {
                 className={`pc-account-tab ${deliveriesPerWeek === 2 ? 'active' : ''}`}
                 onClick={() => setDeliveriesPerWeek(2)}
               >
-                2 Deliveries
+                2 Deliveries (Sun &amp; Wed)
               </button>
             </div>
             {deliveriesPerWeek === 2 && (
               <p className="pc-frequency-note">
-                You'll be set up for both Sunday and Wednesday going forward.
+                You'll receive two separate deliveries each week — one on Sunday and one on
+                Wednesday, each its own order and its own charge.
               </p>
             )}
 
