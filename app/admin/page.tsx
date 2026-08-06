@@ -308,6 +308,7 @@ export default function AdminDashboard() {
     'idle' | 'loading' | 'copied'
   >('idle')
   const [emailWindowCopyCount, setEmailWindowCopyCount] = useState<number | null>(null)
+  const [lateOrderLinkCopied, setLateOrderLinkCopied] = useState(false)
   const [dishPairs, setDishPairs] = useState<{ dishA: string; dishB: string; count: number }[]>([])
   const [dishPairsLoaded, setDishPairsLoaded] = useState(false)
   const [productDishes, setProductDishes] = useState<
@@ -2307,6 +2308,19 @@ export default function AdminDashboard() {
                         {emailWindowCopyCount} email{emailWindowCopyCount === 1 ? '' : 's'} copied.
                       </p>
                     )}
+                    <button
+                      className="segment-pill"
+                      style={{ marginTop: 8 }}
+                      disabled={!selectedEmailWindowId}
+                      onClick={() => {
+                        const url = `${window.location.origin}/late-order?window=${selectedEmailWindowId}`
+                        navigator.clipboard.writeText(url)
+                        setLateOrderLinkCopied(true)
+                        setTimeout(() => setLateOrderLinkCopied(false), 2000)
+                      }}
+                    >
+                      {lateOrderLinkCopied ? 'Copied!' : 'Copy late-order link (for this delivery)'}
+                    </button>
                   </div>
                 </div>
               </div>
