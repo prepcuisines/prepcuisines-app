@@ -5037,11 +5037,11 @@ function Styles() {
       /* Sidebar — light, Shopify-style: white bg, near-black text, light
          gray active state, not the old dark green panel. */
       .sidebar {
-        width: 240px;
+        width: 180px;
         flex-shrink: 0;
         background: #ffffff;
         color: #202223;
-        padding: 16px 12px;
+        padding: 16px 10px;
         display: flex;
         flex-direction: column;
         gap: 28px;
@@ -5062,9 +5062,9 @@ function Styles() {
         color: #202223;
         opacity: 0.85;
         font-family: inherit;
-        font-size: 14px;
+        font-size: 13.5px;
         font-weight: 500;
-        padding: 9px 12px;
+        padding: 8px 10px;
         border-radius: 8px;
         cursor: pointer;
         transition: background 0.15s ease, opacity 0.15s ease;
