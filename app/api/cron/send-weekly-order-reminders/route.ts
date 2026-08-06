@@ -7,17 +7,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Neo's SMTP allows at most 450 sends per hour. This cron runs several
+// times across the day (see vercel.json) so a large recipient list gets
+// spread out safely instead of blasting everyone in one go. Each run only
+// processes recipients NOT already logged as sent for this window
+// (weekly_reminder_log), so running it repeatedly through the day never
+// double-emails anyone — later runs in the day just pick up whoever's
+// left.
+const MAX_PER_RUN = 400
+
 // Runs Wednesday and Friday — exactly 2 days before each delivery day's
 // real cutoff:
 // - Wednesday delivery cutoff is Sunday 8pm, so its reminder fires Friday.
 // - Sunday delivery cutoff is Friday 8pm, so its reminder fires Wednesday.
-// This is deliberately its own cron, separate from the billing cron, since
-// billing happens on the delivery day itself — far too late for a "pick
-// your meals" reminder to be useful.
-//
-// Audience: every active subscriber due for this delivery day who hasn't
-// already placed an order for this specific window — not the general
-// customer list, and not people who've already sorted their meals out.
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -29,11 +31,9 @@ export async function POST(req: NextRequest) {
   let cutoffText = ''
 
   if (todayIndex === 5) {
-    // Friday — remind about the upcoming Wednesday delivery.
     targetDeliveryDay = 'Wednesday'
     cutoffText = 'Sunday at 8pm'
   } else if (todayIndex === 3) {
-    // Wednesday — remind about the upcoming Sunday delivery.
     targetDeliveryDay = 'Sunday'
     cutoffText = 'Friday at 8pm'
   } else {
@@ -53,8 +53,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: 'no upcoming window found' })
   }
 
-  // A handful of dishes available this window, to make the email feel
-  // current rather than generic.
   const { data: windowItems } = await supabase
     .from('menu_window_items')
     .select('menu_items(name, category)')
@@ -67,8 +65,6 @@ export async function POST(req: NextRequest) {
     .slice(0, 3)
     .map((item: any) => item.name)
 
-  // Every active subscriber due for this delivery day (either their
-  // standing day or their second day, for 2-delivery accounts).
   const { data: subscribers } = await supabase
     .from('customer_profiles')
     .select('id, email, full_name')
@@ -80,8 +76,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ processed: 0 })
   }
 
-  // Anyone who's already placed an order for this exact window doesn't
-  // need reminding — they've already sorted their meals out.
   const { data: existingOrders } = await supabase
     .from('customer_window_orders')
     .select('customer_id')
@@ -89,26 +83,40 @@ export async function POST(req: NextRequest) {
 
   const alreadyOrderedIds = new Set((existingOrders || []).map((o) => o.customer_id))
 
+  // Already sent for THIS window, possibly by an earlier run today.
+  const { data: alreadySent } = await supabase
+    .from('weekly_reminder_log')
+    .select('customer_id')
+    .eq('menu_window_id', window.id)
+
+  const alreadySentIds = new Set((alreadySent || []).map((r) => r.customer_id))
+
+  const stillToSend = subscribers.filter(
+    (sub) => !alreadyOrderedIds.has(sub.id) && !alreadySentIds.has(sub.id) && sub.email
+  )
+
+  const batch = stillToSend.slice(0, MAX_PER_RUN)
   const results: any[] = []
 
-  for (const sub of subscribers) {
-    if (alreadyOrderedIds.has(sub.id)) {
-      results.push({ id: sub.id, skipped: 'already ordered for this window' })
-      continue
-    }
-    if (sub.email) {
-      await sendWeeklyOrderLinkToCustomer(
-        sub.email,
-        (sub.full_name || 'there').split(' ')[0],
-        targetDeliveryDay,
-        cutoffText,
-        sampleDishNames
-      )
-      results.push({ id: sub.id, sentReminder: true })
-    } else {
-      results.push({ id: sub.id, skipped: 'no email on file' })
-    }
+  for (const sub of batch) {
+    await sendWeeklyOrderLinkToCustomer(
+      sub.email,
+      (sub.full_name || 'there').split(' ')[0],
+      targetDeliveryDay,
+      cutoffText,
+      sampleDishNames
+    )
+    await supabase
+      .from('weekly_reminder_log')
+      .insert({ customer_id: sub.id, menu_window_id: window.id })
+    results.push({ id: sub.id, sentReminder: true })
   }
 
-  return NextResponse.json({ processed: results.length, results })
+  return NextResponse.json({
+    totalEligible: subscribers.length,
+    remainingBeforeThisRun: stillToSend.length,
+    sentThisRun: batch.length,
+    remainingAfterThisRun: stillToSend.length - batch.length,
+    results,
+  })
 }
