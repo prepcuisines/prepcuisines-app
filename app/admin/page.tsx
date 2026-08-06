@@ -198,6 +198,15 @@ export default function AdminDashboard() {
   >('idle')
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null)
   const [passwordCopied, setPasswordCopied] = useState(false)
+  const [editEmailCustomer, setEditEmailCustomer] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [editCustomerEmailValue, setEditCustomerEmailValue] = useState('')
+  const [editCustomerEmailStatus, setEditCustomerEmailStatus] = useState<
+    'idle' | 'saving' | 'done' | 'error'
+  >('idle')
+  const [editCustomerEmailError, setEditCustomerEmailError] = useState<string | null>(null)
   const [orderDetail, setOrderDetail] = useState<any>(null)
   const [orderDetailLoading, setOrderDetailLoading] = useState(false)
   const [editingItems, setEditingItems] = useState<{ name: string; price: number; qty: number }[]>(
@@ -788,6 +797,40 @@ export default function AdminDashboard() {
     setResetPasswordStatus('idle')
     setResetPasswordError(null)
     setPasswordCopied(false)
+  }
+
+  const openEditCustomerEmail = (customerId: string, customerName: string, currentEmail: string) => {
+    setEditEmailCustomer({ id: customerId, name: customerName })
+    setEditCustomerEmailValue(currentEmail)
+    setEditCustomerEmailStatus('idle')
+    setEditCustomerEmailError(null)
+  }
+
+  const submitCustomerEmailEdit = async () => {
+    if (!editEmailCustomer) return
+    setEditCustomerEmailStatus('saving')
+    setEditCustomerEmailError(null)
+    try {
+      const res = await fetch('/api/admin/edit-customer-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: editEmailCustomer.id,
+          newEmail: editCustomerEmailValue,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setEditCustomerEmailError(data.error || 'Something went wrong')
+        setEditCustomerEmailStatus('error')
+        return
+      }
+      setEditCustomerEmailStatus('done')
+      loadCustomers()
+    } catch {
+      setEditCustomerEmailError('Network error — please try again')
+      setEditCustomerEmailStatus('error')
+    }
   }
 
   const submitPasswordReset = async () => {
@@ -2074,6 +2117,13 @@ export default function AdminDashboard() {
                             onClick={() => openResetPassword(c.id, c.full_name || c.email || 'this customer')}
                           >
                             Reset password
+                          </button>
+                          <button
+                            className="segment-pill"
+                            style={{ marginLeft: 6 }}
+                            onClick={() => openEditCustomerEmail(c.id, c.full_name || 'this customer', c.email || '')}
+                          >
+                            Edit email
                           </button>
                         </td>
                       </tr>
@@ -3494,6 +3544,60 @@ export default function AdminDashboard() {
                 )}
                 {resetPasswordStatus === 'error' && resetPasswordError && (
                   <p className="error-text">{resetPasswordError}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editEmailCustomer && (
+        <div
+          className="pc-modal-overlay"
+          onClick={() => editCustomerEmailStatus !== 'saving' && setEditEmailCustomer(null)}
+        >
+          <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-modal-header">
+              <h2 className="pc-modal-title">Edit email — {editEmailCustomer.name}</h2>
+              <button
+                className="pc-modal-close"
+                onClick={() => setEditEmailCustomer(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="pc-modal-body">
+              <div className="pc-modal-section">
+                <p className="map-intro">
+                  Updates both their account record and their actual login email together, so
+                  they stay able to log in with the corrected address.
+                </p>
+                <label className="field-label">Email address</label>
+                <input
+                  className="text-input"
+                  style={{ width: '100%' }}
+                  value={editCustomerEmailValue}
+                  onChange={(e) => setEditCustomerEmailValue(e.target.value)}
+                />
+              </div>
+              <div className="pc-modal-section">
+                <button
+                  className="btn-primary"
+                  onClick={submitCustomerEmailEdit}
+                  disabled={
+                    editCustomerEmailStatus === 'saving' || !editCustomerEmailValue.includes('@')
+                  }
+                >
+                  {editCustomerEmailStatus === 'saving' ? 'Saving…' : 'Save email'}
+                </button>
+                {editCustomerEmailStatus === 'done' && (
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    Saved — they can now log in with the new email.
+                  </p>
+                )}
+                {editCustomerEmailStatus === 'error' && editCustomerEmailError && (
+                  <p className="error-text">{editCustomerEmailError}</p>
                 )}
               </div>
             </div>
