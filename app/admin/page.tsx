@@ -1647,6 +1647,7 @@ export default function AdminDashboard() {
       const key = `${week}__${day}`
       if (key !== expandedTallyKey) continue
       for (const item of o.items || []) {
+        if (!item.name || item.name === 'Delivery') continue
         dishTotals.set(item.name, (dishTotals.get(item.name) || 0) + (item.qty || 0))
       }
     }
@@ -1654,6 +1655,34 @@ export default function AdminDashboard() {
       .map(([name, qty]) => ({ name, qty }))
       .sort((a, b) => b.qty - a.qty)
   }, [expandedTallyKey, filteredOrders])
+
+  const [cookSheetCopied, setCookSheetCopied] = useState(false)
+
+  const cookSheetAsText = () => {
+    const tally = orderTally.find((t) => t.key === expandedTallyKey)
+    const title = `Cook sheet — ${tally?.day || ''}${tally?.week ? ` (w/c ${tally.week})` : ''}`
+    const totalItems = cookSheetForKey.reduce((s, d) => s + d.qty, 0)
+    const lines = cookSheetForKey.map((d) => `${d.qty}x  ${d.name}`)
+    return [title, '', ...lines, '', `Total items: ${totalItems}`].join('\n')
+  }
+
+  const copyCookSheet = () => {
+    navigator.clipboard.writeText(cookSheetAsText()).then(() => {
+      setCookSheetCopied(true)
+      setTimeout(() => setCookSheetCopied(false), 2000)
+    })
+  }
+
+  const downloadCookSheet = () => {
+    const tally = orderTally.find((t) => t.key === expandedTallyKey)
+    const blob = new Blob([cookSheetAsText()], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `cook-sheet-${(tally?.day || 'day').toLowerCase()}-${(tally?.week || '').replace(/\//g, '-')}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const [locationFilter, setLocationFilter] = useState<'all' | 'st' | 'outside'>('all')
 
@@ -2775,22 +2804,43 @@ export default function AdminDashboard() {
 
                 {expandedTallyKey && (
                   <div className="cook-sheet-panel">
-                    <div className="cook-sheet-title">
-                      Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
-                      {orderTally.find((t) => t.key === expandedTallyKey)?.week
-                        ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
-                        : ''}
+                    <div className="cook-sheet-header-row">
+                      <div className="cook-sheet-title">
+                        Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
+                        {orderTally.find((t) => t.key === expandedTallyKey)?.week
+                          ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
+                          : ''}
+                      </div>
+                      {cookSheetForKey.length > 0 && (
+                        <div className="cook-sheet-actions">
+                          <button className="segment-pill" onClick={copyCookSheet}>
+                            {cookSheetCopied ? 'Copied!' : 'Copy'}
+                          </button>
+                          <button className="segment-pill" onClick={downloadCookSheet}>
+                            Download
+                          </button>
+                        </div>
+                      )}
                     </div>
                     {cookSheetForKey.length === 0 ? (
                       <p className="cook-sheet-empty">No item data for this window.</p>
                     ) : (
-                      <ul className="cook-sheet-list">
-                        {cookSheetForKey.map((d) => (
-                          <li key={d.name}>
-                            <span className="cook-sheet-qty">{d.qty}×</span> {d.name}
-                          </li>
-                        ))}
-                      </ul>
+                      <>
+                        <ul className="cook-sheet-list">
+                          {cookSheetForKey.map((d, i) => (
+                            <li key={d.name} className={i % 2 === 1 ? 'cook-sheet-row-alt' : ''}>
+                              <span className="cook-sheet-qty">{d.qty}×</span>
+                              <span className="cook-sheet-name">{d.name}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="cook-sheet-total-row">
+                          <span>Total items</span>
+                          <span className="cook-sheet-total-qty">
+                            {cookSheetForKey.reduce((s, d) => s + d.qty, 0)}
+                          </span>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -5797,7 +5847,18 @@ function Styles() {
         font-weight: 900;
         font-size: 17px;
         color: var(--pc-green, #2d3510);
-        margin-bottom: 10px;
+      }
+      .cook-sheet-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .cook-sheet-actions {
+        display: flex;
+        gap: 8px;
       }
       .cook-sheet-empty {
         font-size: 13.5px;
@@ -5809,18 +5870,44 @@ function Styles() {
         padding: 0;
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 8px 20px;
+        gap: 0 20px;
+        border-top: 1px solid var(--pc-cream-dark, #ede8de);
       }
       .cook-sheet-list li {
+        display: flex;
+        align-items: baseline;
         font-size: 13.5px;
         color: var(--pc-green, #2d3510);
-        padding: 4px 0;
+        padding: 7px 4px;
         border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+      }
+      .cook-sheet-row-alt {
+        background: rgba(201, 168, 76, 0.05);
+      }
+      .cook-sheet-name {
+        flex: 1;
+      }
+      .cook-sheet-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 2px solid var(--pc-green, #2d3510);
+        font-family: var(--font-playfair), serif;
+        font-weight: 900;
+        font-size: 15px;
+        color: var(--pc-green, #2d3510);
+      }
+      .cook-sheet-total-qty {
+        color: var(--pc-gold-dark, #9a7c45);
       }
       .cook-sheet-qty {
         font-weight: 700;
         color: var(--pc-gold-dark, #9a7c45);
-        margin-right: 6px;
+        margin-right: 8px;
+        min-width: 34px;
+        display: inline-block;
       }
       .tally-day {
         font-weight: 700;
