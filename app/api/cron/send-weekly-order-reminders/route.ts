@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendWeeklyOrderLinkToCustomer } from '@/lib/send-email'
+import {
+  sendWeeklyOrderLinkToCustomer,
+  sendComeOrderInviteEmailToCustomer,
+} from '@/lib/send-email'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +16,8 @@ const supabase = createClient(
 // processes recipients NOT already logged as sent for this window
 // (weekly_reminder_log), so running it repeatedly through the day never
 // double-emails anyone — later runs in the day just pick up whoever's
-// left.
+// left. Active subscribers are prioritised first if the list is large
+// enough to matter, since their reminder is the most time-sensitive.
 const MAX_PER_RUN = 400
 
 // Runs Wednesday and Friday — exactly 2 days before each delivery day's
@@ -65,25 +69,13 @@ export async function POST(req: NextRequest) {
     .slice(0, 3)
     .map((item: any) => item.name)
 
-  const { data: subscribers } = await supabase
-    .from('customer_profiles')
-    .select('id, email, full_name')
-    .eq('subscription_status', 'active')
-    .not('standing_plan_size', 'is', null)
-    .or(`standing_delivery_day.eq.${targetDeliveryDay},second_delivery_day.eq.${targetDeliveryDay}`)
-
-  if (!subscribers || subscribers.length === 0) {
-    return NextResponse.json({ processed: 0 })
-  }
-
   const { data: existingOrders } = await supabase
     .from('customer_window_orders')
     .select('customer_id')
     .eq('menu_window_id', window.id)
 
-  const alreadyOrderedIds = new Set((existingOrders || []).map((o) => o.customer_id))
+  const alreadyOrderedForWindowIds = new Set((existingOrders || []).map((o) => o.customer_id))
 
-  // Already sent for THIS window, possibly by an earlier run today.
   const { data: alreadySent } = await supabase
     .from('weekly_reminder_log')
     .select('customer_id')
@@ -91,32 +83,74 @@ export async function POST(req: NextRequest) {
 
   const alreadySentIds = new Set((alreadySent || []).map((r) => r.customer_id))
 
-  const stillToSend = subscribers.filter(
-    (sub) => !alreadyOrderedIds.has(sub.id) && !alreadySentIds.has(sub.id) && sub.email
-  )
+  // Group 1: active subscribers due for this delivery day, who haven't
+  // ordered for this window yet.
+  const { data: subscribers } = await supabase
+    .from('customer_profiles')
+    .select('id, email, full_name')
+    .eq('subscription_status', 'active')
+    .not('standing_plan_size', 'is', null)
+    .or(`standing_delivery_day.eq.${targetDeliveryDay},second_delivery_day.eq.${targetDeliveryDay}`)
 
-  const batch = stillToSend.slice(0, MAX_PER_RUN)
+  const subscriberQueue = (subscribers || [])
+    .filter(
+      (sub) =>
+        !alreadyOrderedForWindowIds.has(sub.id) && !alreadySentIds.has(sub.id) && sub.email
+    )
+    .map((sub) => ({ ...sub, kind: 'subscriber' as const }))
+
+  // Group 2: everyone who's opted into marketing but ISN'T a genuinely
+  // active subscriber — covers people who've never ordered, past PAYG
+  // customers, and lapsed/cancelled subscribers. Invited to this same
+  // upcoming window with different, non-subscriber-assuming copy.
+  const { data: consented } = await supabase
+    .from('customer_profiles')
+    .select('id, email, full_name, subscription_status, standing_plan_size')
+    .eq('marketing_consent', true)
+
+  const inviteQueue = (consented || [])
+    .filter((c) => {
+      const isActiveSubscriber = c.subscription_status === 'active' && !!c.standing_plan_size
+      if (isActiveSubscriber) return false // already covered by group 1
+      if (alreadyOrderedForWindowIds.has(c.id)) return false
+      if (alreadySentIds.has(c.id)) return false
+      if (!c.email) return false
+      return true
+    })
+    .map((c) => ({ ...c, kind: 'invite' as const }))
+
+  const combinedQueue = [...subscriberQueue, ...inviteQueue]
+  const batch = combinedQueue.slice(0, MAX_PER_RUN)
   const results: any[] = []
 
-  for (const sub of batch) {
-    await sendWeeklyOrderLinkToCustomer(
-      sub.email,
-      (sub.full_name || 'there').split(' ')[0],
-      targetDeliveryDay,
-      cutoffText,
-      sampleDishNames
-    )
+  for (const person of batch) {
+    if (person.kind === 'subscriber') {
+      await sendWeeklyOrderLinkToCustomer(
+        person.email,
+        (person.full_name || 'there').split(' ')[0],
+        targetDeliveryDay,
+        cutoffText,
+        sampleDishNames
+      )
+    } else {
+      await sendComeOrderInviteEmailToCustomer(
+        person.email,
+        (person.full_name || 'there').split(' ')[0],
+        targetDeliveryDay,
+        cutoffText,
+        sampleDishNames
+      )
+    }
     await supabase
       .from('weekly_reminder_log')
-      .insert({ customer_id: sub.id, menu_window_id: window.id })
-    results.push({ id: sub.id, sentReminder: true })
+      .insert({ customer_id: person.id, menu_window_id: window.id })
+    results.push({ id: person.id, kind: person.kind, sent: true })
   }
 
   return NextResponse.json({
-    totalEligible: subscribers.length,
-    remainingBeforeThisRun: stillToSend.length,
+    totalEligible: subscriberQueue.length + inviteQueue.length,
     sentThisRun: batch.length,
-    remainingAfterThisRun: stillToSend.length - batch.length,
+    remainingAfterThisRun: subscriberQueue.length + inviteQueue.length - batch.length,
     results,
   })
 }

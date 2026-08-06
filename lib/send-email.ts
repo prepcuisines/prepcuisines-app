@@ -393,6 +393,41 @@ export async function sendWeeklyOrderLinkToCustomer(
   )
 }
 
+// For people who aren't active subscribers — never ordered before, or a
+// past PAYG customer — inviting them to place an order for the upcoming
+// window. Deliberately different tone from the subscriber reminder above:
+// no "we'll go with your usual favourites" (they don't have any), no
+// assumption they already know how this works.
+export async function sendComeOrderInviteEmailToCustomer(
+  toEmail: string,
+  firstName: string,
+  deliveryDay: string,
+  cutoffText: string,
+  sampleDishNames: string[] = []
+) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const dishesLine =
+    sampleDishNames.length > 0
+      ? `<p style="font-size:14px;color:#333333;margin:0 0 20px;line-height:1.7;">
+          A few things on this week's menu: <strong>${sampleDishNames.join(', ')}</strong>, and more.
+        </p>`
+      : ''
+
+  await sendEmail(
+    toEmail,
+    `Fancy trying prepcuisines this ${deliveryDay}?`,
+    `
+      <p>Hi ${firstName},</p>
+      <p>We've got a fresh menu ready for this ${deliveryDay}'s delivery — chef-made meals,
+      ready to heat and eat, no cooking required.</p>
+      ${dishesLine}
+      <p><a href="${siteUrl}/menu">Browse the menu and order</a></p>
+      <p style="color:#888888;">Orders for this ${deliveryDay} close ${cutoffText}.</p>
+      <p>Thanks,<br/>prepcuisines</p>
+    `
+  )
+}
+
 export async function sendPaymentFailedEmailToAdmin(
   customerName: string,
   customerEmail: string,
