@@ -160,6 +160,7 @@ export default function AdminDashboard() {
   const [dpdTestResult, setDpdTestResult] = useState<{
     connected: boolean
     message: string
+    keyPreview?: string
   } | null>(null)
   const [importStatus, setImportStatus] = useState<'idle' | 'parsing' | 'importing' | 'done' | 'error'>(
     'idle'
@@ -1368,7 +1369,11 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/admin/test-dpd', { cache: 'no-store' })
       const data = await res.json()
-      setDpdTestResult({ connected: !!data.connected, message: data.message || 'Unknown result' })
+      setDpdTestResult({
+        connected: !!data.connected,
+        message: data.message || 'Unknown result',
+        keyPreview: data.keyPreview,
+      })
       setDpdTestStatus('done')
     } catch {
       setDpdTestResult({ connected: false, message: 'Network error — please try again' })
@@ -2112,6 +2117,9 @@ export default function AdminDashboard() {
                       style={{ marginTop: 8, color: dpdTestResult.connected ? undefined : '#a3402f' }}
                     >
                       {dpdTestResult.message}
+                      {dpdTestResult.keyPreview && (
+                        <><br />Key on file: {dpdTestResult.keyPreview}</>
+                      )}
                     </p>
                   )}
                 </div>

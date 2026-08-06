@@ -11,13 +11,13 @@ const BASE_URLS: Record<DpdEnvironment, string> = {
 function getDpdCredentials(env: DpdEnvironment) {
   if (env === 'sandbox') {
     return {
-      apiKey: process.env.DPD_SANDBOX_API_KEY,
-      apiSecret: process.env.DPD_SANDBOX_API_SECRET,
+      apiKey: process.env.DPD_SANDBOX_API_KEY?.trim(),
+      apiSecret: process.env.DPD_SANDBOX_API_SECRET?.trim(),
     }
   }
   return {
-    apiKey: process.env.DPD_LIVE_API_KEY,
-    apiSecret: process.env.DPD_LIVE_API_SECRET,
+    apiKey: process.env.DPD_LIVE_API_KEY?.trim(),
+    apiSecret: process.env.DPD_LIVE_API_SECRET?.trim(),
   }
 }
 
@@ -50,7 +50,7 @@ export async function getDpdAccessToken(
     if (!res.ok) {
       return {
         success: false,
-        error: body?.error?.message || `DPD returned status ${res.status}`,
+        error: `HTTP ${res.status}: ${body?.error?.message || res.statusText}`,
       }
     }
 
@@ -92,7 +92,7 @@ export async function refreshDpdAccessToken(
     if (!res.ok) {
       return {
         success: false,
-        error: body?.error?.message || `DPD returned status ${res.status}`,
+        error: `HTTP ${res.status}: ${body?.error?.message || res.statusText}`,
       }
     }
 
@@ -129,7 +129,7 @@ export async function removeDpdAccessToken(
     })
     const body = await res.json()
     if (!res.ok) {
-      return { success: false, error: body?.error?.message || `DPD returned status ${res.status}` }
+      return { success: false, error: `HTTP ${res.status}: ${body?.error?.message || res.statusText}` }
     }
     return { success: true }
   } catch (err: any) {
@@ -140,9 +140,19 @@ export async function removeDpdAccessToken(
 // Simple end-to-end connection test — gets a token and immediately logs
 // it out again, so it doesn't leave a lingering active session.
 export async function testDpdConnection(env: DpdEnvironment = 'sandbox') {
+  const { apiKey } = getDpdCredentials(env)
+  const keyPreview = apiKey
+    ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)} (${apiKey.length} chars)`
+    : 'not set'
+
   const tokenResult = await getDpdAccessToken(env)
   if (!tokenResult.success) {
-    return { configured: true, connected: false, message: tokenResult.error }
+    return {
+      configured: true,
+      connected: false,
+      message: tokenResult.error,
+      keyPreview,
+    }
   }
 
   await removeDpdAccessToken(tokenResult.tokens.accessToken, env)
@@ -151,5 +161,6 @@ export async function testDpdConnection(env: DpdEnvironment = 'sandbox') {
     configured: true,
     connected: true,
     message: 'Successfully authenticated with DPD and received a valid access token.',
+    keyPreview,
   }
 }
