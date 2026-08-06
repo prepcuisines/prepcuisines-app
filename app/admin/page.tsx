@@ -156,6 +156,11 @@ export default function AdminDashboard() {
     'idle'
   )
   const [testEmailError, setTestEmailError] = useState<string | null>(null)
+  const [dpdTestStatus, setDpdTestStatus] = useState<'idle' | 'testing' | 'done'>('idle')
+  const [dpdTestResult, setDpdTestResult] = useState<{
+    connected: boolean
+    message: string
+  } | null>(null)
   const [importStatus, setImportStatus] = useState<'idle' | 'parsing' | 'importing' | 'done' | 'error'>(
     'idle'
   )
@@ -1357,6 +1362,20 @@ export default function AdminDashboard() {
     }
   }
 
+  const testDpdConnectionAction = async () => {
+    setDpdTestStatus('testing')
+    setDpdTestResult(null)
+    try {
+      const res = await fetch('/api/admin/test-dpd', { cache: 'no-store' })
+      const data = await res.json()
+      setDpdTestResult({ connected: !!data.connected, message: data.message || 'Unknown result' })
+      setDpdTestStatus('done')
+    } catch {
+      setDpdTestResult({ connected: false, message: 'Network error — please try again' })
+      setDpdTestStatus('done')
+    }
+  }
+
   const runKlaviyoSync = async () => {
     setKlaviyoSyncStatus('syncing')
     setKlaviyoSyncError(null)
@@ -2071,6 +2090,29 @@ export default function AdminDashboard() {
                   )}
                   {testEmailStatus === 'error' && testEmailError && (
                     <p className="error-text">{testEmailError}</p>
+                  )}
+                </div>
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Test DPD connection</label>
+                  <p className="map-intro">
+                    Gets a real access token from DPD's sandbox using your saved credentials,
+                    then immediately revokes it. Confirms the connection works end to end.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    onClick={testDpdConnectionAction}
+                    disabled={dpdTestStatus === 'testing'}
+                  >
+                    {dpdTestStatus === 'testing' ? 'Testing…' : 'Test connection'}
+                  </button>
+                  {dpdTestStatus === 'done' && dpdTestResult && (
+                    <p
+                      className="map-intro"
+                      style={{ marginTop: 8, color: dpdTestResult.connected ? undefined : '#a3402f' }}
+                    >
+                      {dpdTestResult.message}
+                    </p>
                   )}
                 </div>
               </div>

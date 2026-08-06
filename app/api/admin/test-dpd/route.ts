@@ -6,9 +6,8 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
-// Placeholder test route, honest about not being fully built yet — will
-// be replaced with a real DPD API call once the technical documentation
-// for the Key/Secret auth system is confirmed.
+// Tests the real DPD sandbox connection — gets an access token and
+// immediately revokes it, confirming the credentials actually work.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
