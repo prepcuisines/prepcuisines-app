@@ -394,15 +394,15 @@ export async function sendWeeklyOrderLinkToCustomer(
 }
 
 // For people who aren't active subscribers — never ordered before, or a
-// past PAYG customer — inviting them to place an order for the upcoming
-// window. Deliberately different tone from the subscriber reminder above:
-// no "we'll go with your usual favourites" (they don't have any), no
-// assumption they already know how this works.
+// past PAYG customer. Unlike active subscribers, they have no assigned
+// delivery day yet, so this mentions BOTH delivery options and their real
+// cutoffs, letting them pick whichever suits them, rather than assuming
+// they care about just one day.
 export async function sendComeOrderInviteEmailToCustomer(
   toEmail: string,
   firstName: string,
-  deliveryDay: string,
-  cutoffText: string,
+  wednesdayCutoffText: string,
+  sundayCutoffText: string,
   sampleDishNames: string[] = []
 ) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
@@ -415,14 +415,17 @@ export async function sendComeOrderInviteEmailToCustomer(
 
   await sendEmail(
     toEmail,
-    `Fancy trying prepcuisines this ${deliveryDay}?`,
+    `Fancy trying prepcuisines this week?`,
     `
       <p>Hi ${firstName},</p>
-      <p>We've got a fresh menu ready for this ${deliveryDay}'s delivery — chef-made meals,
-      ready to heat and eat, no cooking required.</p>
+      <p>We've got a fresh menu ready — chef-made meals, ready to heat and eat, no cooking
+      required. We deliver twice a week, so pick whichever day suits you:</p>
       ${dishesLine}
+      <ul>
+        <li><strong>Wednesday delivery</strong> — order by ${wednesdayCutoffText}</li>
+        <li><strong>Sunday delivery</strong> — order by ${sundayCutoffText}</li>
+      </ul>
       <p><a href="${siteUrl}/menu">Browse the menu and order</a></p>
-      <p style="color:#888888;">Orders for this ${deliveryDay} close ${cutoffText}.</p>
       <p>Thanks,<br/>prepcuisines</p>
     `
   )

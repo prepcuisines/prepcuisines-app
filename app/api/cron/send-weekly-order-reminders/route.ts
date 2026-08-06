@@ -16,46 +16,20 @@ const supabase = createClient(
 // processes recipients NOT already logged as sent for this window
 // (weekly_reminder_log), so running it repeatedly through the day never
 // double-emails anyone — later runs in the day just pick up whoever's
-// left. Active subscribers are prioritised first if the list is large
-// enough to matter, since their reminder is the most time-sensitive.
+// left.
 const MAX_PER_RUN = 400
 
-// Runs Wednesday and Friday — exactly 2 days before each delivery day's
-// real cutoff:
-// - Wednesday delivery cutoff is Sunday 8pm, so its reminder fires Friday.
-// - Sunday delivery cutoff is Friday 8pm, so its reminder fires Wednesday.
-export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
-  }
-
-  const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
-  let targetDeliveryDay: string | null = null
-  let cutoffText = ''
-
-  if (todayIndex === 5) {
-    targetDeliveryDay = 'Wednesday'
-    cutoffText = 'Sunday at 8pm'
-  } else if (todayIndex === 3) {
-    targetDeliveryDay = 'Sunday'
-    cutoffText = 'Friday at 8pm'
-  } else {
-    return NextResponse.json({ skipped: 'not a reminder day' })
-  }
-
+async function getUpcomingWindowInfo(deliveryDay: string) {
   const { data: window } = await supabase
     .from('menu_windows')
     .select('id')
-    .eq('delivery_day', targetDeliveryDay)
+    .eq('delivery_day', deliveryDay)
     .gt('cutoff_datetime', new Date().toISOString())
     .order('cutoff_datetime', { ascending: true })
     .limit(1)
     .maybeSingle()
 
-  if (!window) {
-    return NextResponse.json({ skipped: 'no upcoming window found' })
-  }
+  if (!window) return null
 
   const { data: windowItems } = await supabase
     .from('menu_window_items')
@@ -69,22 +43,51 @@ export async function POST(req: NextRequest) {
     .slice(0, 3)
     .map((item: any) => item.name)
 
+  return { id: window.id as string, sampleDishNames }
+}
+
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+  }
+
+  const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
+
+  // Group 1 (active subscribers) is day-specific, same as before:
+  // - Friday reminds about the upcoming Wednesday delivery (cutoff Sunday 8pm).
+  // - Wednesday reminds about the upcoming Sunday delivery (cutoff Friday 8pm).
+  let targetDeliveryDay: string | null = null
+  let cutoffText = ''
+  if (todayIndex === 5) {
+    targetDeliveryDay = 'Wednesday'
+    cutoffText = 'Sunday at 8pm'
+  } else if (todayIndex === 3) {
+    targetDeliveryDay = 'Sunday'
+    cutoffText = 'Friday at 8pm'
+  } else {
+    return NextResponse.json({ skipped: 'not a reminder day' })
+  }
+
+  const subscriberWindow = await getUpcomingWindowInfo(targetDeliveryDay)
+  if (!subscriberWindow) {
+    return NextResponse.json({ skipped: 'no upcoming window found' })
+  }
+
   const { data: existingOrders } = await supabase
     .from('customer_window_orders')
     .select('customer_id')
-    .eq('menu_window_id', window.id)
+    .eq('menu_window_id', subscriberWindow.id)
 
   const alreadyOrderedForWindowIds = new Set((existingOrders || []).map((o) => o.customer_id))
 
   const { data: alreadySent } = await supabase
     .from('weekly_reminder_log')
     .select('customer_id')
-    .eq('menu_window_id', window.id)
+    .eq('menu_window_id', subscriberWindow.id)
 
   const alreadySentIds = new Set((alreadySent || []).map((r) => r.customer_id))
 
-  // Group 1: active subscribers due for this delivery day, who haven't
-  // ordered for this window yet.
   const { data: subscribers } = await supabase
     .from('customer_profiles')
     .select('id, email, full_name')
@@ -99,25 +102,36 @@ export async function POST(req: NextRequest) {
     )
     .map((sub) => ({ ...sub, kind: 'subscriber' as const }))
 
-  // Group 2: everyone who's opted into marketing but ISN'T a genuinely
-  // active subscriber — covers people who've never ordered, past PAYG
-  // customers, and lapsed/cancelled subscribers. Invited to this same
-  // upcoming window with different, non-subscriber-assuming copy.
-  const { data: consented } = await supabase
-    .from('customer_profiles')
-    .select('id, email, full_name, subscription_status, standing_plan_size')
-    .eq('marketing_consent', true)
+  // Group 2 (never-ordered/PAYG/lapsed, marketing-consented) has no
+  // assigned delivery day, so this only runs on the Wednesday run — by
+  // then both upcoming cutoffs (this Friday for Sunday delivery, next
+  // Sunday for Wednesday delivery) are comfortably in the future, so one
+  // combined email covering both makes sense. Skipped on the Friday run
+  // entirely to avoid sending this twice in the same week.
+  let inviteQueue: any[] = []
+  let wednesdayWindowForInvite: { id: string; sampleDishNames: string[] } | null = null
 
-  const inviteQueue = (consented || [])
-    .filter((c) => {
-      const isActiveSubscriber = c.subscription_status === 'active' && !!c.standing_plan_size
-      if (isActiveSubscriber) return false // already covered by group 1
-      if (alreadyOrderedForWindowIds.has(c.id)) return false
-      if (alreadySentIds.has(c.id)) return false
-      if (!c.email) return false
-      return true
-    })
-    .map((c) => ({ ...c, kind: 'invite' as const }))
+  if (todayIndex === 3) {
+    // On the Wednesday run, subscriberWindow is already the upcoming
+    // Sunday window — we only need to separately fetch the upcoming
+    // Wednesday window's dish samples for the invite email's other line.
+    wednesdayWindowForInvite = await getUpcomingWindowInfo('Wednesday')
+
+    const { data: consented } = await supabase
+      .from('customer_profiles')
+      .select('id, email, full_name, subscription_status, standing_plan_size')
+      .eq('marketing_consent', true)
+
+    inviteQueue = (consented || [])
+      .filter((c) => {
+        const isActiveSubscriber = c.subscription_status === 'active' && !!c.standing_plan_size
+        if (isActiveSubscriber) return false
+        if (alreadySentIds.has(c.id)) return false // logged against subscriberWindow (the Sunday window)
+        if (!c.email) return false
+        return true
+      })
+      .map((c) => ({ ...c, kind: 'invite' as const }))
+  }
 
   const combinedQueue = [...subscriberQueue, ...inviteQueue]
   const batch = combinedQueue.slice(0, MAX_PER_RUN)
@@ -130,20 +144,25 @@ export async function POST(req: NextRequest) {
         (person.full_name || 'there').split(' ')[0],
         targetDeliveryDay,
         cutoffText,
-        sampleDishNames
+        subscriberWindow.sampleDishNames
       )
     } else {
       await sendComeOrderInviteEmailToCustomer(
         person.email,
         (person.full_name || 'there').split(' ')[0],
-        targetDeliveryDay,
-        cutoffText,
-        sampleDishNames
+        'Sunday at 8pm',
+        'Friday at 8pm',
+        wednesdayWindowForInvite?.sampleDishNames.length
+          ? wednesdayWindowForInvite.sampleDishNames
+          : subscriberWindow.sampleDishNames
       )
     }
+    // Both groups logged against subscriberWindow — for group 2, once this
+    // window's cutoff passes, they surface again the following week with
+    // the next pair.
     await supabase
       .from('weekly_reminder_log')
-      .insert({ customer_id: person.id, menu_window_id: window.id })
+      .insert({ customer_id: person.id, menu_window_id: subscriberWindow.id })
     results.push({ id: person.id, kind: person.kind, sent: true })
   }
 
