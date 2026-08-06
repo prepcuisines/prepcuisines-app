@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '../Header'
 
-export default function UnsubscribePage() {
+function UnsubscribeContent() {
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ''
   const token = searchParams.get('token') || ''
@@ -36,49 +36,62 @@ export default function UnsubscribePage() {
 
   if (!email || !token) {
     return (
-      <>
-        <Header />
-        <div className="pc-account">
-          <div className="pc-account-wrapper">
-            <p className="pc-mp-subtitle">This unsubscribe link looks incomplete or invalid.</p>
-          </div>
+      <div className="pc-account">
+        <div className="pc-account-wrapper">
+          <p className="pc-mp-subtitle">This unsubscribe link looks incomplete or invalid.</p>
         </div>
-      </>
+      </div>
     )
   }
 
   return (
+    <div className="pc-account">
+      <div className="pc-account-wrapper">
+        <div className="pc-account-header">
+          <div className="pc-mp-eyebrow">Email Preferences</div>
+          <h1 className="pc-mp-title">
+            Unsubscribe from <em>marketing emails</em>
+          </h1>
+          <p className="pc-mp-subtitle">
+            {status === 'done'
+              ? `${email} has been unsubscribed from marketing emails.`
+              : `Confirm you'd like to stop receiving marketing emails at ${email}. This won't
+                affect order confirmations or account emails for any existing orders or
+                subscription.`}
+          </p>
+        </div>
+
+        {status !== 'done' && (
+          <button
+            className="pc-checkout-btn primary"
+            onClick={unsubscribe}
+            disabled={status === 'saving'}
+          >
+            {status === 'saving' ? 'Unsubscribing…' : 'Yes, unsubscribe me'}
+          </button>
+        )}
+
+        {status === 'error' && error && <div className="pc-account-error">{error}</div>}
+      </div>
+    </div>
+  )
+}
+
+export default function UnsubscribePage() {
+  return (
     <>
       <Header />
-      <div className="pc-account">
-        <div className="pc-account-wrapper">
-          <div className="pc-account-header">
-            <div className="pc-mp-eyebrow">Email Preferences</div>
-            <h1 className="pc-mp-title">
-              Unsubscribe from <em>marketing emails</em>
-            </h1>
-            <p className="pc-mp-subtitle">
-              {status === 'done'
-                ? `${email} has been unsubscribed from marketing emails.`
-                : `Confirm you'd like to stop receiving marketing emails at ${email}. This won't
-                  affect order confirmations or account emails for any existing orders or
-                  subscription.`}
-            </p>
+      <Suspense
+        fallback={
+          <div className="pc-account">
+            <div className="pc-account-wrapper">
+              <p className="pc-mp-subtitle">Loading…</p>
+            </div>
           </div>
-
-          {status !== 'done' && (
-            <button
-              className="pc-checkout-btn primary"
-              onClick={unsubscribe}
-              disabled={status === 'saving'}
-            >
-              {status === 'saving' ? 'Unsubscribing…' : 'Yes, unsubscribe me'}
-            </button>
-          )}
-
-          {status === 'error' && error && <div className="pc-account-error">{error}</div>}
-        </div>
-      </div>
+        }
+      >
+        <UnsubscribeContent />
+      </Suspense>
     </>
   )
 }
