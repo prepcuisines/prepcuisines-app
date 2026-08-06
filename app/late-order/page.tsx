@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import type { Metadata } from 'next'
 import OrderingFlow from '../menu/OrderingFlow'
 
 // For loyal customers who missed the new cutoff this first week of the
@@ -12,6 +13,16 @@ import OrderingFlow from '../menu/OrderingFlow'
 // exactly as normal.
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+// Deliberately not indexed or linked from anywhere on the site — only
+// reachable via the direct link shared with specific customers.
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+}
 
 export default async function LateOrderPage({
   searchParams,
