@@ -21,6 +21,35 @@ const COLLECTION_ADDRESS = {
   organisation: 'prepcuisines',
 }
 
+// Confirmed per-item weights (kg), packaged. Doesn't include box/ice pack
+// packaging weight — flagged separately, not included here yet.
+const WEIGHT_BY_CATEGORY: Record<string, number> = {
+  meal: 0.35,
+  dessert: 0.2,
+  breakfast: 0.3,
+}
+
+async function calculateOrderWeight(
+  items: { name: string; qty: number }[]
+): Promise<number> {
+  const { data: menuItems } = await supabase.from('menu_items').select('name, category')
+
+  const categoryByName = new Map<string, string>()
+  for (const mi of menuItems || []) {
+    categoryByName.set(mi.name.toLowerCase(), mi.category)
+  }
+
+  let totalKg = 0
+  for (const item of items) {
+    if (!item.name || item.name === 'Delivery') continue
+    const category = categoryByName.get(item.name.toLowerCase())
+    const perItemKg = (category && WEIGHT_BY_CATEGORY[category]) || WEIGHT_BY_CATEGORY.meal
+    totalKg += perItemKg * (item.qty || 1)
+  }
+
+  return Math.round(totalKg * 100) / 100
+}
+
 // Deliberately a manual, per-order action — not automatic — since this
 // creates a REAL shipment through Live DPD credentials, and DPD requires
 // formal sign-off on label output before live shipping is fully approved.
@@ -37,7 +66,7 @@ export async function POST(req: NextRequest) {
   const { data: order, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, delivery_day, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id'
+      'id, delivery_day, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id'
     )
     .eq('id', orderId)
     .maybeSingle()
@@ -68,11 +97,16 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  const calculatedWeight = await calculateOrderWeight(order.items || [])
+  // Minimum of 0.5kg so an empty/edge-case order doesn't get sent as
+  // effectively weightless.
+  const totalWeight = Math.max(calculatedWeight, 0.5)
+
   const result = await createDomesticShipment(
     {
       shipmentDate: new Date().toISOString(),
       numberOfParcels: 1,
-      totalWeight: 2, // representative box weight — refine later if needed
+      totalWeight,
       networkCode,
       collectionAddress: COLLECTION_ADDRESS,
       deliveryAddress: {
