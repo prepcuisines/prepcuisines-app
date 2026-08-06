@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/process-recurring-manual-orders",
       "schedule": "0 20 * * 4,0"
+    },
+    {
+      "path": "/api/cron/retry-failed-payments",
+      "schedule": "30 23 * * 4,0"
     }
   ]
 }

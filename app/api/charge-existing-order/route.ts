@@ -173,13 +173,15 @@ export async function POST(req: NextRequest) {
         amount: totalAmount / 100,
         error_message: paymentErr.message || 'Card declined',
         delivery_day: deliveryDay || null,
+        items: orderItemsSnapshot,
       })
 
       if (profile.email) {
         await sendPaymentFailedEmailToCustomer(
           profile.email,
           (profile.full_name || 'there').split(' ')[0],
-          totalAmount / 100
+          totalAmount / 100,
+          true
         )
       }
 
@@ -274,6 +276,7 @@ export async function POST(req: NextRequest) {
       amount: totalAmount / 100,
       error_message: `Payment status: ${paymentIntent.status}`,
       delivery_day: deliveryDay || null,
+      items: orderItemsSnapshot,
     })
 
     return NextResponse.json({ error: 'Payment did not succeed' }, { status: 402 })

@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
             await sendPaymentFailedEmailToCustomer(
               sub.email,
               (sub.full_name || 'there').split(' ')[0],
-              0
+              0,
+              false
             )
           }
           results.push({ customer: sub.id, status: 'no_card_on_file' })
@@ -229,12 +230,14 @@ export async function POST(req: NextRequest) {
               amount: totalAmount / 100,
               error_message: `Payment status: ${paymentIntent.status}`,
               delivery_day: window.delivery_day,
+              items: orderItemsSnapshot,
             })
             if (sub.email) {
               await sendPaymentFailedEmailToCustomer(
                 sub.email,
                 (sub.full_name || 'there').split(' ')[0],
-                totalAmount / 100
+                totalAmount / 100,
+                true
               )
             }
             results.push({ customer: sub.id, status: 'payment_failed' })
@@ -247,12 +250,14 @@ export async function POST(req: NextRequest) {
             amount: totalAmount / 100,
             error_message: err.message || 'Card declined',
             delivery_day: window.delivery_day,
+            items: orderItemsSnapshot,
           })
           if (sub.email) {
             await sendPaymentFailedEmailToCustomer(
               sub.email,
               (sub.full_name || 'there').split(' ')[0],
-              totalAmount / 100
+              totalAmount / 100,
+              true
             )
           }
           results.push({ customer: sub.id, status: 'payment_error', message: err.message })

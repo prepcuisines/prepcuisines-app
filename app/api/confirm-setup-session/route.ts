@@ -186,12 +186,14 @@ export async function GET(req: NextRequest) {
         amount: totalAmount / 100,
         error_message: paymentErr.message || 'Card declined',
         delivery_day: deliveryDay || null,
+        items: orderItemsSnapshot,
       })
       if (profile.email) {
         await sendPaymentFailedEmailToCustomer(
           profile.email,
           (profile.full_name || 'there').split(' ')[0],
-          totalAmount / 100
+          totalAmount / 100,
+          true
         )
       }
       return NextResponse.redirect(`${siteUrl}/checkout?orderFailed=1`)
@@ -256,6 +258,7 @@ export async function GET(req: NextRequest) {
       amount: totalAmount / 100,
       error_message: `Payment status: ${paymentIntent.status}`,
       delivery_day: deliveryDay || null,
+      items: orderItemsSnapshot,
     })
 
     return NextResponse.redirect(`${siteUrl}/checkout?orderFailed=1`)

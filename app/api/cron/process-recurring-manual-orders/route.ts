@@ -139,6 +139,7 @@ export async function POST(req: NextRequest) {
             amount: ro.total_amount,
             error_message: chargeErr.message || 'Card declined',
             delivery_day: ro.delivery_day,
+            items: ro.items,
           })
           results.push({ id: ro.id, chargeFailed: chargeErr.message })
         }

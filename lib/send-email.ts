@@ -84,16 +84,24 @@ async function sendEmailViaNeo(to: string, subject: string, html: string) {
 export async function sendPaymentFailedEmailToCustomer(
   toEmail: string,
   firstName: string,
-  amount: number
+  amount: number,
+  willRetryTonight: boolean = false
 ) {
+  const retryLine = willRetryTonight
+    ? `<p>We've held your order and will try charging your card again before midnight tonight —
+       we don't want you to go the week with no meals. If you can update your payment details
+       before then, that gives it the best chance of going through:</p>`
+    : `<p>We don't have a card on file to charge, so nothing will happen automatically — we don't
+       want you to go the week with no meals, so please add a payment method and place your
+       order before midnight tonight:</p>`
+
   await sendEmail(
     toEmail,
     "There was a problem with your prepcuisines payment",
     `
       <p>Hi ${firstName},</p>
       <p>We tried to charge your saved card for £${amount.toFixed(2)} and it didn't go through.</p>
-      <p>No box has been charged or prepared for this delivery yet. Please update your
-      payment details as soon as you can so we don't miss your next delivery:</p>
+      ${retryLine}
       <p><a href="${process.env.NEXT_PUBLIC_SITE_URL}/update-payment-method">Update your payment method</a></p>
       <p>Thanks,<br/>prepcuisines</p>
     `
@@ -135,22 +143,43 @@ export async function sendOrderConfirmationEmailToCustomer(
     )
     .join('')
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
   // First order: pure excitement, no mention of billing/future charges at
   // all — that's not what this moment is about. Repeat/auto orders:
-  // genuinely charged automatically as part of their ongoing subscription,
-  // worth being upfront about. PAYG: one-off, nothing repeats.
+  // genuinely charged as part of their ongoing subscription, plus a
+  // reminder of what they can manage. PAYG: one-off, points them toward
+  // subscribing instead of just saying "nothing happens automatically".
   const subscriptionNote =
     orderType === 'payg_order'
       ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
-          This was a one-off Pay As You Go order — you're not on a subscription, so nothing will
-          be charged again automatically. If you'd like weekly deliveries and better pricing, you
-          can set up a subscription any time.
+          This was a one-off Pay As You Go order — you're not on a subscription, so nothing else
+          will be charged. If you'd like weekly deliveries and better pricing,
+          <a href="${siteUrl}/menu" style="color:#1a2e1a;font-weight:600;">subscribe and save here</a>.
         </p>`
       : isSubscribed && !isFirstOrder
       ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
           You're on an active subscription — this order was charged automatically as part of
           that.
-        </p>`
+        </p>
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td style="border-top:1px solid #e8e0d0;padding-top:20px;">
+              <p style="font-size:13px;color:#888888;line-height:1.75;margin:0 0 16px;">
+                Manage your account any time:
+              </p>
+              <p style="font-size:13px;margin:0 0 6px;">
+                <a href="${siteUrl}/dashboard" style="color:#1a2e1a;">View your account</a>
+              </p>
+              <p style="font-size:13px;margin:0 0 6px;">
+                <a href="${siteUrl}/favourites" style="color:#1a2e1a;">Choose your favourite meals</a>
+              </p>
+              <p style="font-size:13px;margin:0;">
+                <a href="${siteUrl}/change-delivery-day" style="color:#1a2e1a;">Change your delivery day</a>
+              </p>
+            </td>
+          </tr>
+        </table>`
       : ''
 
   const firstOrderIntro = isFirstOrder
@@ -276,8 +305,21 @@ export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstNa
                 <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
                   Enjoy your <em style="font-style:italic;">meals!</em>
                 </p>
-                <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
-                  Hey ${firstName}, your order has been fulfilled. We hope you love it.
+                <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 20px;">
+                  Hey ${firstName}, we hope you enjoy them! Let us know what you think by leaving
+                  us a review on Google — or if you think there's something we could improve on,
+                  just reply to this email and tell us. Your feedback is the only thing that
+                  helps us grow.
+                </p>
+                <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 28px;" width="100%">
+                  <tr>
+                    <td align="center" style="background:#c9a84c;border-radius:6px;padding:14px 28px;">
+                      <a href="https://g.page/r/CY1FkzyDX-KIEAE/review" style="font-size:14px;font-weight:700;color:#1a2e1a;text-decoration:none;letter-spacing:0.02em;">Leave us a review</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="font-size:13px;color:#888888;line-height:1.75;margin:0 0 28px;font-style:italic;">
+                  With love,<br/><span style="font-style:normal;color:#1a2e1a;font-weight:600;">the prepcuisines family</span>
                 </p>
 
                 <table border="0" cellpadding="0" cellspacing="0" width="100%">
