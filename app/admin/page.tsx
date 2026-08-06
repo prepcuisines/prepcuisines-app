@@ -181,6 +181,13 @@ export default function AdminDashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [resendEmailType, setResendEmailType] = useState<'confirmation' | 'fulfilled'>(
+    'confirmation'
+  )
+  const [resendEmailStatus, setResendEmailStatus] = useState<
+    'idle' | 'sending' | 'done' | 'error'
+  >('idle')
+  const [resendEmailError, setResendEmailError] = useState<string | null>(null)
   const [resetPasswordCustomer, setResetPasswordCustomer] = useState<{
     id: string
     name: string
@@ -815,6 +822,8 @@ export default function AdminDashboard() {
     setOrderActionStatus('idle')
     setOrderActionError(null)
     setChargeAmountInput('')
+    setResendEmailStatus('idle')
+    setResendEmailError(null)
     try {
       const res = await fetch(`/api/admin/order-detail?id=${orderId}`, { cache: 'no-store' })
       if (!res.ok) {
@@ -835,6 +844,29 @@ export default function AdminDashboard() {
   const closeOrderDetail = () => {
     setSelectedOrderId(null)
     setOrderDetail(null)
+  }
+
+  const resendOrderEmail = async () => {
+    if (!selectedOrderId) return
+    setResendEmailStatus('sending')
+    setResendEmailError(null)
+    try {
+      const res = await fetch('/api/admin/send-order-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: selectedOrderId, emailType: resendEmailType }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setResendEmailError(data.error || 'Something went wrong')
+        setResendEmailStatus('error')
+        return
+      }
+      setResendEmailStatus('done')
+    } catch {
+      setResendEmailError('Network error — please try again')
+      setResendEmailStatus('error')
+    }
   }
 
   const deleteOrder = async (orderId: string) => {
@@ -3631,6 +3663,39 @@ export default function AdminDashboard() {
                   >
                     Delete this order permanently
                   </button>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">Resend email</label>
+                  <p className="map-intro">
+                    For when a customer says they never got their confirmation — sends the real
+                    email again with this order's actual details.
+                  </p>
+                  <div className="pc-modal-inline-row">
+                    <select
+                      className="text-input"
+                      value={resendEmailType}
+                      onChange={(e) => setResendEmailType(e.target.value as any)}
+                    >
+                      <option value="confirmation">Order confirmation</option>
+                      <option value="fulfilled">Order fulfilled</option>
+                    </select>
+                    <button
+                      className="btn-primary"
+                      onClick={resendOrderEmail}
+                      disabled={resendEmailStatus === 'sending'}
+                    >
+                      {resendEmailStatus === 'sending' ? 'Sending…' : 'Send'}
+                    </button>
+                  </div>
+                  {resendEmailStatus === 'done' && (
+                    <p className="map-intro" style={{ marginTop: 8 }}>
+                      Sent.
+                    </p>
+                  )}
+                  {resendEmailStatus === 'error' && resendEmailError && (
+                    <p className="error-text">{resendEmailError}</p>
+                  )}
                 </div>
 
                 <div className="pc-modal-section">
