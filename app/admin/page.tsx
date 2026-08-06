@@ -207,6 +207,18 @@ export default function AdminDashboard() {
     'idle' | 'saving' | 'done' | 'error'
   >('idle')
   const [editCustomerEmailError, setEditCustomerEmailError] = useState<string | null>(null)
+  const [editDeliveryCustomer, setEditDeliveryCustomer] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [editDeliveryPrimaryDay, setEditDeliveryPrimaryDay] = useState<'Sunday' | 'Wednesday'>(
+    'Sunday'
+  )
+  const [editDeliveryPerWeek, setEditDeliveryPerWeek] = useState<1 | 2>(1)
+  const [editDeliveryStatus, setEditDeliveryStatus] = useState<
+    'idle' | 'saving' | 'done' | 'error'
+  >('idle')
+  const [editDeliveryError, setEditDeliveryError] = useState<string | null>(null)
   const [orderDetail, setOrderDetail] = useState<any>(null)
   const [orderDetailLoading, setOrderDetailLoading] = useState(false)
   const [editingItems, setEditingItems] = useState<{ name: string; price: number; qty: number }[]>(
@@ -838,6 +850,42 @@ export default function AdminDashboard() {
     } catch {
       setEditCustomerEmailError('Network error — please try again')
       setEditCustomerEmailStatus('error')
+    }
+  }
+
+  const openEditDelivery = (customer: Customer) => {
+    setEditDeliveryCustomer({ id: customer.id, name: customer.full_name || 'this customer' })
+    setEditDeliveryPrimaryDay((customer.standing_delivery_day as 'Sunday' | 'Wednesday') || 'Sunday')
+    setEditDeliveryPerWeek((customer.deliveries_per_week as 1 | 2) || 1)
+    setEditDeliveryStatus('idle')
+    setEditDeliveryError(null)
+  }
+
+  const submitDeliveryEdit = async () => {
+    if (!editDeliveryCustomer) return
+    setEditDeliveryStatus('saving')
+    setEditDeliveryError(null)
+    try {
+      const res = await fetch('/api/admin/edit-customer-delivery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: editDeliveryCustomer.id,
+          primaryDay: editDeliveryPrimaryDay,
+          deliveriesPerWeek: editDeliveryPerWeek,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setEditDeliveryError(data.error || 'Something went wrong')
+        setEditDeliveryStatus('error')
+        return
+      }
+      setEditDeliveryStatus('done')
+      loadCustomers()
+    } catch {
+      setEditDeliveryError('Network error — please try again')
+      setEditDeliveryStatus('error')
     }
   }
 
@@ -2188,6 +2236,13 @@ export default function AdminDashboard() {
                           ) : (
                             '—'
                           )}
+                          <button
+                            className="segment-pill"
+                            style={{ marginLeft: 6 }}
+                            onClick={() => openEditDelivery(c)}
+                          >
+                            Edit
+                          </button>
                         </td>
                         <td>
                           {c.marketing_consent === true ? (
@@ -3694,6 +3749,84 @@ export default function AdminDashboard() {
                 )}
                 {editCustomerEmailStatus === 'error' && editCustomerEmailError && (
                   <p className="error-text">{editCustomerEmailError}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editDeliveryCustomer && (
+        <div
+          className="pc-modal-overlay"
+          onClick={() => editDeliveryStatus !== 'saving' && setEditDeliveryCustomer(null)}
+        >
+          <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-modal-header">
+              <h2 className="pc-modal-title">Edit delivery plan — {editDeliveryCustomer.name}</h2>
+              <button
+                className="pc-modal-close"
+                onClick={() => setEditDeliveryCustomer(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="pc-modal-body">
+              <div className="pc-modal-section">
+                <label className="field-label">Primary delivery day</label>
+                <div className="pc-modal-inline-row">
+                  <button
+                    className={`segment-pill ${editDeliveryPrimaryDay === 'Sunday' ? 'segment-pill-active' : ''}`}
+                    onClick={() => setEditDeliveryPrimaryDay('Sunday')}
+                  >
+                    Sunday
+                  </button>
+                  <button
+                    className={`segment-pill ${editDeliveryPrimaryDay === 'Wednesday' ? 'segment-pill-active' : ''}`}
+                    onClick={() => setEditDeliveryPrimaryDay('Wednesday')}
+                  >
+                    Wednesday
+                  </button>
+                </div>
+              </div>
+              <div className="pc-modal-section">
+                <label className="field-label">Deliveries per week</label>
+                <div className="pc-modal-inline-row">
+                  <button
+                    className={`segment-pill ${editDeliveryPerWeek === 1 ? 'segment-pill-active' : ''}`}
+                    onClick={() => setEditDeliveryPerWeek(1)}
+                  >
+                    Once a week
+                  </button>
+                  <button
+                    className={`segment-pill ${editDeliveryPerWeek === 2 ? 'segment-pill-active' : ''}`}
+                    onClick={() => setEditDeliveryPerWeek(2)}
+                  >
+                    Twice a week
+                  </button>
+                </div>
+                {editDeliveryPerWeek === 2 && (
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    They'll be set up for both Sunday and Wednesday.
+                  </p>
+                )}
+              </div>
+              <div className="pc-modal-section">
+                <button
+                  className="btn-primary"
+                  onClick={submitDeliveryEdit}
+                  disabled={editDeliveryStatus === 'saving'}
+                >
+                  {editDeliveryStatus === 'saving' ? 'Saving…' : 'Save plan'}
+                </button>
+                {editDeliveryStatus === 'done' && (
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    Saved.
+                  </p>
+                )}
+                {editDeliveryStatus === 'error' && editDeliveryError && (
+                  <p className="error-text">{editDeliveryError}</p>
                 )}
               </div>
             </div>
