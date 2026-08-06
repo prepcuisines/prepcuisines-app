@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+function isAuthorized(req: NextRequest) {
+  const session = req.cookies.get('pc_admin_session')?.value
+  return !!session && session === process.env.ADMIN_SESSION_SECRET
+}
+
+// Bulk-transfers orders placed on a previous website into this system —
+// e.g. orders taken on the old site before this one went live. Every row
+// becomes a guest-style order (customer_id: null), exactly like a PAYG
+// order: no account created, no "first order" or any other email
+// triggered, nothing touches customer_profiles at all. Just a clean
+// order record tied to the real delivery window, so it shows up
+// correctly in the cook sheet, tally, and label printing.
+export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+
+  const { menuWindowId, deliveryDay, orders } = await req.json()
+
+  if (!menuWindowId || !Array.isArray(orders) || orders.length === 0) {
+    return NextResponse.json({ error: 'Missing menuWindowId or orders' }, { status: 400 })
+  }
+
+  const rows = orders.map((o: any) => ({
+    customer_id: null,
+    menu_window_id: menuWindowId,
+    status: 'manually_ordered',
+    items: o.items || [],
+    total_amount: Number(o.totalAmount) || 0,
+    delivery_day: deliveryDay || null,
+    delivery_instructions: o.deliveryInstructions || null,
+    ship_full_name: o.customerName,
+    ship_email: o.customerEmail || null,
+    ship_phone: o.phone || null,
+    ship_house_number: o.houseNumber || null,
+    ship_street: o.street || null,
+    ship_postcode: o.postcode || null,
+  }))
+
+  const { error, data } = await supabase.from('customer_window_orders').insert(rows).select('id')
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, count: data?.length || 0 })
+}

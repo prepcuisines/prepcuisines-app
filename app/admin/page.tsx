@@ -261,6 +261,14 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false)
 
   const [showAddOrder, setShowAddOrder] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
+  const [bulkImportWindowId, setBulkImportWindowId] = useState('')
+  const [bulkImportText, setBulkImportText] = useState('')
+  const [bulkImportStatus, setBulkImportStatus] = useState<'idle' | 'saving' | 'done' | 'error'>(
+    'idle'
+  )
+  const [bulkImportError, setBulkImportError] = useState<string | null>(null)
+  const [bulkImportCount, setBulkImportCount] = useState(0)
   const [showOrdersReport, setShowOrdersReport] = useState(false)
   const [addOrderForm, setAddOrderForm] = useState({
     customerName: '',
@@ -535,6 +543,78 @@ export default function AdminDashboard() {
       itemsText: '',
     })
     loadOrders()
+  }
+
+  const parseBulkImportItems = (itemsText: string) => {
+    return itemsText
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const match = line.match(/^(\d+)\s*x\s*(.+?)(?:\s*@\s*([\d.]+))?$/i)
+        if (match) {
+          return {
+            qty: Number(match[1]),
+            name: match[2].trim(),
+            price: match[3] ? Number(match[3]) : 0,
+          }
+        }
+        return { qty: 1, name: line, price: 0 }
+      })
+  }
+
+  const submitBulkImport = async () => {
+    setBulkImportStatus('saving')
+    setBulkImportError(null)
+
+    const selectedWindow = emailWindowOptions.find((w) => w.id === bulkImportWindowId)
+    const deliveryDay = selectedWindow?.delivery_day || null
+
+    const lines = bulkImportText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+
+    const orders: any[] = []
+    for (const line of lines) {
+      const parts = line.split('|').map((p) => p.trim())
+      if (parts.length < 6) {
+        setBulkImportError(`This line doesn't have all 6 fields: "${line}"`)
+        setBulkImportStatus('error')
+        return
+      }
+      const [customerName, phone, houseNumber, street, postcode, totalAmount, itemsText] = parts
+      orders.push({
+        customerName,
+        phone,
+        houseNumber,
+        street,
+        postcode,
+        totalAmount,
+        items: parseBulkImportItems(itemsText || ''),
+      })
+    }
+
+    try {
+      const res = await fetch('/api/admin/bulk-import-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ menuWindowId: bulkImportWindowId, deliveryDay, orders }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setBulkImportError(data.error || 'Something went wrong')
+        setBulkImportStatus('error')
+        return
+      }
+      setBulkImportCount(data.count || 0)
+      setBulkImportStatus('done')
+      setBulkImportText('')
+      loadOrders()
+    } catch {
+      setBulkImportError('Network error — please try again')
+      setBulkImportStatus('error')
+    }
   }
 
   const loadRecurringOrders = async () => {
@@ -2774,6 +2854,18 @@ export default function AdminDashboard() {
               <button className="btn-primary" onClick={() => setShowAddOrder((v) => !v)}>
                 {showAddOrder ? 'Cancel' : '+ Add order manually'}
               </button>
+              <button
+                className="segment-pill"
+                style={{ marginLeft: 8 }}
+                onClick={() => {
+                  setShowBulkImport((v) => !v)
+                  if (!showBulkImport && emailWindowOptions.length === 0) {
+                    loadEmailWindowOptions()
+                  }
+                }}
+              >
+                {showBulkImport ? 'Cancel' : '📥 Bulk import old orders'}
+              </button>
             </div>
 
             <div className="date-filter-toggle-row">
@@ -3097,6 +3189,65 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </form>
+            )}
+
+            {showBulkImport && (
+              <div className="add-order-panel">
+                <p className="map-intro">
+                  For transferring orders placed on a previous website — each row becomes a
+                  guest order (no account created, no emails sent), tied to the real delivery
+                  window you pick below so it shows up correctly in the cook sheet and labels.
+                </p>
+                <label className="field-label">Delivery window</label>
+                <select
+                  className="text-input"
+                  style={{ width: '100%', marginBottom: 10 }}
+                  value={bulkImportWindowId}
+                  onChange={(e) => setBulkImportWindowId(e.target.value)}
+                >
+                  <option value="">Select the delivery date these orders are for…</option>
+                  {emailWindowOptions.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.delivery_day} {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                    </option>
+                  ))}
+                </select>
+                <label className="field-label">
+                  One order per line: Name | Phone | House number | Street | Postcode | Total (£)
+                  | Items (e.g. 2x Marry-Me Salmon @ 8.00; 1x Overnight Oats @ 5.00)
+                </label>
+                <textarea
+                  className="text-input"
+                  rows={8}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: 12.5 }}
+                  placeholder={
+                    'Sarah Jones | 07123456789 | 12 | High Street | B1 2AB | 39.50 | 2x Marry-Me Salmon @ 8.00; 3x Mongolian Beef Noodles @ 8.00'
+                  }
+                  value={bulkImportText}
+                  onChange={(e) => setBulkImportText(e.target.value)}
+                />
+                <div className="pc-modal-inline-row" style={{ marginTop: 10 }}>
+                  <button
+                    className="btn-primary"
+                    onClick={submitBulkImport}
+                    disabled={
+                      bulkImportStatus === 'saving' || !bulkImportWindowId || !bulkImportText.trim()
+                    }
+                  >
+                    {bulkImportStatus === 'saving' ? 'Importing…' : 'Import orders'}
+                  </button>
+                </div>
+                {bulkImportStatus === 'done' && (
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    Imported {bulkImportCount} order{bulkImportCount === 1 ? '' : 's'}.
+                  </p>
+                )}
+                {bulkImportError && (
+                  <p className="error-text" style={{ marginTop: 8 }}>
+                    {bulkImportError}
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="date-filter-toggle-row">

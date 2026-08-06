@@ -23,8 +23,13 @@ export async function POST(req: NextRequest) {
   const {
     customerName,
     customerEmail,
+    phone,
+    houseNumber,
+    street,
     postcode,
     deliveryDay,
+    deliveryInstructions,
+    menuWindowId,
     totalAmount,
     items, // array of { name, qty, price }
   } = body
@@ -38,13 +43,17 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase.from('customer_window_orders').insert({
     customer_id: null,
-    menu_window_id: null,
+    menu_window_id: menuWindowId || null,
     status: 'manually_ordered',
     items: items || [],
     total_amount: Number(totalAmount),
     delivery_day: deliveryDay || null,
+    delivery_instructions: deliveryInstructions || null,
     ship_full_name: customerName,
     ship_email: customerEmail || null,
+    ship_phone: phone || null,
+    ship_house_number: houseNumber || null,
+    ship_street: street || null,
     ship_postcode: postcode || null,
   })
 
