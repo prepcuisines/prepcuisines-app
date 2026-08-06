@@ -6,13 +6,14 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
-// Tests the real DPD sandbox connection — gets an access token and
-// immediately revokes it, confirming the credentials actually work.
+// Tests the real DPD connection (sandbox or live) — gets an access token
+// and immediately revokes it, confirming the credentials actually work.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const result = await testDpdConnection('sandbox')
+  const env = req.nextUrl.searchParams.get('env') === 'live' ? 'live' : 'sandbox'
+  const result = await testDpdConnection(env)
   return NextResponse.json(result)
 }

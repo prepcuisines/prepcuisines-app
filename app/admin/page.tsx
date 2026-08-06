@@ -157,6 +157,7 @@ export default function AdminDashboard() {
   )
   const [testEmailError, setTestEmailError] = useState<string | null>(null)
   const [dpdTestStatus, setDpdTestStatus] = useState<'idle' | 'testing' | 'done'>('idle')
+  const [dpdTestEnv, setDpdTestEnv] = useState<'sandbox' | 'live'>('sandbox')
   const [dpdTestResult, setDpdTestResult] = useState<{
     connected: boolean
     message: string
@@ -1367,7 +1368,7 @@ export default function AdminDashboard() {
     setDpdTestStatus('testing')
     setDpdTestResult(null)
     try {
-      const res = await fetch('/api/admin/test-dpd', { cache: 'no-store' })
+      const res = await fetch(`/api/admin/test-dpd?env=${dpdTestEnv}`, { cache: 'no-store' })
       const data = await res.json()
       setDpdTestResult({
         connected: !!data.connected,
@@ -2101,15 +2102,31 @@ export default function AdminDashboard() {
                 <div className="ao-repeat-section">
                   <label className="field-label">Test DPD connection</label>
                   <p className="map-intro">
-                    Gets a real access token from DPD's sandbox using your saved credentials,
-                    then immediately revokes it. Confirms the connection works end to end.
+                    Gets a real access token from DPD using your saved credentials, then
+                    immediately revokes it. Confirms the connection works end to end — safe to
+                    run against either environment, since this only tests authentication and
+                    never creates a real shipment.
                   </p>
+                  <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
+                    <button
+                      className={`segment-pill ${dpdTestEnv === 'sandbox' ? 'segment-pill-active' : ''}`}
+                      onClick={() => setDpdTestEnv('sandbox')}
+                    >
+                      Sandbox
+                    </button>
+                    <button
+                      className={`segment-pill ${dpdTestEnv === 'live' ? 'segment-pill-active' : ''}`}
+                      onClick={() => setDpdTestEnv('live')}
+                    >
+                      Live
+                    </button>
+                  </div>
                   <button
                     className="btn-primary"
                     onClick={testDpdConnectionAction}
                     disabled={dpdTestStatus === 'testing'}
                   >
-                    {dpdTestStatus === 'testing' ? 'Testing…' : 'Test connection'}
+                    {dpdTestStatus === 'testing' ? 'Testing…' : `Test ${dpdTestEnv} connection`}
                   </button>
                   {dpdTestStatus === 'done' && dpdTestResult && (
                     <p
