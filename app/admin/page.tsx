@@ -64,6 +64,8 @@ type Order = {
   menu_windows: { week_start_date: string } | null
   fulfilled?: boolean
   cancelled?: boolean
+  dpd_shipment_id?: string | null
+  dpd_consignment_number?: string | null
 }
 
 const statusLabels: Record<string, string> = {
@@ -203,6 +205,13 @@ export default function AdminDashboard() {
     'idle' | 'sending' | 'done' | 'error'
   >('idle')
   const [resendEmailError, setResendEmailError] = useState<string | null>(null)
+  const [dpdShipmentStatus, setDpdShipmentStatus] = useState<'idle' | 'creating' | 'error'>(
+    'idle'
+  )
+  const [dpdShipmentError, setDpdShipmentError] = useState<string | null>(null)
+  const [dpdLabelStatus, setDpdLabelStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [dpdLabelError, setDpdLabelError] = useState<string | null>(null)
+  const [dpdLabelHtml, setDpdLabelHtml] = useState<string | null>(null)
   const [resetPasswordCustomer, setResetPasswordCustomer] = useState<{
     id: string
     name: string
@@ -939,6 +948,11 @@ export default function AdminDashboard() {
     setChargeAmountInput('')
     setResendEmailStatus('idle')
     setResendEmailError(null)
+    setDpdShipmentStatus('idle')
+    setDpdShipmentError(null)
+    setDpdLabelStatus('idle')
+    setDpdLabelError(null)
+    setDpdLabelHtml(null)
     try {
       const res = await fetch(`/api/admin/order-detail?id=${orderId}`, { cache: 'no-store' })
       if (!res.ok) {
@@ -982,6 +996,53 @@ export default function AdminDashboard() {
     } catch {
       setResendEmailError('Network error — please try again')
       setResendEmailStatus('error')
+    }
+  }
+
+  const createDpdShipmentAction = async () => {
+    if (!selectedOrderId) return
+    setDpdShipmentStatus('creating')
+    setDpdShipmentError(null)
+    try {
+      const res = await fetch('/api/admin/create-dpd-shipment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: selectedOrderId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDpdShipmentError(data.error || 'Something went wrong')
+        setDpdShipmentStatus('error')
+        return
+      }
+      setDpdShipmentStatus('idle')
+      openOrderDetail(selectedOrderId) // refresh to show the new shipment info
+    } catch {
+      setDpdShipmentError('Network error — please try again')
+      setDpdShipmentStatus('error')
+    }
+  }
+
+  const getDpdLabelAction = async () => {
+    if (!selectedOrderId) return
+    setDpdLabelStatus('loading')
+    setDpdLabelError(null)
+    setDpdLabelHtml(null)
+    try {
+      const res = await fetch(`/api/admin/get-dpd-label?orderId=${selectedOrderId}`, {
+        cache: 'no-store',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDpdLabelError(data.error || 'Something went wrong')
+        setDpdLabelStatus('error')
+        return
+      }
+      setDpdLabelHtml(data.labels?.[0] || null)
+      setDpdLabelStatus('idle')
+    } catch {
+      setDpdLabelError('Network error — please try again')
+      setDpdLabelStatus('error')
     }
   }
 
@@ -4167,6 +4228,62 @@ export default function AdminDashboard() {
                       {orderActionStatus === 'saving' ? 'Saving…' : 'Save'}
                     </button>
                   </div>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">DPD Shipment</label>
+                  {orderDetail.order.dpd_shipment_id ? (
+                    <>
+                      <p className="map-intro">
+                        Shipment created — consignment {orderDetail.order.dpd_consignment_number}
+                      </p>
+                      <button
+                        className="btn-primary"
+                        onClick={getDpdLabelAction}
+                        disabled={dpdLabelStatus === 'loading'}
+                      >
+                        {dpdLabelStatus === 'loading' ? 'Loading…' : 'Get label'}
+                      </button>
+                      {dpdLabelStatus === 'error' && dpdLabelError && (
+                        <p className="error-text">{dpdLabelError}</p>
+                      )}
+                      {dpdLabelHtml && (
+                        <div style={{ marginTop: 12 }}>
+                          <iframe
+                            title="DPD Label"
+                            srcDoc={dpdLabelHtml}
+                            style={{ width: '100%', height: 400, border: '1px solid #e8e0d0' }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="map-intro">
+                        Creates a REAL shipment through DPD's Live system — this is a genuine,
+                        billable booking DPD will collect and deliver, not a test. Only use this
+                        once you're ready for an actual real-world shipment.
+                      </p>
+                      <button
+                        className="pc-delete-btn"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              'This creates a REAL DPD shipment that will be collected and billed. Continue?'
+                            )
+                          ) {
+                            createDpdShipmentAction()
+                          }
+                        }}
+                        disabled={dpdShipmentStatus === 'creating'}
+                      >
+                        {dpdShipmentStatus === 'creating' ? 'Creating…' : 'Create real DPD shipment'}
+                      </button>
+                      {dpdShipmentStatus === 'error' && dpdShipmentError && (
+                        <p className="error-text">{dpdShipmentError}</p>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div className="pc-modal-section">

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const { data: order, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, menu_windows(week_start_date)'
+      'id, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, dpd_shipment_id, dpd_consignment_number, menu_windows(week_start_date)'
     )
     .eq('id', id)
     .maybeSingle()

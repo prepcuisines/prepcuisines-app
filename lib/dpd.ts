@@ -412,3 +412,15 @@ export async function getOutboundServices(
     return { success: false, error: err.message || 'Network error contacting DPD' }
   }
 }
+
+// Confirmed real network codes for prepcuisines' account, looked up via
+// getOutboundServices from ST1 4JR — not guessed. Collected the day
+// before each delivery day, no guaranteed morning time (so collection
+// can happen as late as possible):
+// - Wednesday delivery: "Parcel Next Day"
+// - Sunday delivery: "Parcel Sunday" (standard Next Day doesn't run on Sundays)
+export function getNetworkCodeForDeliveryDay(deliveryDay: string): string | null {
+  if (deliveryDay === 'Wednesday') return '2^12'
+  if (deliveryDay === 'Sunday') return '2^75'
+  return null
+}
