@@ -125,6 +125,9 @@ export default function AdminDashboard() {
     | 'overview'
     | 'customers'
     | 'orders'
+    | 'cook-sheet'
+    | 'email-marketing'
+    | 'shopify-import'
     | 'menu'
     | 'map'
     | 'insights'
@@ -144,8 +147,6 @@ export default function AdminDashboard() {
   const [customerDateTo, setCustomerDateTo] = useState('')
   const [customerSingleDate, setCustomerSingleDate] = useState('')
   const [showCustomerDateFilter, setShowCustomerDateFilter] = useState(false)
-  const [showEmailLists, setShowEmailLists] = useState(false)
-  const [showImportLeads, setShowImportLeads] = useState(false)
   const [klaviyoSyncStatus, setKlaviyoSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>(
     'idle'
   )
@@ -269,7 +270,6 @@ export default function AdminDashboard() {
   )
   const [bulkImportError, setBulkImportError] = useState<string | null>(null)
   const [bulkImportCount, setBulkImportCount] = useState(0)
-  const [showOrdersReport, setShowOrdersReport] = useState(false)
   const [addOrderForm, setAddOrderForm] = useState({
     customerName: '',
     customerEmail: '',
@@ -1206,6 +1206,12 @@ export default function AdminDashboard() {
   // real OpenStreetMap-backed map with actual roads/coastline, without
   // adding a new npm dependency to the build.
   useEffect(() => {
+    if (tab === 'email-marketing' && emailWindowOptions.length === 0) {
+      loadEmailWindowOptions()
+    }
+  }, [tab])
+
+  useEffect(() => {
     if (tab !== 'map') return
     if (loading || mapPoints.length === 0) return
     if (!leafletMapRef.current) return
@@ -2131,8 +2137,11 @@ export default function AdminDashboard() {
             [
               { key: 'overview', label: 'Home' },
               { key: 'orders', label: 'Orders' },
+              { key: 'cook-sheet', label: 'Cook Sheet' },
               { key: 'menu', label: 'Products' },
               { key: 'customers', label: 'Customers' },
+              { key: 'email-marketing', label: 'Email Marketing' },
+              { key: 'shopify-import', label: 'Shopify Import' },
               { key: 'insights', label: 'Analytics' },
               { key: 'product-analytics', label: 'Product Analytics' },
               { key: 'map', label: 'Map' },
@@ -2309,314 +2318,6 @@ export default function AdminDashboard() {
                 <div className="status-card-value">{statusBreakdown.total}</div>
               </button>
             </div>
-
-            <div className="date-filter-toggle-row">
-              <button
-                className="date-filter-toggle"
-                onClick={() => {
-                  setShowEmailLists((v) => !v)
-                  if (!showEmailLists && emailWindowOptions.length === 0) {
-                    loadEmailWindowOptions()
-                  }
-                }}
-              >
-                {showEmailLists ? '▾' : '▸'} Email marketing lists
-              </button>
-            </div>
-
-            {showEmailLists && (
-              <div className="insights-block">
-                <p className="map-intro">
-                  One-click copy — pastes as a comma-separated list ready for your email tool.
-                  Only includes customers who ticked "Keep me updated" at signup.
-                </p>
-                <div className="email-lists-grid">
-                  {emailLists.map((list) => (
-                    <div
-                      key={list.key}
-                      className={`email-list-card ${list.key === 'all_subscribed' ? 'email-list-card-featured' : ''}`}
-                    >
-                      <div className="email-list-header">
-                        <span className="email-list-label">{list.label}</span>
-                        <span className="email-list-count">{list.customers.length}</span>
-                      </div>
-                      <button
-                        className="btn-primary"
-                        disabled={list.customers.length === 0}
-                        onClick={() =>
-                          copyEmailList(
-                            list.key,
-                            list.customers.map((c) => c.email).filter(Boolean) as string[]
-                          )
-                        }
-                      >
-                        {copiedListKey === list.key ? 'Copied!' : 'Copy emails'}
-                      </button>
-                    </div>
-                  ))}
-
-                  <div className="email-list-card">
-                    <div className="email-list-header">
-                      <span className="email-list-label">Ordered for a specific delivery</span>
-                    </div>
-                    <select
-                      className="text-input"
-                      style={{ width: '100%', marginBottom: 8 }}
-                      value={selectedEmailWindowId}
-                      onChange={(e) => setSelectedEmailWindowId(e.target.value)}
-                    >
-                      <option value="">Select a delivery date…</option>
-                      {emailWindowOptions.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.delivery_day} {new Date(w.week_start_date).toLocaleDateString('en-GB')}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="btn-primary"
-                      disabled={!selectedEmailWindowId || emailWindowCopyStatus === 'loading'}
-                      onClick={() => copyEmailsForWindow(selectedEmailWindowId)}
-                    >
-                      {emailWindowCopyStatus === 'loading'
-                        ? 'Loading…'
-                        : emailWindowCopyStatus === 'copied'
-                        ? 'Copied!'
-                        : 'Copy emails'}
-                    </button>
-                    {emailWindowCopyCount !== null && emailWindowCopyStatus === 'copied' && (
-                      <p className="map-intro" style={{ marginTop: 6 }}>
-                        {emailWindowCopyCount} email{emailWindowCopyCount === 1 ? '' : 's'} copied.
-                      </p>
-                    )}
-                    <button
-                      className="segment-pill"
-                      style={{ marginTop: 8 }}
-                      disabled={!selectedEmailWindowId}
-                      onClick={() => {
-                        const url = `${window.location.origin}/late-order?window=${selectedEmailWindowId}`
-                        navigator.clipboard.writeText(url)
-                        setLateOrderLinkCopied(true)
-                        setTimeout(() => setLateOrderLinkCopied(false), 2000)
-                      }}
-                    >
-                      {lateOrderLinkCopied ? 'Copied!' : 'Copy late-order link (for this delivery)'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="date-filter-toggle-row">
-              <button
-                className="date-filter-toggle"
-                onClick={() => setShowImportLeads((v) => !v)}
-              >
-                {showImportLeads ? '▾' : '▸'} Import customers from Shopify
-              </button>
-            </div>
-
-            {showImportLeads && (
-              <div className="insights-block">
-                <p className="map-intro">
-                  Upload your Shopify customer export (CSV). Only rows with "Accepts Email
-                  Marketing" set to yes are imported. Anyone matching an existing customer's
-                  email just has their marketing consent filled in (never overwriting a choice
-                  they've already made on this site) — everyone else is stored as an email lead,
-                  separate from real ordering customers.
-                </p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  disabled={importStatus === 'parsing' || importStatus === 'importing'}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleShopifyCsvImport(file)
-                  }}
-                />
-                {importStatus === 'parsing' && (
-                  <p className="map-intro" style={{ marginTop: 10 }}>
-                    Reading file…
-                  </p>
-                )}
-                {importStatus === 'importing' && (
-                  <p className="map-intro" style={{ marginTop: 10 }}>
-                    Importing {importProgress.done} / {importProgress.total}…
-                  </p>
-                )}
-                {importStatus === 'error' && importError && (
-                  <p className="error-text">{importError}</p>
-                )}
-                {importStatus === 'done' && importSummary && (
-                  <div className="alerts-grid" style={{ marginTop: 14 }}>
-                    <div className="alert-card">
-                      <div className="alert-card-value">{importSummary.consentedRows}</div>
-                      <div className="alert-card-label">Opted-in rows found</div>
-                    </div>
-                    <div className="alert-card">
-                      <div className="alert-card-value">
-                        {importSummary.updatedExistingCustomers}
-                      </div>
-                      <div className="alert-card-label">Existing customers updated</div>
-                    </div>
-                    <div className="alert-card">
-                      <div className="alert-card-value">{importSummary.createdLeads}</div>
-                      <div className="alert-card-label">New email leads created</div>
-                    </div>
-                    <div className="alert-card alert-card-muted">
-                      <div className="alert-card-value">
-                        {importSummary.skippedExplicitChoice}
-                      </div>
-                      <div className="alert-card-label">
-                        Skipped (already had an explicit choice on this site)
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="ao-repeat-section">
-                  <label className="field-label">Klaviyo</label>
-                  <p className="map-intro">
-                    Pushes every currently-consented customer and imported lead into your
-                    Klaviyo list. Safe to re-run any time (e.g. after a new import) — it just
-                    updates existing profiles rather than duplicating them.
-                  </p>
-                  <button
-                    className="btn-primary"
-                    onClick={runKlaviyoSync}
-                    disabled={klaviyoSyncStatus === 'syncing'}
-                  >
-                    {klaviyoSyncStatus === 'syncing' ? 'Syncing…' : 'Sync all to Klaviyo'}
-                  </button>
-                  {klaviyoSyncStatus === 'error' && klaviyoSyncError && (
-                    <p className="error-text">{klaviyoSyncError}</p>
-                  )}
-                  {klaviyoSyncStatus === 'done' && klaviyoSyncResult && (
-                    <p className="map-intro" style={{ marginTop: 8 }}>
-                      Synced {klaviyoSyncResult.synced} of {klaviyoSyncResult.totalUniqueEmails}{' '}
-                      unique emails to Klaviyo.
-                    </p>
-                  )}
-                </div>
-
-                <div className="ao-repeat-section">
-                  <label className="field-label">Test Neo email</label>
-                  <p className="map-intro">
-                    Sends a real test email directly through Neo's SMTP servers, bypassing the
-                    Resend fallback, so a failure here means something real with the Neo
-                    connection itself.
-                  </p>
-                  <div className="pc-modal-inline-row">
-                    <input
-                      className="text-input"
-                      style={{ flex: 1 }}
-                      placeholder="you@example.com"
-                      value={testEmailAddress}
-                      onChange={(e) => setTestEmailAddress(e.target.value)}
-                    />
-                    <button
-                      className="btn-primary"
-                      onClick={sendTestNeoEmail}
-                      disabled={testEmailStatus === 'sending' || !testEmailAddress}
-                    >
-                      {testEmailStatus === 'sending' ? 'Sending…' : 'Send test email'}
-                    </button>
-                  </div>
-                  {testEmailStatus === 'done' && (
-                    <p className="map-intro" style={{ marginTop: 8 }}>
-                      Sent — check that inbox now.
-                    </p>
-                  )}
-                  {testEmailStatus === 'error' && testEmailError && (
-                    <p className="error-text">{testEmailError}</p>
-                  )}
-                </div>
-
-                <div className="ao-repeat-section">
-                  <label className="field-label">Test DPD connection</label>
-                  <p className="map-intro">
-                    Gets a real access token from DPD using your saved Live credentials, then
-                    immediately revokes it. Confirms the connection works end to end — this only
-                    tests authentication and never creates a real shipment.
-                  </p>
-                  <button
-                    className="btn-primary"
-                    onClick={testDpdConnectionAction}
-                    disabled={dpdTestStatus === 'testing'}
-                  >
-                    {dpdTestStatus === 'testing' ? 'Testing…' : 'Test connection'}
-                  </button>
-                  {dpdTestStatus === 'done' && dpdTestResult && (
-                    <p
-                      className="map-intro"
-                      style={{ marginTop: 8, color: dpdTestResult.connected ? undefined : '#a3402f' }}
-                    >
-                      {dpdTestResult.message}
-                      {dpdTestResult.keyPreview && (
-                        <><br />Key on file: {dpdTestResult.keyPreview}</>
-                      )}
-                    </p>
-                  )}
-                </div>
-
-                <div className="ao-repeat-section">
-                  <label className="field-label">Find DPD Local service code</label>
-                  <p className="map-intro">
-                    Looks up which delivery services are actually available for your account,
-                    from your kitchen (ST1 4JR) to a sample delivery postcode — using DPD's own
-                    lookup, not a guessed code.
-                  </p>
-                  <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
-                    <input
-                      className="text-input"
-                      placeholder="Delivery postcode e.g. M1 2AB"
-                      value={dpdLookupPostcode}
-                      onChange={(e) => setDpdLookupPostcode(e.target.value)}
-                    />
-                    <input
-                      className="text-input"
-                      placeholder="Town e.g. Manchester"
-                      value={dpdLookupTown}
-                      onChange={(e) => setDpdLookupTown(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    className="btn-primary"
-                    onClick={lookupDpdServicesAction}
-                    disabled={
-                      dpdLookupStatus === 'loading' || !dpdLookupPostcode || !dpdLookupTown
-                    }
-                  >
-                    {dpdLookupStatus === 'loading' ? 'Looking up…' : 'Look up'}
-                  </button>
-                  {dpdLookupStatus === 'error' && dpdLookupError && (
-                    <p className="error-text">{dpdLookupError}</p>
-                  )}
-                  {dpdLookupStatus === 'done' && dpdLookupServices.length > 0 && (
-                    <table className="data-table" style={{ marginTop: 12 }}>
-                      <thead>
-                        <tr>
-                          <th>Service</th>
-                          <th>Network Code</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dpdLookupServices.map((s, i) => (
-                          <tr key={i}>
-                            <td>{s.description}</td>
-                            <td>{s.networkCode}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {dpdLookupStatus === 'done' && dpdLookupServices.length === 0 && (
-                    <p className="map-intro" style={{ marginTop: 8 }}>
-                      No services returned for this postcode.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
 
             <div className="toolbar">
               <div className="segment-pills" role="tablist" aria-label="Customer segment">
@@ -2868,15 +2569,6 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <div className="date-filter-toggle-row">
-              <button
-                className="date-filter-toggle"
-                onClick={() => setShowOrdersReport((v) => !v)}
-              >
-                {showOrdersReport ? '▾' : '▸'} Delivery cost, area breakdown & cook sheet
-              </button>
-            </div>
-
             <div className="pc-modal-section" style={{ marginTop: 12 }}>
               <label className="field-label">🏷 Print Labels</label>
               <p className="map-intro">
@@ -2926,100 +2618,6 @@ export default function AdminDashboard() {
                 </p>
               )}
             </div>
-
-            {showOrdersReport && (
-              <>
-                <div className="location-summary">
-                  <div className="dpd-card">
-                    <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
-                    <div className="dpd-value">{money(dpdEstimate)}</div>
-                    <div className="dpd-meta">
-                      {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
-                    </div>
-                  </div>
-                </div>
-
-                {locationBreakdown.length > 0 && (
-                  <div className="area-map">
-                    <div className="area-map-title">Orders by area</div>
-                    {locationBreakdown.map((a) => (
-                      <div key={a.area} className="area-row">
-                        <span className="area-name">{a.area}</span>
-                        <div className="area-bar-track">
-                          <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
-                        </div>
-                        <span className="area-count">{a.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {orderTally.length > 0 && (
-                  <div className="tally-row">
-                    {orderTally.map((t) => (
-                      <button
-                        key={t.key}
-                        className={`tally-chip ${expandedTallyKey === t.key ? 'tally-chip-active' : ''}`}
-                        onClick={() =>
-                          setExpandedTallyKey((prev) => (prev === t.key ? null : t.key))
-                        }
-                      >
-                        <div className="tally-day">
-                          {t.day}
-                          {t.week ? ` — w/c ${t.week}` : ''}
-                        </div>
-                        <div className="tally-meta">
-                          {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {expandedTallyKey && (
-                  <div className="cook-sheet-panel">
-                    <div className="cook-sheet-header-row">
-                      <div className="cook-sheet-title">
-                        Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
-                        {orderTally.find((t) => t.key === expandedTallyKey)?.week
-                          ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
-                          : ''}
-                      </div>
-                      {cookSheetForKey.length > 0 && (
-                        <div className="cook-sheet-actions">
-                          <button className="segment-pill" onClick={copyCookSheet}>
-                            {cookSheetCopied ? 'Copied!' : 'Copy'}
-                          </button>
-                          <button className="segment-pill" onClick={downloadCookSheet}>
-                            Download
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {cookSheetForKey.length === 0 ? (
-                      <p className="cook-sheet-empty">No item data for this window.</p>
-                    ) : (
-                      <>
-                        <ul className="cook-sheet-list">
-                          {cookSheetForKey.map((d, i) => (
-                            <li key={d.name} className={i % 2 === 1 ? 'cook-sheet-row-alt' : ''}>
-                              <span className="cook-sheet-qty">{d.qty}×</span>
-                              <span className="cook-sheet-name">{d.name}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="cook-sheet-total-row">
-                          <span>Total items</span>
-                          <span className="cook-sheet-total-qty">
-                            {cookSheetForKey.reduce((s, d) => s + d.qty, 0)}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
 
             {showAddOrder && (
               <form className="add-order-panel" onSubmit={submitManualOrder}>
@@ -3431,6 +3029,394 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
+          </section>
+        )}
+
+        {tab === 'cook-sheet' && (
+          <section>
+            <h2 className="section-title">Delivery Cost, Area Breakdown & Cook Sheet</h2>
+              <>
+                <div className="location-summary">
+                  <div className="dpd-card">
+                    <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
+                    <div className="dpd-value">{money(dpdEstimate)}</div>
+                    <div className="dpd-meta">
+                      {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
+                    </div>
+                  </div>
+                </div>
+
+                {locationBreakdown.length > 0 && (
+                  <div className="area-map">
+                    <div className="area-map-title">Orders by area</div>
+                    {locationBreakdown.map((a) => (
+                      <div key={a.area} className="area-row">
+                        <span className="area-name">{a.area}</span>
+                        <div className="area-bar-track">
+                          <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+                        </div>
+                        <span className="area-count">{a.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {orderTally.length > 0 && (
+                  <div className="tally-row">
+                    {orderTally.map((t) => (
+                      <button
+                        key={t.key}
+                        className={`tally-chip ${expandedTallyKey === t.key ? 'tally-chip-active' : ''}`}
+                        onClick={() =>
+                          setExpandedTallyKey((prev) => (prev === t.key ? null : t.key))
+                        }
+                      >
+                        <div className="tally-day">
+                          {t.day}
+                          {t.week ? ` — w/c ${t.week}` : ''}
+                        </div>
+                        <div className="tally-meta">
+                          {t.count} order{t.count !== 1 ? 's' : ''} · {money(t.total)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {expandedTallyKey && (
+                  <div className="cook-sheet-panel">
+                    <div className="cook-sheet-header-row">
+                      <div className="cook-sheet-title">
+                        Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
+                        {orderTally.find((t) => t.key === expandedTallyKey)?.week
+                          ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
+                          : ''}
+                      </div>
+                      {cookSheetForKey.length > 0 && (
+                        <div className="cook-sheet-actions">
+                          <button className="segment-pill" onClick={copyCookSheet}>
+                            {cookSheetCopied ? 'Copied!' : 'Copy'}
+                          </button>
+                          <button className="segment-pill" onClick={downloadCookSheet}>
+                            Download
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {cookSheetForKey.length === 0 ? (
+                      <p className="cook-sheet-empty">No item data for this window.</p>
+                    ) : (
+                      <>
+                        <ul className="cook-sheet-list">
+                          {cookSheetForKey.map((d, i) => (
+                            <li key={d.name} className={i % 2 === 1 ? 'cook-sheet-row-alt' : ''}>
+                              <span className="cook-sheet-qty">{d.qty}×</span>
+                              <span className="cook-sheet-name">{d.name}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="cook-sheet-total-row">
+                          <span>Total items</span>
+                          <span className="cook-sheet-total-qty">
+                            {cookSheetForKey.reduce((s, d) => s + d.qty, 0)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+          </section>
+        )}
+
+        {tab === 'email-marketing' && (
+          <section>
+            <h2 className="section-title">Email Marketing Lists</h2>
+              <div className="insights-block">
+                <p className="map-intro">
+                  One-click copy — pastes as a comma-separated list ready for your email tool.
+                  Only includes customers who ticked "Keep me updated" at signup.
+                </p>
+                <div className="email-lists-grid">
+                  {emailLists.map((list) => (
+                    <div
+                      key={list.key}
+                      className={`email-list-card ${list.key === 'all_subscribed' ? 'email-list-card-featured' : ''}`}
+                    >
+                      <div className="email-list-header">
+                        <span className="email-list-label">{list.label}</span>
+                        <span className="email-list-count">{list.customers.length}</span>
+                      </div>
+                      <button
+                        className="btn-primary"
+                        disabled={list.customers.length === 0}
+                        onClick={() =>
+                          copyEmailList(
+                            list.key,
+                            list.customers.map((c) => c.email).filter(Boolean) as string[]
+                          )
+                        }
+                      >
+                        {copiedListKey === list.key ? 'Copied!' : 'Copy emails'}
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="email-list-card">
+                    <div className="email-list-header">
+                      <span className="email-list-label">Ordered for a specific delivery</span>
+                    </div>
+                    <select
+                      className="text-input"
+                      style={{ width: '100%', marginBottom: 8 }}
+                      value={selectedEmailWindowId}
+                      onChange={(e) => setSelectedEmailWindowId(e.target.value)}
+                    >
+                      <option value="">Select a delivery date…</option>
+                      {emailWindowOptions.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.delivery_day} {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn-primary"
+                      disabled={!selectedEmailWindowId || emailWindowCopyStatus === 'loading'}
+                      onClick={() => copyEmailsForWindow(selectedEmailWindowId)}
+                    >
+                      {emailWindowCopyStatus === 'loading'
+                        ? 'Loading…'
+                        : emailWindowCopyStatus === 'copied'
+                        ? 'Copied!'
+                        : 'Copy emails'}
+                    </button>
+                    {emailWindowCopyCount !== null && emailWindowCopyStatus === 'copied' && (
+                      <p className="map-intro" style={{ marginTop: 6 }}>
+                        {emailWindowCopyCount} email{emailWindowCopyCount === 1 ? '' : 's'} copied.
+                      </p>
+                    )}
+                    <button
+                      className="segment-pill"
+                      style={{ marginTop: 8 }}
+                      disabled={!selectedEmailWindowId}
+                      onClick={() => {
+                        const url = `${window.location.origin}/late-order?window=${selectedEmailWindowId}`
+                        navigator.clipboard.writeText(url)
+                        setLateOrderLinkCopied(true)
+                        setTimeout(() => setLateOrderLinkCopied(false), 2000)
+                      }}
+                    >
+                      {lateOrderLinkCopied ? 'Copied!' : 'Copy late-order link (for this delivery)'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+          </section>
+        )}
+
+        {tab === 'shopify-import' && (
+          <section>
+            <h2 className="section-title">Import Customers from Shopify</h2>
+              <div className="insights-block">
+                <p className="map-intro">
+                  Upload your Shopify customer export (CSV). Only rows with "Accepts Email
+                  Marketing" set to yes are imported. Anyone matching an existing customer's
+                  email just has their marketing consent filled in (never overwriting a choice
+                  they've already made on this site) — everyone else is stored as an email lead,
+                  separate from real ordering customers.
+                </p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  disabled={importStatus === 'parsing' || importStatus === 'importing'}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleShopifyCsvImport(file)
+                  }}
+                />
+                {importStatus === 'parsing' && (
+                  <p className="map-intro" style={{ marginTop: 10 }}>
+                    Reading file…
+                  </p>
+                )}
+                {importStatus === 'importing' && (
+                  <p className="map-intro" style={{ marginTop: 10 }}>
+                    Importing {importProgress.done} / {importProgress.total}…
+                  </p>
+                )}
+                {importStatus === 'error' && importError && (
+                  <p className="error-text">{importError}</p>
+                )}
+                {importStatus === 'done' && importSummary && (
+                  <div className="alerts-grid" style={{ marginTop: 14 }}>
+                    <div className="alert-card">
+                      <div className="alert-card-value">{importSummary.consentedRows}</div>
+                      <div className="alert-card-label">Opted-in rows found</div>
+                    </div>
+                    <div className="alert-card">
+                      <div className="alert-card-value">
+                        {importSummary.updatedExistingCustomers}
+                      </div>
+                      <div className="alert-card-label">Existing customers updated</div>
+                    </div>
+                    <div className="alert-card">
+                      <div className="alert-card-value">{importSummary.createdLeads}</div>
+                      <div className="alert-card-label">New email leads created</div>
+                    </div>
+                    <div className="alert-card alert-card-muted">
+                      <div className="alert-card-value">
+                        {importSummary.skippedExplicitChoice}
+                      </div>
+                      <div className="alert-card-label">
+                        Skipped (already had an explicit choice on this site)
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Klaviyo</label>
+                  <p className="map-intro">
+                    Pushes every currently-consented customer and imported lead into your
+                    Klaviyo list. Safe to re-run any time (e.g. after a new import) — it just
+                    updates existing profiles rather than duplicating them.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    onClick={runKlaviyoSync}
+                    disabled={klaviyoSyncStatus === 'syncing'}
+                  >
+                    {klaviyoSyncStatus === 'syncing' ? 'Syncing…' : 'Sync all to Klaviyo'}
+                  </button>
+                  {klaviyoSyncStatus === 'error' && klaviyoSyncError && (
+                    <p className="error-text">{klaviyoSyncError}</p>
+                  )}
+                  {klaviyoSyncStatus === 'done' && klaviyoSyncResult && (
+                    <p className="map-intro" style={{ marginTop: 8 }}>
+                      Synced {klaviyoSyncResult.synced} of {klaviyoSyncResult.totalUniqueEmails}{' '}
+                      unique emails to Klaviyo.
+                    </p>
+                  )}
+                </div>
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Test Neo email</label>
+                  <p className="map-intro">
+                    Sends a real test email directly through Neo's SMTP servers, bypassing the
+                    Resend fallback, so a failure here means something real with the Neo
+                    connection itself.
+                  </p>
+                  <div className="pc-modal-inline-row">
+                    <input
+                      className="text-input"
+                      style={{ flex: 1 }}
+                      placeholder="you@example.com"
+                      value={testEmailAddress}
+                      onChange={(e) => setTestEmailAddress(e.target.value)}
+                    />
+                    <button
+                      className="btn-primary"
+                      onClick={sendTestNeoEmail}
+                      disabled={testEmailStatus === 'sending' || !testEmailAddress}
+                    >
+                      {testEmailStatus === 'sending' ? 'Sending…' : 'Send test email'}
+                    </button>
+                  </div>
+                  {testEmailStatus === 'done' && (
+                    <p className="map-intro" style={{ marginTop: 8 }}>
+                      Sent — check that inbox now.
+                    </p>
+                  )}
+                  {testEmailStatus === 'error' && testEmailError && (
+                    <p className="error-text">{testEmailError}</p>
+                  )}
+                </div>
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Test DPD connection</label>
+                  <p className="map-intro">
+                    Gets a real access token from DPD using your saved Live credentials, then
+                    immediately revokes it. Confirms the connection works end to end — this only
+                    tests authentication and never creates a real shipment.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    onClick={testDpdConnectionAction}
+                    disabled={dpdTestStatus === 'testing'}
+                  >
+                    {dpdTestStatus === 'testing' ? 'Testing…' : 'Test connection'}
+                  </button>
+                  {dpdTestStatus === 'done' && dpdTestResult && (
+                    <p
+                      className="map-intro"
+                      style={{ marginTop: 8, color: dpdTestResult.connected ? undefined : '#a3402f' }}
+                    >
+                      {dpdTestResult.message}
+                      {dpdTestResult.keyPreview && (
+                        <><br />Key on file: {dpdTestResult.keyPreview}</>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                <div className="ao-repeat-section">
+                  <label className="field-label">Find DPD Local service code</label>
+                  <p className="map-intro">
+                    Looks up which delivery services are actually available for your account,
+                    from your kitchen (ST1 4JR) to a sample delivery postcode — using DPD's own
+                    lookup, not a guessed code.
+                  </p>
+                  <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
+                    <input
+                      className="text-input"
+                      placeholder="Delivery postcode e.g. M1 2AB"
+                      value={dpdLookupPostcode}
+                      onChange={(e) => setDpdLookupPostcode(e.target.value)}
+                    />
+                    <input
+                      className="text-input"
+                      placeholder="Town e.g. Manchester"
+                      value={dpdLookupTown}
+                      onChange={(e) => setDpdLookupTown(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="btn-primary"
+                    onClick={lookupDpdServicesAction}
+                    disabled={
+                      dpdLookupStatus === 'loading' || !dpdLookupPostcode || !dpdLookupTown
+                    }
+                  >
+                    {dpdLookupStatus === 'loading' ? 'Looking up…' : 'Look up'}
+                  </button>
+                  {dpdLookupStatus === 'error' && dpdLookupError && (
+                    <p className="error-text">{dpdLookupError}</p>
+                  )}
+                  {dpdLookupStatus === 'done' && dpdLookupServices.length > 0 && (
+                    <table className="data-table" style={{ marginTop: 12 }}>
+                      <thead>
+                        <tr>
+                          <th>Service</th>
+                          <th>Network Code</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dpdLookupServices.map((s, i) => (
+                          <tr key={i}>
+                            <td>{s.description}</td>
+                            <td>{s.networkCode}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {dpdLookupStatus === 'done' && dpdLookupServices.length === 0 && (
+                    <p className="map-intro" style={{ marginTop: 8 }}>
+                      No services returned for this postcode.
+                    </p>
+                  )}
+                </div>
+              </div>
           </section>
         )}
 
