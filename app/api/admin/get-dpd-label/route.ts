@@ -35,7 +35,14 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  const result = await getShipmentLabels(order.dpd_shipment_id, 'live', 0)
+  // DPD can take a few seconds after shipment creation before the label
+  // becomes available ("Shipment is not found") — retry with a short
+  // wait instead of failing the whole print run on timing.
+  let result = await getShipmentLabels(order.dpd_shipment_id, 'live', 0)
+  for (let attempt = 0; attempt < 3 && !result.success; attempt++) {
+    await new Promise((r) => setTimeout(r, 2500))
+    result = await getShipmentLabels(order.dpd_shipment_id, 'live', 0)
+  }
 
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 500 })

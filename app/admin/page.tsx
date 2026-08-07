@@ -1910,6 +1910,15 @@ export default function AdminDashboard() {
     [printLabelsOrders]
   )
 
+  const outstandingShippingCount = useMemo(
+    () => printLabelsOrders.filter((o) => !isStokeOrder(o) && !o.label_printed_at).length,
+    [printLabelsOrders]
+  )
+  const outstandingStokeCount = useMemo(
+    () => printLabelsOrders.filter((o) => isStokeOrder(o) && !o.label_printed_at).length,
+    [printLabelsOrders]
+  )
+
   const printSingleStokePackingLabel = (o: Order) => {
     printHtmlPages([generatePackingSlipHtml(o)])
     markLabelPrinted(o.id)
@@ -1947,7 +1956,7 @@ export default function AdminDashboard() {
   }
 
   const printAllStokePackingLabels = () => {
-    const stokeOrders = printLabelsOrders.filter(isStokeOrder)
+    const stokeOrders = printLabelsOrders.filter((o) => isStokeOrder(o) && !o.label_printed_at)
     if (!stokeOrders.length) {
       setPrintLabelsError('No Stoke-on-Trent orders in the selected date')
       return
@@ -1958,7 +1967,11 @@ export default function AdminDashboard() {
   }
 
   const printAllShippingLabels = async () => {
-    const shippingOrders = printLabelsOrders.filter((o) => !isStokeOrder(o))
+    // Only orders whose label hasn't been printed yet — already-done ones
+    // keep their ✓ and never get redone (reprint individually if needed).
+    const shippingOrders = printLabelsOrders.filter(
+      (o) => !isStokeOrder(o) && !o.label_printed_at
+    )
     if (!shippingOrders.length) {
       setPrintLabelsError('No non-Stoke orders in the selected date')
       return
@@ -2627,14 +2640,14 @@ export default function AdminDashboard() {
                 >
                   {printLabelsStatus === 'working'
                     ? `Working… ${printLabelsProgress}`
-                    : `🚚 Print ALL Shipping Labels (${printLabelsOrders.length - printLabelsStokeCount})`}
+                    : `🚚 Print outstanding Shipping Labels (${outstandingShippingCount} left of ${printLabelsOrders.length - printLabelsStokeCount})`}
                 </button>
                 <button
                   className="segment-pill"
                   onClick={printAllStokePackingLabels}
                   disabled={printLabelsStatus === 'working'}
                 >
-                  📦 Print ALL Stoke Packing Labels ({printLabelsStokeCount})
+                  📦 Print outstanding Stoke Packing Labels ({outstandingStokeCount} left of {printLabelsStokeCount})
                 </button>
               </div>
               {printLabelsError && (

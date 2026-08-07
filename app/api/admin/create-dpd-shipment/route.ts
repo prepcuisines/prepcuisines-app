@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   const { data: order, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, delivery_day, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id'
+      'id, delivery_day, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id, dpd_consignment_number, menu_windows(delivery_day)'
     )
     .eq('id', orderId)
     .maybeSingle()
@@ -76,16 +76,26 @@ export async function POST(req: NextRequest) {
   }
 
   if (order.dpd_shipment_id) {
-    return NextResponse.json(
-      { error: 'A DPD shipment already exists for this order' },
-      { status: 400 }
-    )
+    // Idempotent: the shipment already exists (a real, billable booking) —
+    // never create a second one, just hand back the existing details so
+    // callers can proceed straight to fetching its label.
+    return NextResponse.json({
+      success: true,
+      alreadyExisted: true,
+      shipmentId: order.dpd_shipment_id,
+      consignmentNumber: order.dpd_consignment_number,
+    })
   }
 
-  const networkCode = getNetworkCodeForDeliveryDay(order.delivery_day || '')
+  // Some orders (older manual entries) have no delivery_day stored —
+  // fall back to the day from their linked menu window.
+  const windowDay = (order as any).menu_windows?.delivery_day || ''
+  const effectiveDay = order.delivery_day || windowDay
+
+  const networkCode = getNetworkCodeForDeliveryDay(effectiveDay || '')
   if (!networkCode) {
     return NextResponse.json(
-      { error: `No confirmed DPD service for delivery day: ${order.delivery_day}` },
+      { error: `No confirmed DPD service for delivery day: ${effectiveDay || 'null'}` },
       { status: 400 }
     )
   }
