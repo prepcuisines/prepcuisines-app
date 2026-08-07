@@ -1712,6 +1712,12 @@ export default function AdminDashboard() {
     [orders, orderSearch]
   )
 
+  // Manual/bulk orders store richer day labels like "Sunday — 09/08/2026";
+  // normalise to the bare day name so they group into the same tally,
+  // cook sheet, and print-labels window as regular orders.
+  const dayNameOf = (d: string | null | undefined) =>
+    (d || 'Unknown').split('—')[0].split('-')[0].trim().split(' ')[0] || 'Unknown'
+
   const orderTally = useMemo(() => {
     const groups = new Map<
       string,
@@ -1722,7 +1728,7 @@ export default function AdminDashboard() {
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
         : null
-      const day = o.delivery_day || 'Unknown'
+      const day = dayNameOf(o.delivery_day)
       const key = `${week}__${day}`
       const existing = groups.get(key)
       if (existing) {
@@ -1748,7 +1754,7 @@ export default function AdminDashboard() {
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
         : null
-      const day = o.delivery_day || 'Unknown'
+      const day = dayNameOf(o.delivery_day)
       const key = `${week}__${day}`
       if (key !== expandedTallyKey) continue
       for (const item of o.items || []) {
@@ -1892,7 +1898,7 @@ export default function AdminDashboard() {
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
         : null
-      const day = o.delivery_day || 'Unknown'
+      const day = dayNameOf(o.delivery_day)
       return `${week}__${day}` === printLabelsWindowKey
     })
   }, [filteredOrders, printLabelsWindowKey])
