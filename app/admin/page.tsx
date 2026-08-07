@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
+import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
 
 type Overview = {
   totalCustomers: number
@@ -3242,6 +3243,18 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 )}
+
+                {expandedTallyKey && cookSheetForKey.length > 0 && (() => {
+                  const t = orderTally.find((x) => x.key === expandedTallyKey)
+                  const label = `${t?.day || ''}${t?.week ? ` (w/c ${t.week})` : ''}`
+                  return (
+                    <CookSheetBreakdown
+                      tally={cookSheetForKey}
+                      dateLabel={label}
+                      dateKey={`${(t?.day || 'day').toLowerCase()}-${(t?.week || '').replace(/\//g, '-')}`}
+                    />
+                  )
+                })()}
               </>
           </section>
         )}
