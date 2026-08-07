@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       payMode, // 'full' or 'subscribe'
       marketingConsent = false,
       deliveryDay,
+      windowId,
       planSize,
       customerEmail,
       userId, // Supabase auth user id — only present for 'subscribe' mode
@@ -153,6 +154,7 @@ export async function POST(req: NextRequest) {
       cancel_url: `${siteUrl}/checkout`,
       metadata: {
         deliveryDay: deliveryDay || '',
+        windowId: windowId || '',
         planSize: String(planSize || ''),
         postcode: normalisedPostcode,
         marketingConsent: String(marketingConsent),

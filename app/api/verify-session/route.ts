@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
 
       const userId = session.metadata.userId
       const deliveryDay = session.metadata.deliveryDay || null
+      const metadataWindowId = session.metadata.windowId || null
       const planSize = session.metadata.planSize ? parseInt(session.metadata.planSize) : null
 
       await supabase
@@ -65,12 +66,13 @@ export async function GET(req: NextRequest) {
         }))
 
         // Find the matching delivery window so this shows up with a real
-        // delivery date, same as any other order. Must only consider
-        // windows whose cutoff hasn't passed yet — otherwise this picks
-        // whichever window for this day happens to sort first, which could
-        // be a long-expired one from weeks ago.
-        let matchedWindowId: string | null = null
-        if (deliveryDay) {
+        // delivery date, same as any other order. Prefer the specific
+        // window the customer actually selected (e.g. via the late-order
+        // page, where the cutoff has deliberately already passed) — only
+        // fall back to "next non-expired window for this day" when no
+        // specific window was passed through at all.
+        let matchedWindowId: string | null = metadataWindowId
+        if (!matchedWindowId && deliveryDay) {
           const { data: window } = await supabase
             .from('menu_windows')
             .select('id')
@@ -149,6 +151,7 @@ export async function GET(req: NextRequest) {
     if (paid && session.metadata?.payMode === 'full') {
       try {
         const deliveryDay = session.metadata?.deliveryDay || null
+        const metadataWindowId = session.metadata?.windowId || null
         const email = session.customer_details?.email || null
         const fullName = session.metadata?.fullName || null
         const phone = session.metadata?.phone || null
@@ -163,8 +166,8 @@ export async function GET(req: NextRequest) {
           qty: li.quantity || 1,
         }))
 
-        let matchedWindowId: string | null = null
-        if (deliveryDay) {
+        let matchedWindowId: string | null = metadataWindowId
+        if (!matchedWindowId && deliveryDay) {
           const { data: window } = await supabase
             .from('menu_windows')
             .select('id')

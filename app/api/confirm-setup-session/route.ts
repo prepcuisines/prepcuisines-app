@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
       breakfastQty = {},
       dessertQty = {},
       deliveryDay,
+      windowId,
       planSize,
       makePermanent,
       makePlanSizePermanent,
@@ -95,8 +96,21 @@ export async function GET(req: NextRequest) {
     // whether the order below succeeds or not.
     await supabase.from('pending_card_setup_orders').delete().eq('session_id', sessionId)
 
+    // An explicit windowId (e.g. from the late-order page) means the
+    // cutoff having already passed is expected and intended — trust that
+    // specific window directly instead of re-deriving and rejecting it.
     let matchedWindowId: string | null = null
-    if (deliveryDay) {
+    if (windowId) {
+      const { data: windowRow } = await supabase
+        .from('menu_windows')
+        .select('id')
+        .eq('id', windowId)
+        .maybeSingle()
+      matchedWindowId = windowRow?.id || null
+      if (!matchedWindowId) {
+        return NextResponse.redirect(`${siteUrl}/order-complete?cutoffPassed=1`)
+      }
+    } else if (deliveryDay) {
       const { data: windowRow } = await supabase
         .from('menu_windows')
         .select('id, cutoff_datetime')

@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       breakfastQty = {},
       dessertQty = {},
       deliveryDay,
+      windowId,
       planSize,
       makePermanent = false,
       makePlanSizePermanent = false,
@@ -70,8 +71,22 @@ export async function POST(req: NextRequest) {
     // Never trust the client on timing — verify server-side that this
     // delivery window's cutoff genuinely hasn't passed yet. Once it has,
     // the order is locked in and can't be changed, no exceptions.
+    // Exception: an explicit windowId means this came through a
+    // deliberate flow (e.g. the late-order page) where the cutoff having
+    // already passed is expected and intended — trust that specific
+    // window directly rather than re-deriving and rejecting it.
     let matchedWindowId: string | null = null
-    if (deliveryDay) {
+    if (windowId) {
+      const { data: window } = await supabase
+        .from('menu_windows')
+        .select('id')
+        .eq('id', windowId)
+        .maybeSingle()
+      matchedWindowId = window?.id || null
+      if (!matchedWindowId) {
+        return NextResponse.json({ error: 'Could not find that delivery window.' }, { status: 400 })
+      }
+    } else if (deliveryDay) {
       const { data: window } = await supabase
         .from('menu_windows')
         .select('id, cutoff_datetime')
