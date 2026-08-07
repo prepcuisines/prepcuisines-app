@@ -273,11 +273,19 @@ export default function AdminDashboard() {
   const [addOrderForm, setAddOrderForm] = useState({
     customerName: '',
     customerEmail: '',
+    phone: '',
+    houseNumber: '',
+    street: '',
     postcode: '',
-    deliveryDay: '',
+    deliveryInstructions: '',
+    windowId: '',
     totalAmount: '',
-    itemsText: '',
   })
+  const [addOrderMenuItems, setAddOrderMenuItems] = useState<
+    { name: string; price: number; category: string }[]
+  >([])
+  const [addOrderQuantities, setAddOrderQuantities] = useState<Record<string, number>>({})
+  const [addOrderMenuLoading, setAddOrderMenuLoading] = useState(false)
   const [addOrderStatus, setAddOrderStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [addOrderError, setAddOrderError] = useState<string | null>(null)
   const [repeatWeekly, setRepeatWeekly] = useState(false)
@@ -480,36 +488,44 @@ export default function AdminDashboard() {
     }
   }
 
+  const loadAddOrderMenuItems = async (windowId: string) => {
+    setAddOrderMenuItems([])
+    setAddOrderQuantities({})
+    if (!windowId) return
+    setAddOrderMenuLoading(true)
+    try {
+      const res = await fetch(`/api/admin/window-menu-items?windowId=${windowId}`, {
+        cache: 'no-store',
+      })
+      const data = await res.json()
+      setAddOrderMenuItems(data.items || [])
+    } catch {
+      setAddOrderMenuItems([])
+    }
+    setAddOrderMenuLoading(false)
+  }
+
   const submitManualOrder = async (e: React.FormEvent) => {
     e.preventDefault()
     setAddOrderStatus('saving')
     setAddOrderError(null)
 
-    // Parses lines like "2x Marry-Me Salmon @ 8.00" into item objects.
-    // Falls back to treating the whole line as a name with qty 1 if the
-    // shorthand isn't used, so it never blocks on formatting.
-    const items = addOrderForm.itemsText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const match = line.match(/^(\d+)\s*x\s*(.+?)(?:\s*@\s*([\d.]+))?$/i)
-        if (match) {
-          return {
-            qty: Number(match[1]),
-            name: match[2].trim(),
-            price: match[3] ? Number(match[3]) : 0,
-          }
-        }
-        return { qty: 1, name: line, price: 0 }
+    const items = Object.entries(addOrderQuantities)
+      .filter(([, qty]) => qty > 0)
+      .map(([name, qty]) => {
+        const menuItem = addOrderMenuItems.find((m) => m.name === name)
+        return { name, qty, price: menuItem?.price || 0 }
       })
 
-    // Turn the picked date (2026-08-31) into a friendly label like
-    // "Monday — 31/08/2026" so it displays the same way as real orders.
-    const deliveryDayLabel = addOrderForm.deliveryDay
-      ? `${new Date(addOrderForm.deliveryDay + 'T00:00:00').toLocaleDateString('en-GB', {
-          weekday: 'long',
-        })} — ${new Date(addOrderForm.deliveryDay + 'T00:00:00').toLocaleDateString('en-GB')}`
+    if (items.length === 0) {
+      setAddOrderError('Pick at least one dish and set its quantity.')
+      setAddOrderStatus('error')
+      return
+    }
+
+    const selectedWindow = emailWindowOptions.find((w) => w.id === addOrderForm.windowId)
+    const deliveryDayLabel = selectedWindow
+      ? `${selectedWindow.delivery_day} — ${new Date(selectedWindow.week_start_date).toLocaleDateString('en-GB')}`
       : ''
 
     const res = await fetch('/api/admin/manual-order', {
@@ -518,7 +534,12 @@ export default function AdminDashboard() {
       body: JSON.stringify({
         customerName: addOrderForm.customerName,
         customerEmail: addOrderForm.customerEmail,
+        phone: addOrderForm.phone,
+        houseNumber: addOrderForm.houseNumber,
+        street: addOrderForm.street,
         postcode: addOrderForm.postcode,
+        deliveryInstructions: addOrderForm.deliveryInstructions,
+        menuWindowId: addOrderForm.windowId,
         deliveryDay: deliveryDayLabel,
         totalAmount: addOrderForm.totalAmount,
         items,
@@ -537,11 +558,16 @@ export default function AdminDashboard() {
     setAddOrderForm({
       customerName: '',
       customerEmail: '',
+      phone: '',
+      houseNumber: '',
+      street: '',
       postcode: '',
-      deliveryDay: '',
+      deliveryInstructions: '',
+      windowId: '',
       totalAmount: '',
-      itemsText: '',
     })
+    setAddOrderMenuItems([])
+    setAddOrderQuantities({})
     loadOrders()
   }
 
@@ -641,20 +667,11 @@ export default function AdminDashboard() {
     setRepeatStatus('saving')
     setRepeatError(null)
 
-    const items = addOrderForm.itemsText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const match = line.match(/^(\d+)\s*x\s*(.+?)(?:\s*@\s*([\d.]+))?$/i)
-        if (match) {
-          return {
-            qty: Number(match[1]),
-            name: match[2].trim(),
-            price: match[3] ? Number(match[3]) : 0,
-          }
-        }
-        return { qty: 1, name: line, price: 0 }
+    const items = Object.entries(addOrderQuantities)
+      .filter(([, qty]) => qty > 0)
+      .map(([name, qty]) => {
+        const menuItem = addOrderMenuItems.find((m) => m.name === name)
+        return { name, qty, price: menuItem?.price || 0 }
       })
 
     try {
@@ -2552,7 +2569,15 @@ export default function AdminDashboard() {
                   Outside Stoke ({printLabelsOrders.length - stokeOrderCount})
                 </button>
               </div>
-              <button className="btn-primary" onClick={() => setShowAddOrder((v) => !v)}>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setShowAddOrder((v) => !v)
+                  if (!showAddOrder && emailWindowOptions.length === 0) {
+                    loadEmailWindowOptions()
+                  }
+                }}
+              >
                 {showAddOrder ? 'Cancel' : '+ Add order manually'}
               </button>
               <button
@@ -2651,6 +2676,41 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
+                    <label className="field-label" htmlFor="ao-phone">
+                      Phone
+                    </label>
+                    <input
+                      id="ao-phone"
+                      className="text-input"
+                      value={addOrderForm.phone}
+                      onChange={(e) => setAddOrderForm((f) => ({ ...f, phone: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="ao-house-number">
+                      House number
+                    </label>
+                    <input
+                      id="ao-house-number"
+                      className="text-input"
+                      value={addOrderForm.houseNumber}
+                      onChange={(e) =>
+                        setAddOrderForm((f) => ({ ...f, houseNumber: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="ao-street">
+                      Street
+                    </label>
+                    <input
+                      id="ao-street"
+                      className="text-input"
+                      value={addOrderForm.street}
+                      onChange={(e) => setAddOrderForm((f) => ({ ...f, street: e.target.value }))}
+                    />
+                  </div>
+                  <div>
                     <label className="field-label" htmlFor="ao-postcode">
                       Postcode
                     </label>
@@ -2664,18 +2724,26 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="field-label" htmlFor="ao-day">
-                      Delivery date
+                    <label className="field-label" htmlFor="ao-window">
+                      Delivery window
                     </label>
-                    <input
-                      id="ao-day"
-                      type="date"
+                    <select
+                      id="ao-window"
                       className="text-input"
-                      value={addOrderForm.deliveryDay}
-                      onChange={(e) =>
-                        setAddOrderForm((f) => ({ ...f, deliveryDay: e.target.value }))
-                      }
-                    />
+                      value={addOrderForm.windowId}
+                      onChange={(e) => {
+                        const windowId = e.target.value
+                        setAddOrderForm((f) => ({ ...f, windowId }))
+                        loadAddOrderMenuItems(windowId)
+                      }}
+                    >
+                      <option value="">Select the actual delivery date…</option>
+                      {emailWindowOptions.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="field-label" htmlFor="ao-total">
@@ -2695,18 +2763,48 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <label className="field-label" htmlFor="ao-items">
-                  Items (one per line — e.g. "2x Marry-Me Salmon @ 8.00")
+                <label className="field-label" htmlFor="ao-delivery-instructions">
+                  Delivery instructions (optional)
                 </label>
-                <textarea
-                  id="ao-items"
-                  className="text-input textarea-input"
-                  rows={4}
-                  value={addOrderForm.itemsText}
+                <input
+                  id="ao-delivery-instructions"
+                  className="text-input"
+                  style={{ marginBottom: 12 }}
+                  value={addOrderForm.deliveryInstructions}
                   onChange={(e) =>
-                    setAddOrderForm((f) => ({ ...f, itemsText: e.target.value }))
+                    setAddOrderForm((f) => ({ ...f, deliveryInstructions: e.target.value }))
                   }
                 />
+
+                <label className="field-label">
+                  Items — pick from the actual menu for this delivery
+                </label>
+                {!addOrderForm.windowId && (
+                  <p className="map-intro">Pick a delivery window above to see its real menu.</p>
+                )}
+                {addOrderMenuLoading && <p className="map-intro">Loading menu…</p>}
+                {addOrderMenuItems.length > 0 && (
+                  <div className="add-order-menu-picker">
+                    {addOrderMenuItems.map((item) => (
+                      <div key={item.name} className="add-order-menu-row">
+                        <span className="add-order-menu-name">{item.name}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          className="text-input add-order-menu-qty"
+                          value={addOrderQuantities[item.name] || ''}
+                          placeholder="0"
+                          onChange={(e) =>
+                            setAddOrderQuantities((q) => ({
+                              ...q,
+                              [item.name]: Number(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {addOrderError && <p className="error-text">{addOrderError}</p>}
 
@@ -5773,6 +5871,35 @@ function Styles() {
         border-radius: 10px;
         padding: 20px;
         margin-bottom: 20px;
+      }
+      .add-order-menu-picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 6px 16px;
+        margin-top: 8px;
+        margin-bottom: 12px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 4px;
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 8px;
+      }
+      .add-order-menu-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+      }
+      .add-order-menu-name {
+        font-size: 13px;
+        color: var(--pc-green, #2d3510);
+      }
+      .add-order-menu-qty {
+        width: 60px;
+        flex-shrink: 0;
+        text-align: center;
       }
       .ao-repeat-section {
         margin-top: 18px;
