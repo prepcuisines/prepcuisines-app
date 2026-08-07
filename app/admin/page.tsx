@@ -1774,14 +1774,6 @@ export default function AdminDashboard() {
 
   const [locationFilter, setLocationFilter] = useState<'all' | 'st' | 'outside'>('all')
 
-  const locationScopedOrders = useMemo(() => {
-    if (locationFilter === 'all') return filteredOrders
-    return filteredOrders.filter((o) => {
-      const isStoke = (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
-      return locationFilter === 'st' ? isStoke : !isStoke
-    })
-  }, [filteredOrders, locationFilter])
-
   const locationBreakdown = useMemo(() => {
     const areas = new Map<string, number>()
     for (const o of filteredOrders) {
@@ -1887,6 +1879,14 @@ export default function AdminDashboard() {
       return `${week}__${day}` === printLabelsWindowKey
     })
   }, [filteredOrders, printLabelsWindowKey])
+
+  const locationScopedOrders = useMemo(() => {
+    if (locationFilter === 'all') return printLabelsOrders
+    return printLabelsOrders.filter((o) => {
+      const isStoke = (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
+      return locationFilter === 'st' ? isStoke : !isStoke
+    })
+  }, [printLabelsOrders, locationFilter])
 
   const printLabelsStokeCount = useMemo(
     () => printLabelsOrders.filter(isStokeOrder).length,
@@ -2004,8 +2004,8 @@ export default function AdminDashboard() {
   }
 
   const stokeOrderCount = useMemo(
-    () => filteredOrders.filter((o) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
-    [filteredOrders]
+    () => printLabelsOrders.filter((o) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
+    [printLabelsOrders]
   )
 
   // DPD only charges for deliveries outside Stoke-on-Trent — those are
@@ -2537,7 +2537,7 @@ export default function AdminDashboard() {
                   className={`segment-pill ${locationFilter === 'all' ? 'segment-pill-active' : ''}`}
                   onClick={() => setLocationFilter('all')}
                 >
-                  All areas ({filteredOrders.length})
+                  All areas ({printLabelsOrders.length})
                 </button>
                 <button
                   className={`segment-pill ${locationFilter === 'st' ? 'segment-pill-active' : ''}`}
@@ -2549,7 +2549,7 @@ export default function AdminDashboard() {
                   className={`segment-pill ${locationFilter === 'outside' ? 'segment-pill-active' : ''}`}
                   onClick={() => setLocationFilter('outside')}
                 >
-                  Outside Stoke ({filteredOrders.length - stokeOrderCount})
+                  Outside Stoke ({printLabelsOrders.length - stokeOrderCount})
                 </button>
               </div>
               <button className="btn-primary" onClick={() => setShowAddOrder((v) => !v)}>
