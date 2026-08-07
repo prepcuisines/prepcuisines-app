@@ -336,8 +336,13 @@ export async function getShipmentLabels(
     const body = await res.json()
 
     if (!res.ok) {
-      const firstError = Array.isArray(body?.error) ? body.error[0] : null
-      return { success: false, error: firstError?.message || `HTTP ${res.status}: ${res.statusText}` }
+      // Surface everything DPD tells us — their docs key diagnosis off
+      // the code/type fields, not just the human message.
+      const detail = typeof body === 'object' ? JSON.stringify(body).slice(0, 500) : ''
+      return {
+        success: false,
+        error: `HTTP ${res.status} — ${detail || res.statusText}`,
+      }
     }
 
     return { success: true, labels: body.data.printString }
