@@ -420,7 +420,11 @@ export async function getOutboundServices(
 // - Wednesday delivery: "Parcel Next Day"
 // - Sunday delivery: "Parcel Sunday" (standard Next Day doesn't run on Sundays)
 export function getNetworkCodeForDeliveryDay(deliveryDay: string): string | null {
-  if (deliveryDay === 'Wednesday') return '2^12'
-  if (deliveryDay === 'Sunday') return '2^75'
+  // Manual/bulk-imported orders store richer labels like
+  // "Sunday — 09/08/2026", so match on the day name being present
+  // rather than exact equality.
+  const day = (deliveryDay || '').toLowerCase()
+  if (day.includes('wednesday')) return '2^12'
+  if (day.includes('sunday')) return '2^75'
   return null
 }
