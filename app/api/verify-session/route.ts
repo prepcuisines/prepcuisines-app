@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
             customer_id: userId,
             menu_window_id: matchedWindowId,
             status: 'signup_order',
+            stripe_session_id: sessionId,
             items: orderItemsSnapshot,
             total_amount: (session.amount_total || 0) / 100,
             delivery_day: deliveryDay,
@@ -150,6 +151,20 @@ export async function GET(req: NextRequest) {
     // email, or this order exists nowhere except inside Stripe itself.
     if (paid && session.metadata?.payMode === 'full') {
       try {
+        // Idempotency: this endpoint runs on every load of the
+        // order-confirmed page, so a refresh/revisit must never log the
+        // same single payment as a second order (real incident: one
+        // charge, two identical order rows 24 minutes apart).
+        const { data: alreadyLogged } = await supabase
+          .from('customer_window_orders')
+          .select('id')
+          .eq('stripe_session_id', sessionId)
+          .maybeSingle()
+
+        if (alreadyLogged) {
+          return NextResponse.json({ paid })
+        }
+
         const deliveryDay = session.metadata?.deliveryDay || null
         const metadataWindowId = session.metadata?.windowId || null
         const email = session.customer_details?.email || null
@@ -192,6 +207,7 @@ export async function GET(req: NextRequest) {
           ship_street: street,
           ship_postcode: postcode,
           ship_email: email,
+          stripe_session_id: sessionId,
         })
 
         if (email) {
