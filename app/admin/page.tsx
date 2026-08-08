@@ -1748,8 +1748,10 @@ export default function AdminDashboard() {
   // Manual/bulk orders store richer day labels like "Sunday — 09/08/2026";
   // normalise to the bare day name so they group into the same tally,
   // cook sheet, and print-labels window as regular orders.
-  const dayNameOf = (d: string | null | undefined) =>
-    (d || 'Unknown').split('—')[0].split('-')[0].trim().split(' ')[0] || 'Unknown'
+  const dayNameOf = (d: string | null | undefined) => {
+    const raw = (d || 'Unknown').split('—')[0].split('-')[0].trim().split(' ')[0] || 'Unknown'
+    return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
+  }
 
   // "wednesday" + window w/c 09/08 → the actual calendar date (Wed 12/08).
   // Finds the first occurrence of the named weekday on/after week_start_date,
