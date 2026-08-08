@@ -1334,6 +1334,38 @@ export default function AdminDashboard() {
     if (tab === 'ops-hub' && !opsHubLoaded) loadOpsHub()
   }, [tab, authenticated])
 
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Topbar refresh — re-fetches the data behind the current tab so a full
+  // page reload is never needed. Always fetches fresh, ignoring the
+  // "already loaded" guards the tab-switch effect uses.
+  const refreshCurrentTab = async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    try {
+      const jobs: Promise<unknown>[] = []
+      if (tab === 'customers') jobs.push(loadCustomers(), loadMarketingLeads())
+      else if (tab === 'orders' || tab === 'cook-sheet')
+        jobs.push(loadOrders(), loadRecurringOrders())
+      else if (tab === 'menu') jobs.push(loadMenu())
+      else if (tab === 'map') jobs.push(loadMapPoints(mapDateFilter || undefined))
+      else if (tab === 'insights')
+        jobs.push(
+          insightsPeriod === 'custom'
+            ? loadInsightsOverview('custom', insightsCustomFrom, insightsCustomTo)
+            : loadInsightsOverview(insightsPeriod),
+          loadCustomers()
+        )
+      else if (tab === 'product-analytics')
+        jobs.push(loadTopDishes(topDishesPeriod), loadDishPairs(), loadProductDashboard())
+      else if (tab === 'ops-hub') jobs.push(loadOpsHub())
+      else jobs.push(loadOrders(), loadCustomers())
+      await Promise.all(jobs)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   const statusBreakdown = useMemo(() => {
     const active = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'active').length
     const cancelled = customers.filter((c) => (c.effectiveStatus ?? c.subscription_status) === 'cancelled').length
@@ -2146,6 +2178,15 @@ export default function AdminDashboard() {
             ☰
           </button>
           <span className="pc-topbar-logo">prepcuisines</span>
+          <button
+            className="pc-topbar-icon-btn pc-topbar-refresh"
+            aria-label="Refresh data"
+            title="Refresh data"
+            onClick={refreshCurrentTab}
+            disabled={refreshing}
+          >
+            <span className={refreshing ? 'pc-refresh-spin' : undefined}>🔄</span>
+          </button>
         </div>
         <form
           className="pc-topbar-search"
@@ -5189,6 +5230,27 @@ function Styles() {
         font-weight: 700;
         font-size: 15px;
         letter-spacing: -0.01em;
+      }
+      .pc-topbar-refresh {
+        font-size: 13px;
+        margin-left: 2px;
+        line-height: 1;
+      }
+      .pc-topbar-refresh:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .pc-refresh-spin {
+        display: inline-block;
+        animation: pc-refresh-spin 0.9s linear infinite;
+      }
+      @keyframes pc-refresh-spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
       }
       .pc-topbar-hamburger {
         display: none;
