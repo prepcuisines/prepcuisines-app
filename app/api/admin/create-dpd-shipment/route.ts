@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const { orderId } = await req.json()
+  const { orderId, forceNew } = await req.json()
   if (!orderId) {
     return NextResponse.json({ error: 'Missing orderId' }, { status: 400 })
   }
@@ -75,10 +75,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Order not found' }, { status: 404 })
   }
 
-  if (order.dpd_shipment_id) {
+  if (order.dpd_shipment_id && !forceNew) {
     // Idempotent: the shipment already exists (a real, billable booking) —
     // never create a second one, just hand back the existing details so
     // callers can proceed straight to fetching its label.
+    // forceNew is the one exception: used when DPD reports the stored
+    // shipment no longer exists (expired/swept), so a fresh one is needed.
     return NextResponse.json({
       success: true,
       alreadyExisted: true,

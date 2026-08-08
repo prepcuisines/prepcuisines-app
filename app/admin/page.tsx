@@ -2057,8 +2057,19 @@ export default function AdminDashboard() {
       }
       shipmentId = data.shipmentId
     }
-    const labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
-    const labelData = await labelRes.json()
+    let labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
+    let labelData = await labelRes.json()
+    if (!labelRes.ok && String(labelData.error || '').toLowerCase().includes('not found')) {
+      const recreate = await fetch('/api/admin/create-dpd-shipment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: o.id, forceNew: true }),
+      })
+      if (recreate.ok) {
+        labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
+        labelData = await labelRes.json()
+      }
+    }
     if (!labelRes.ok || !labelData.labels?.[0]) {
       shell.close()
       setPrintLabelsError(`${o.customer_name}: ${labelData.error || 'Could not fetch label'}`)
@@ -2151,10 +2162,25 @@ export default function AdminDashboard() {
           }
           shipmentId = data.shipmentId
         }
-        const labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, {
+        let labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, {
           cache: 'no-store',
         })
-        const labelData = await labelRes.json()
+        let labelData = await labelRes.json()
+        if (!labelRes.ok && String(labelData.error || '').toLowerCase().includes('not found')) {
+          // Stale shipment id — DPD has swept the old booking. Create a
+          // fresh shipment for this order and retry the label once.
+          const recreate = await fetch('/api/admin/create-dpd-shipment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: o.id, forceNew: true }),
+          })
+          if (recreate.ok) {
+            labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, {
+              cache: 'no-store',
+            })
+            labelData = await labelRes.json()
+          }
+        }
         if (!labelRes.ok || !labelData.labels?.[0]) {
           failures.push(`${o.customer_name}: ${labelData.error || 'Could not fetch label'}`)
           continue
