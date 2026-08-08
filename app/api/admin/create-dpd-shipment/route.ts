@@ -114,21 +114,22 @@ export async function POST(req: NextRequest) {
   // effectively weightless.
   const totalWeight = Math.max(calculatedWeight, 0.5)
 
-  // shipmentDate must be the COLLECTION date DPD expects — the day before
-  // the delivery day — not "whenever print was clicked". Stamping click-time
-  // meant early-printed shipments carried already-passing dates; DPD swept
-  // them once the date lapsed and labels started returning "Shipment is not
-  // found". The window's week_start_date IS the delivery date, so collection
-  // is that minus one day (at 09:00, never a past timestamp).
+  // shipmentDate = the DELIVERY date from the order's window (the window's
+  // week_start_date IS the delivery date in this setup), stamped 09:00.
+  // Not "whenever print was clicked": click-time stamps expired before
+  // collection and DPD swept those shipments ("Shipment is not found").
+  // Not "day before delivery" either: for Sunday deliveries that's a
+  // Saturday, which DPD's shipping calendar rejects ("shipment date is
+  // unavailable") — the Parcel Sunday network's own operating day is the
+  // Sunday itself. Delivery-date stamps are always in DPD's calendar and
+  // can't lapse before collection, which happens on/before that date.
   const windowWeekStart = (order as any).menu_windows?.week_start_date || null
   let shipmentDate = new Date()
   if (windowWeekStart) {
     const deliveryDate = new Date(windowWeekStart)
     if (!Number.isNaN(deliveryDate.getTime())) {
-      const collection = new Date(deliveryDate)
-      collection.setDate(collection.getDate() - 1)
-      collection.setHours(9, 0, 0, 0)
-      if (collection.getTime() > Date.now()) shipmentDate = collection
+      deliveryDate.setHours(9, 0, 0, 0)
+      if (deliveryDate.getTime() > Date.now()) shipmentDate = deliveryDate
     }
   }
 
@@ -160,7 +161,10 @@ export async function POST(req: NextRequest) {
   )
 
   if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: 500 })
+    return NextResponse.json(
+      { error: `${result.error} (tried shipment date ${shipmentDate.toISOString().slice(0, 10)})` },
+      { status: 500 }
+    )
   }
 
   await supabase
