@@ -1753,25 +1753,6 @@ export default function AdminDashboard() {
     return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
   }
 
-  // "wednesday" + window w/c 09/08 → the actual calendar date (Wed 12/08).
-  // Finds the first occurrence of the named weekday on/after week_start_date,
-  // so it stays correct whatever weekday windows start on.
-  const DAY_INDEX: Record<string, number> = {
-    sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
-  }
-  const resolvedDeliveryDate = (o: Order): string | null => {
-    const ws = o.menu_windows?.week_start_date
-    if (!ws) return null
-    const target = DAY_INDEX[dayNameOf(o.delivery_day).toLowerCase()]
-    if (target === undefined) return null
-    const start = new Date(ws)
-    if (Number.isNaN(start.getTime())) return null
-    const d = new Date(start)
-    d.setDate(start.getDate() + ((target - start.getDay() + 7) % 7))
-    return d.toLocaleDateString('en-GB', {
-      weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
-    })
-  }
 
   const orderTally = useMemo(() => {
     const groups = new Map<
@@ -3197,7 +3178,7 @@ export default function AdminDashboard() {
                       <th>Type</th>
                       <th>Items</th>
                       <th>Total</th>
-                      <th>Delivery date</th>
+                      <th>Delivery day</th>
                       <th>Delivery week</th>
                       <th>Postcode</th>
                       <th>Placed</th>
@@ -3240,11 +3221,7 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="num">{money(o.total_amount)}</td>
-                        <td className="nowrap">
-                          {resolvedDeliveryDate(o) || (
-                            <span className="capitalize">{o.delivery_day || '—'}</span>
-                          )}
-                        </td>
+                        <td>{o.delivery_day ? dayNameOf(o.delivery_day) : '—'}</td>
                         <td>
                           {o.menu_windows?.week_start_date
                             ? `w/c ${new Date(o.menu_windows.week_start_date).toLocaleDateString(
