@@ -1941,14 +1941,34 @@ export default function AdminDashboard() {
     </div>`
   }
 
-  const printHtmlPages = (pages: string[]) => {
+  // Pop-ups are only allowed within a few seconds of the user's click, so
+  // for flows with slow DPD calls in the middle we open the window FIRST
+  // (openPrintShell) and write the label pages into it once they're ready
+  // (finishPrintShell). Never mark an order printed unless the window
+  // actually opened.
+  const openPrintShell = (): Window | null => {
     const w = window.open('', '_blank')
-    if (!w) return
+    if (!w) return null
+    w.document.write(
+      '<html><head><style>@media print{@page{margin:10mm;}}</style></head><body><p style="font-family:sans-serif;color:#555">Preparing labels…</p></body></html>'
+    )
+    return w
+  }
+
+  const finishPrintShell = (w: Window, pages: string[]) => {
+    w.document.open()
     w.document.write('<html><head><style>@media print{@page{margin:10mm;}}</style></head><body>')
     pages.forEach((p) => w.document.write(p))
     w.document.write('</body></html>')
     w.document.close()
     w.print()
+  }
+
+  const printHtmlPages = (pages: string[]): boolean => {
+    const w = openPrintShell()
+    if (!w) return false
+    finishPrintShell(w, pages)
+    return true
   }
 
   const markLabelPrinted = async (orderId: string) => {
@@ -2004,7 +2024,10 @@ export default function AdminDashboard() {
   )
 
   const printSingleStokePackingLabel = (o: Order) => {
-    printHtmlPages([generatePackingSlipHtml(o)])
+    if (!printHtmlPages([generatePackingSlipHtml(o)])) {
+      setPrintLabelsError('Pop-up blocked — allow pop-ups for this site, then try again.')
+      return
+    }
     markLabelPrinted(o.id)
     loadOrders()
   }
@@ -2014,6 +2037,11 @@ export default function AdminDashboard() {
   // different box's label.
   const printSingleShippingLabel = async (o: Order) => {
     setPrintLabelsError(null)
+    const shell = openPrintShell()
+    if (!shell) {
+      setPrintLabelsError('Pop-up blocked — allow pop-ups for this site, then try again. Nothing was sent to DPD.')
+      return
+    }
     let shipmentId = o.dpd_shipment_id
     if (!shipmentId) {
       const res = await fetch('/api/admin/create-dpd-shipment', {
@@ -2023,6 +2051,7 @@ export default function AdminDashboard() {
       })
       const data = await res.json()
       if (!res.ok) {
+        shell.close()
         setPrintLabelsError(`${o.customer_name}: ${data.error || 'Failed to create shipment'}`)
         return
       }
@@ -2031,10 +2060,11 @@ export default function AdminDashboard() {
     const labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
     const labelData = await labelRes.json()
     if (!labelRes.ok || !labelData.labels?.[0]) {
+      shell.close()
       setPrintLabelsError(`${o.customer_name}: ${labelData.error || 'Could not fetch label'}`)
       return
     }
-    printHtmlPages([generatePackingSlipHtml(o), labelData.labels[0]])
+    finishPrintShell(shell, [generatePackingSlipHtml(o), labelData.labels[0]])
     markLabelPrinted(o.id)
     loadOrders()
   }
@@ -2045,7 +2075,10 @@ export default function AdminDashboard() {
       setPrintLabelsError('No Stoke-on-Trent orders in the selected date')
       return
     }
-    printHtmlPages(stokeOrders.map(generatePackingSlipHtml))
+    if (!printHtmlPages(stokeOrders.map(generatePackingSlipHtml))) {
+      setPrintLabelsError('Pop-up blocked — allow pop-ups for this site, then try again.')
+      return
+    }
     stokeOrders.forEach((o) => markLabelPrinted(o.id))
     loadOrders()
   }
@@ -2077,6 +2110,11 @@ export default function AdminDashboard() {
     )
     if (!shippingOrders.length) {
       setPrintLabelsError('No non-Stoke orders in the selected date')
+      return
+    }
+    const shell = openPrintShell()
+    if (!shell) {
+      setPrintLabelsError('Pop-up blocked — allow pop-ups for this site, then try again. Nothing was sent to DPD.')
       return
     }
     setPrintLabelsStatus('working')
@@ -2124,9 +2162,11 @@ export default function AdminDashboard() {
     setPrintLabelsProgress('')
 
     if (labelPages.length > 0) {
-      printHtmlPages(labelPages)
+      finishPrintShell(shell, labelPages)
+      await Promise.all(printedOrderIds.map(markLabelPrinted))
+    } else {
+      shell.close()
     }
-    await Promise.all(printedOrderIds.map(markLabelPrinted))
     loadOrders()
 
     if (failures.length > 0) {
