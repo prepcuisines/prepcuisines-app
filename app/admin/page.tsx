@@ -2065,9 +2065,14 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: o.id, forceNew: true }),
       })
+      const recreateData = await recreate.json().catch(() => ({}))
       if (recreate.ok) {
         labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
         labelData = await labelRes.json()
+      } else {
+        labelData = {
+          error: `${labelData.error} — auto-recreate also failed: ${recreateData.error || `HTTP ${recreate.status}`}`,
+        }
       }
     }
     if (!labelRes.ok || !labelData.labels?.[0]) {
@@ -2174,11 +2179,16 @@ export default function AdminDashboard() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ orderId: o.id, forceNew: true }),
           })
+          const recreateData = await recreate.json().catch(() => ({}))
           if (recreate.ok) {
             labelRes = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, {
               cache: 'no-store',
             })
             labelData = await labelRes.json()
+          } else {
+            labelData = {
+              error: `${labelData.error} — auto-recreate also failed: ${recreateData.error || `HTTP ${recreate.status}`}`,
+            }
           }
         }
         if (!labelRes.ok || !labelData.labels?.[0]) {
