@@ -1749,7 +1749,7 @@ export default function AdminDashboard() {
 
   const cookSheetForKey = useMemo(() => {
     if (!expandedTallyKey) return []
-    const dishTotals = new Map<string, number>()
+    const dishTotals = new Map<string, { qty: number; stokeQty: number; outQty: number }>()
     for (const o of filteredOrders) {
       if (o.cancelled) continue
       const week = o.menu_windows?.week_start_date
@@ -1758,13 +1758,18 @@ export default function AdminDashboard() {
       const day = dayNameOf(o.delivery_day)
       const key = `${week}__${day}`
       if (key !== expandedTallyKey) continue
+      const stoke = (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
       for (const item of o.items || []) {
         if (!item.name || item.name === 'Delivery') continue
-        dishTotals.set(item.name, (dishTotals.get(item.name) || 0) + (item.qty || 0))
+        const entry = dishTotals.get(item.name) || { qty: 0, stokeQty: 0, outQty: 0 }
+        entry.qty += item.qty || 0
+        if (stoke) entry.stokeQty += item.qty || 0
+        else entry.outQty += item.qty || 0
+        dishTotals.set(item.name, entry)
       }
     }
     return Array.from(dishTotals.entries())
-      .map(([name, qty]) => ({ name, qty }))
+      .map(([name, v]) => ({ name, qty: v.qty, stokeQty: v.stokeQty, outQty: v.outQty }))
       .sort((a, b) => b.qty - a.qty)
   }, [expandedTallyKey, filteredOrders])
 
@@ -1774,8 +1779,18 @@ export default function AdminDashboard() {
     const tally = orderTally.find((t) => t.key === expandedTallyKey)
     const title = `Cook sheet — ${tally?.day || ''}${tally?.week ? ` (w/c ${tally.week})` : ''}`
     const totalItems = cookSheetForKey.reduce((s, d) => s + d.qty, 0)
-    const lines = cookSheetForKey.map((d) => `${d.qty}x  ${d.name}`)
-    return [title, '', ...lines, '', `Total items: ${totalItems}`].join('\n')
+    const totalStoke = cookSheetForKey.reduce((s, d) => s + d.stokeQty, 0)
+    const totalOut = cookSheetForKey.reduce((s, d) => s + d.outQty, 0)
+    const lines = cookSheetForKey.map(
+      (d) => `${d.qty}x  ${d.name}  (Stoke ${d.stokeQty} / Nationwide ${d.outQty})`
+    )
+    return [
+      title,
+      '',
+      ...lines,
+      '',
+      `Total items: ${totalItems} (Stoke ${totalStoke} / Nationwide ${totalOut})`,
+    ].join('\n')
   }
 
   const copyCookSheet = () => {
@@ -1972,6 +1987,25 @@ export default function AdminDashboard() {
     printHtmlPages(stokeOrders.map(generatePackingSlipHtml))
     stokeOrders.forEach((o) => markLabelPrinted(o.id))
     loadOrders()
+  }
+
+  // Batch packing slips for one region, slips ONLY: no DPD shipment is
+  // created and label_printed_at is left untouched, so the outstanding
+  // shipping/packing-label counters above are unaffected. Safe to re-run.
+  const printPackingSlipsForRegion = (region: 'stoke' | 'nationwide') => {
+    const regionOrders = printLabelsOrders
+      .filter((o) => (region === 'stoke' ? isStokeOrder(o) : !isStokeOrder(o)))
+      .sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''))
+    if (!regionOrders.length) {
+      setPrintLabelsError(
+        region === 'stoke'
+          ? 'No Stoke-on-Trent orders in the selected date'
+          : 'No nationwide orders in the selected date'
+      )
+      return
+    }
+    setPrintLabelsError(null)
+    printHtmlPages(regionOrders.map(generatePackingSlipHtml))
   }
 
   const printAllShippingLabels = async () => {
@@ -2658,6 +2692,27 @@ export default function AdminDashboard() {
                   📦 Print outstanding Stoke Packing Labels ({outstandingStokeCount} left of {printLabelsStokeCount})
                 </button>
               </div>
+              <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
+                <button
+                  className="segment-pill"
+                  onClick={() => printPackingSlipsForRegion('stoke')}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  🧾 Print Packing Slips — Stoke ({printLabelsStokeCount})
+                </button>
+                <button
+                  className="segment-pill"
+                  onClick={() => printPackingSlipsForRegion('nationwide')}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  🧾 Print Packing Slips — Nationwide ({printLabelsOrders.length - printLabelsStokeCount})
+                </button>
+              </div>
+              <p className="map-intro" style={{ marginTop: 6, marginBottom: 0 }}>
+                Slips print for every order in the selected date for that area, sorted by customer
+                name. Slips only — no DPD shipments are created and the outstanding counts above
+                aren&apos;t affected, so it&apos;s safe to re-run for reprints.
+              </p>
               {printLabelsError && (
                 <p className="error-text" style={{ marginTop: 8 }}>
                   {printLabelsError}
@@ -3241,6 +3296,10 @@ export default function AdminDashboard() {
                             <li key={d.name} className={i % 2 === 1 ? 'cook-sheet-row-alt' : ''}>
                               <span className="cook-sheet-qty">{d.qty}×</span>
                               <span className="cook-sheet-name">{d.name}</span>
+                              <span className="cook-sheet-split">
+                                <span className="cook-sheet-split-stoke">ST {d.stokeQty}</span>
+                                <span className="cook-sheet-split-nat">Nat {d.outQty}</span>
+                              </span>
                             </li>
                           ))}
                         </ul>
@@ -3248,6 +3307,10 @@ export default function AdminDashboard() {
                           <span>Total items</span>
                           <span className="cook-sheet-total-qty">
                             {cookSheetForKey.reduce((s, d) => s + d.qty, 0)}
+                            <span className="cook-sheet-total-split">
+                              {' '}(Stoke {cookSheetForKey.reduce((s, d) => s + d.stokeQty, 0)} ·
+                              Nationwide {cookSheetForKey.reduce((s, d) => s + d.outQty, 0)})
+                            </span>
                           </span>
                         </div>
                       </>
@@ -6297,6 +6360,34 @@ function Styles() {
       }
       .cook-sheet-name {
         flex: 1;
+      }
+      .cook-sheet-split {
+        display: inline-flex;
+        gap: 6px;
+        margin-left: 10px;
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .cook-sheet-split-stoke {
+        color: var(--pc-green, #2d3510);
+        background: var(--pc-cream, #f5f2ec);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 999px;
+        padding: 1px 7px;
+      }
+      .cook-sheet-split-nat {
+        color: var(--pc-gold-dark, #9a7c45);
+        background: var(--pc-cream, #f5f2ec);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 999px;
+        padding: 1px 7px;
+      }
+      .cook-sheet-total-split {
+        font-weight: 400;
+        font-size: 12px;
+        color: var(--pc-green-mid, #3a4516);
       }
       .cook-sheet-total-row {
         display: flex;
