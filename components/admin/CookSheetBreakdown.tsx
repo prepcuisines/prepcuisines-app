@@ -31,6 +31,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
   const [includeBreakfast, setIncludeBreakfast] = useState(true)
   const [includeDesserts, setIncludeDesserts] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   const sheet = useMemo(
     () =>
@@ -74,7 +75,21 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
     <>
       <div className="insights-block">
         <div className="insights-block-header">
-          <h2 className="insights-block-title">Ingredients &amp; shopping — {dateLabel}</h2>
+          <button
+            type="button"
+            className="cook-sheet-collapse-toggle"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            <h2 className="insights-block-title" style={{ margin: 0 }}>
+              {expanded ? '\u25be' : '\u25b8'} Ingredients &amp; shopping — {dateLabel}
+            </h2>
+            {!expanded && (
+              <span className="cook-sheet-collapse-meta">
+                {sheet.totalPortions} portions to cook · {sheet.dishes.length} dishes
+              </span>
+            )}
+          </button>
+          {expanded && (
           <div className="cook-sheet-actions">
             <button className="segment-pill" onClick={copyFullSheet}>
               Copy full sheet
@@ -89,8 +104,11 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
               Print station labels
             </button>
           </div>
+          )}
         </div>
 
+        {expanded && (
+          <>
         <p className="map-intro">
           Scales each dish&apos;s recipe by the number of portions you&apos;re cooking, then rolls
           everything up into shopping lists and label counts. Weights are raw unless marked cooked.
@@ -147,9 +165,11 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
             <code>lib/cook-sheet/recipes.ts</code> and redeploy.
           </div>
         )}
+          </>
+        )}
       </div>
 
-      {sheet.dishes.map((dish) => (
+      {expanded && sheet.dishes.map((dish) => (
         <div className="insights-block" key={dish.recipe.name}>
           <div className="insights-block-header">
             <h3 className="ops-subtitle" style={{ margin: 0 }}>
@@ -203,7 +223,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
         </div>
       ))}
 
-      {sheet.shopping.map((section) => (
+      {expanded && sheet.shopping.map((section) => (
         <div className="insights-block" key={section.key}>
           <h3 className="ops-subtitle" style={{ marginTop: 0 }}>
             {section.title}
@@ -232,6 +252,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
         </div>
       ))}
 
+      {expanded && (
       <div className="insights-block">
         <h3 className="ops-subtitle" style={{ marginTop: 0 }}>
           Labels
@@ -285,6 +306,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
           </table>
         </div>
       </div>
+      )}
     </>
   )
 }
