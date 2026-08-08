@@ -1806,6 +1806,7 @@ export default function AdminDashboard() {
   }, [expandedTallyKey, filteredOrders])
 
   const [cookSheetRegion, setCookSheetRegion] = useState<'all' | 'stoke' | 'nationwide'>('all')
+  const [showCookSheetList, setShowCookSheetList] = useState(false)
 
   // The cook sheet the user is actually looking at: 'all' shows totals with
   // the ST/Nat split, a region shows that region's quantities only.
@@ -3317,14 +3318,24 @@ export default function AdminDashboard() {
                 {expandedTallyKey && (
                   <div className="cook-sheet-panel">
                     <div className="cook-sheet-header-row">
-                      <div className="cook-sheet-title">
-                        Cook sheet — {orderTally.find((t) => t.key === expandedTallyKey)?.day}
-                        {orderTally.find((t) => t.key === expandedTallyKey)?.week
-                          ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
-                          : ''}
-                        {cookSheetRegionLabel ? ` — ${cookSheetRegionLabel}` : ''}
-                      </div>
-                      {cookSheetForKey.length > 0 && (
+                      <button
+                        type="button"
+                        className="cook-sheet-collapse-toggle"
+                        onClick={() => setShowCookSheetList((v) => !v)}
+                      >
+                        <span className="cook-sheet-title">
+                          {showCookSheetList ? '▾' : '▸'} Cook sheet —{' '}
+                          {orderTally.find((t) => t.key === expandedTallyKey)?.day}
+                          {orderTally.find((t) => t.key === expandedTallyKey)?.week
+                            ? ` (w/c ${orderTally.find((t) => t.key === expandedTallyKey)?.week})`
+                            : ''}
+                          {cookSheetRegionLabel ? ` — ${cookSheetRegionLabel}` : ''}
+                        </span>
+                        <span className="cook-sheet-collapse-meta">
+                          {cookSheetDisplay.reduce((s, d) => s + d.qty, 0)} items
+                        </span>
+                      </button>
+                      {showCookSheetList && cookSheetForKey.length > 0 && (
                         <div className="cook-sheet-actions">
                           <button
                             className={`segment-pill ${cookSheetRegion === 'all' ? 'segment-pill-active' : ''}`}
@@ -3353,42 +3364,43 @@ export default function AdminDashboard() {
                         </div>
                       )}
                     </div>
-                    {cookSheetDisplay.length === 0 ? (
-                      <p className="cook-sheet-empty">
-                        {cookSheetForKey.length === 0
-                          ? 'No item data for this window.'
-                          : `No ${cookSheetRegion === 'stoke' ? 'Stoke-on-Trent' : 'nationwide'} items for this window.`}
-                      </p>
-                    ) : (
-                      <>
-                        <ul className="cook-sheet-list">
-                          {cookSheetDisplay.map((d, i) => (
-                            <li key={d.name} className={i % 2 === 1 ? 'cook-sheet-row-alt' : ''}>
-                              <span className="cook-sheet-qty">{d.qty}×</span>
-                              <span className="cook-sheet-name">{d.name}</span>
+                    {showCookSheetList &&
+                      (cookSheetDisplay.length === 0 ? (
+                        <p className="cook-sheet-empty">
+                          {cookSheetForKey.length === 0
+                            ? 'No item data for this window.'
+                            : `No ${cookSheetRegion === 'stoke' ? 'Stoke-on-Trent' : 'nationwide'} items for this window.`}
+                        </p>
+                      ) : (
+                        <>
+                          <ul className="cook-sheet-list">
+                            {cookSheetDisplay.map((d, i) => (
+                              <li key={d.name} className={i % 2 === 1 ? 'cook-sheet-row-alt' : ''}>
+                                <span className="cook-sheet-qty">{d.qty}×</span>
+                                <span className="cook-sheet-name">{d.name}</span>
+                                {cookSheetRegion === 'all' && (
+                                  <span className="cook-sheet-split">
+                                    <span className="cook-sheet-split-stoke">ST {d.stokeQty}</span>
+                                    <span className="cook-sheet-split-nat">Nat {d.outQty}</span>
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="cook-sheet-total-row">
+                            <span>Total items</span>
+                            <span className="cook-sheet-total-qty">
+                              {cookSheetDisplay.reduce((s, d) => s + d.qty, 0)}
                               {cookSheetRegion === 'all' && (
-                                <span className="cook-sheet-split">
-                                  <span className="cook-sheet-split-stoke">ST {d.stokeQty}</span>
-                                  <span className="cook-sheet-split-nat">Nat {d.outQty}</span>
+                                <span className="cook-sheet-total-split">
+                                  {' '}(Stoke {cookSheetForKey.reduce((s, d) => s + d.stokeQty, 0)} ·
+                                  Nationwide {cookSheetForKey.reduce((s, d) => s + d.outQty, 0)})
                                 </span>
                               )}
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="cook-sheet-total-row">
-                          <span>Total items</span>
-                          <span className="cook-sheet-total-qty">
-                            {cookSheetDisplay.reduce((s, d) => s + d.qty, 0)}
-                            {cookSheetRegion === 'all' && (
-                              <span className="cook-sheet-total-split">
-                                {' '}(Stoke {cookSheetForKey.reduce((s, d) => s + d.stokeQty, 0)} ·
-                                Nationwide {cookSheetForKey.reduce((s, d) => s + d.outQty, 0)})
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                      </>
-                    )}
+                            </span>
+                          </div>
+                        </>
+                      ))}
                   </div>
                 )}
 
@@ -6439,6 +6451,22 @@ function Styles() {
         font-weight: 900;
         font-size: 17px;
         color: var(--pc-green, #2d3510);
+      }
+      .cook-sheet-collapse-toggle {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-align: left;
+      }
+      .cook-sheet-collapse-meta {
+        font-size: 12px;
+        color: var(--pc-green-mid, #3a4516);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
       }
       .cook-sheet-header-row {
         display: flex;
