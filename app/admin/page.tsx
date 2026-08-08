@@ -2072,7 +2072,12 @@ export default function AdminDashboard() {
   const printAllStokePackingLabels = () => {
     const stokeOrders = printLabelsOrders.filter((o) => isStokeOrder(o) && !o.label_printed_at)
     if (!stokeOrders.length) {
-      setPrintLabelsError('No Stoke-on-Trent orders in the selected date')
+      const totalStoke = printLabelsOrders.filter(isStokeOrder).length
+      setPrintLabelsError(
+        totalStoke > 0
+          ? `All ${totalStoke} Stoke packing labels in the selected date are already marked as printed. Reprint individually from the table, or reset their printed status if they never actually came out.`
+          : 'No Stoke-on-Trent orders in the selected date'
+      )
       return
     }
     if (!printHtmlPages(stokeOrders.map(generatePackingSlipHtml))) {
@@ -2109,7 +2114,12 @@ export default function AdminDashboard() {
       (o) => !isStokeOrder(o) && !o.label_printed_at
     )
     if (!shippingOrders.length) {
-      setPrintLabelsError('No non-Stoke orders in the selected date')
+      const totalNonStoke = printLabelsOrders.filter((o) => !isStokeOrder(o)).length
+      setPrintLabelsError(
+        totalNonStoke > 0
+          ? `All ${totalNonStoke} non-Stoke labels in the selected date are already marked as printed. Reprint individually from the table, or reset their printed status if they never actually came out.`
+          : 'No non-Stoke orders in the selected date'
+      )
       return
     }
     const shell = openPrintShell()
