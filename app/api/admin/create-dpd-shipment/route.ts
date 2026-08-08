@@ -114,24 +114,12 @@ export async function POST(req: NextRequest) {
   // effectively weightless.
   const totalWeight = Math.max(calculatedWeight, 0.5)
 
-  // shipmentDate = the DELIVERY date from the order's window (the window's
-  // week_start_date IS the delivery date in this setup), stamped 09:00.
-  // Not "whenever print was clicked": click-time stamps expired before
-  // collection and DPD swept those shipments ("Shipment is not found").
-  // Not "day before delivery" either: for Sunday deliveries that's a
-  // Saturday, which DPD's shipping calendar rejects ("shipment date is
-  // unavailable") — the Parcel Sunday network's own operating day is the
-  // Sunday itself. Delivery-date stamps are always in DPD's calendar and
-  // can't lapse before collection, which happens on/before that date.
-  const windowWeekStart = (order as any).menu_windows?.week_start_date || null
-  let shipmentDate = new Date()
-  if (windowWeekStart) {
-    const deliveryDate = new Date(windowWeekStart)
-    if (!Number.isNaN(deliveryDate.getTime())) {
-      deliveryDate.setHours(9, 0, 0, 0)
-      if (deliveryDate.getTime() > Date.now()) shipmentDate = deliveryDate
-    }
-  }
+  // Per DPD depot guidance: shipments/labels are only valid for 24 HOURS
+  // from creation and must be redone if older. So the correct stamp is
+  // simply "now", and labels must be printed on collection day (day-of),
+  // never days in advance. Early-hours same-day creates (~3am) can be
+  // rejected as "date unavailable"; daytime same-day is the working path.
+  const shipmentDate = new Date()
 
   const result = await createDomesticShipment(
     {
