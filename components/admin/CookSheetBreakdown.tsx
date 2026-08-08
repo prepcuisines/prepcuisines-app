@@ -75,21 +75,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
     <>
       <div className="insights-block">
         <div className="insights-block-header">
-          <button
-            type="button"
-            className="cook-sheet-collapse-toggle"
-            onClick={() => setExpanded((v) => !v)}
-          >
-            <h2 className="insights-block-title" style={{ margin: 0 }}>
-              {expanded ? '\u25be' : '\u25b8'} Ingredients &amp; shopping — {dateLabel}
-            </h2>
-            {!expanded && (
-              <span className="cook-sheet-collapse-meta">
-                {sheet.totalPortions} portions to cook · {sheet.dishes.length} dishes
-              </span>
-            )}
-          </button>
-          {expanded && (
+          <h2 className="insights-block-title">Ingredients &amp; shopping — {dateLabel}</h2>
           <div className="cook-sheet-actions">
             <button className="segment-pill" onClick={copyFullSheet}>
               Copy full sheet
@@ -104,11 +90,8 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
               Print station labels
             </button>
           </div>
-          )}
         </div>
 
-        {expanded && (
-          <>
         <p className="map-intro">
           Scales each dish&apos;s recipe by the number of portions you&apos;re cooking, then rolls
           everything up into shopping lists and label counts. Weights are raw unless marked cooked.
@@ -165,8 +148,15 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
             <code>lib/cook-sheet/recipes.ts</code> and redeploy.
           </div>
         )}
-          </>
-        )}
+
+        <button
+          type="button"
+          className="date-filter-toggle"
+          style={{ marginTop: 4 }}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? '\u25be' : '\u25b8'} Recipes, shopping lists &amp; labels
+        </button>
       </div>
 
       {expanded && sheet.dishes.map((dish) => (

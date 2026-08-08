@@ -1806,7 +1806,7 @@ export default function AdminDashboard() {
   }, [expandedTallyKey, filteredOrders])
 
   const [cookSheetRegion, setCookSheetRegion] = useState<'all' | 'stoke' | 'nationwide'>('all')
-  const [showCookSheetList, setShowCookSheetList] = useState(false)
+  const [showCookSheetList, setShowCookSheetList] = useState(true)
 
   // The cook sheet the user is actually looking at: 'all' shows totals with
   // the ST/Nat split, a region shows that region's quantities only.
