@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   const { data: order, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, delivery_day, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id, dpd_consignment_number, menu_windows(delivery_day)'
+      'id, delivery_day, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id, dpd_consignment_number, menu_windows(delivery_day, week_start_date)'
     )
     .eq('id', orderId)
     .maybeSingle()
@@ -114,9 +114,27 @@ export async function POST(req: NextRequest) {
   // effectively weightless.
   const totalWeight = Math.max(calculatedWeight, 0.5)
 
+  // shipmentDate must be the COLLECTION date DPD expects — the day before
+  // the delivery day — not "whenever print was clicked". Stamping click-time
+  // meant early-printed shipments carried already-passing dates; DPD swept
+  // them once the date lapsed and labels started returning "Shipment is not
+  // found". The window's week_start_date IS the delivery date, so collection
+  // is that minus one day (at 09:00, never a past timestamp).
+  const windowWeekStart = (order as any).menu_windows?.week_start_date || null
+  let shipmentDate = new Date()
+  if (windowWeekStart) {
+    const deliveryDate = new Date(windowWeekStart)
+    if (!Number.isNaN(deliveryDate.getTime())) {
+      const collection = new Date(deliveryDate)
+      collection.setDate(collection.getDate() - 1)
+      collection.setHours(9, 0, 0, 0)
+      if (collection.getTime() > Date.now()) shipmentDate = collection
+    }
+  }
+
   const result = await createDomesticShipment(
     {
-      shipmentDate: new Date().toISOString(),
+      shipmentDate: shipmentDate.toISOString(),
       numberOfParcels: 1,
       totalWeight,
       networkCode,
