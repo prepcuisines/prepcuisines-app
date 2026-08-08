@@ -3249,43 +3249,8 @@ export default function AdminDashboard() {
 
         {tab === 'cook-sheet' && (
           <section>
-            <h2 className="section-title">Delivery Cost, Area Breakdown & Cook Sheet</h2>
+            <h2 className="section-title">Cook Sheet, Delivery Cost & Area Breakdown</h2>
               <>
-                <div className="location-summary">
-                  <div className="dpd-card">
-                    <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
-                    <div className="dpd-value">{money(dpdEstimate)}</div>
-                    <div className="dpd-meta">
-                      {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
-                    </div>
-                  </div>
-                </div>
-
-                {locationBreakdown.length > 0 && (
-                  <div className="area-map">
-                    <button
-                      type="button"
-                      className="area-map-toggle"
-                      onClick={() => setShowAreaMap((v) => !v)}
-                    >
-                      <span className="area-map-title">Orders by area</span>
-                      <span className="area-map-meta">
-                        {locationBreakdown.length} areas {showAreaMap ? '▴' : '▾'}
-                      </span>
-                    </button>
-                    {showAreaMap &&
-                      locationBreakdown.map((a) => (
-                        <div key={a.area} className="area-row">
-                          <span className="area-name">{a.area}</span>
-                          <div className="area-bar-track">
-                            <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
-                          </div>
-                          <span className="area-count">{a.count}</span>
-                        </div>
-                      ))}
-                  </div>
-                )}
-
                 {orderTally.length > 0 && (
                   <div className="tally-row">
                     {orderTally.map((t) => (
@@ -3307,6 +3272,18 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
+
+                {expandedTallyKey && cookSheetForKey.length > 0 && (() => {
+                  const t = orderTally.find((x) => x.key === expandedTallyKey)
+                  const label = `${t?.day || ''}${t?.week ? ` (w/c ${t.week})` : ''}`
+                  return (
+                    <CookSheetBreakdown
+                      tally={cookSheetForKey}
+                      dateLabel={label}
+                      dateKey={`${(t?.day || 'day').toLowerCase()}-${(t?.week || '').replace(/\//g, '-')}`}
+                    />
+                  )
+                })()}
 
                 {expandedTallyKey && (
                   <div className="cook-sheet-panel">
@@ -3359,17 +3336,40 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {expandedTallyKey && cookSheetForKey.length > 0 && (() => {
-                  const t = orderTally.find((x) => x.key === expandedTallyKey)
-                  const label = `${t?.day || ''}${t?.week ? ` (w/c ${t.week})` : ''}`
-                  return (
-                    <CookSheetBreakdown
-                      tally={cookSheetForKey}
-                      dateLabel={label}
-                      dateKey={`${(t?.day || 'day').toLowerCase()}-${(t?.week || '').replace(/\//g, '-')}`}
-                    />
-                  )
-                })()}
+                <div className="location-summary">
+                  <div className="dpd-card">
+                    <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
+                    <div className="dpd-value">{money(dpdEstimate)}</div>
+                    <div className="dpd-meta">
+                      {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
+                    </div>
+                  </div>
+                </div>
+
+                {locationBreakdown.length > 0 && (
+                  <div className="area-map">
+                    <button
+                      type="button"
+                      className="area-map-toggle"
+                      onClick={() => setShowAreaMap((v) => !v)}
+                    >
+                      <span className="area-map-title">Orders by area</span>
+                      <span className="area-map-meta">
+                        {locationBreakdown.length} areas {showAreaMap ? '▴' : '▾'}
+                      </span>
+                    </button>
+                    {showAreaMap &&
+                      locationBreakdown.map((a) => (
+                        <div key={a.area} className="area-row">
+                          <span className="area-name">{a.area}</span>
+                          <div className="area-bar-track">
+                            <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+                          </div>
+                          <span className="area-count">{a.count}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </>
           </section>
         )}
