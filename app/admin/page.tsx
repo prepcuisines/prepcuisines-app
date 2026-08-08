@@ -1797,6 +1797,7 @@ export default function AdminDashboard() {
   }
 
   const [locationFilter, setLocationFilter] = useState<'all' | 'st' | 'outside'>('all')
+  const [showAreaMap, setShowAreaMap] = useState(false)
 
   const locationBreakdown = useMemo(() => {
     const areas = new Map<string, number>()
@@ -3166,16 +3167,26 @@ export default function AdminDashboard() {
 
                 {locationBreakdown.length > 0 && (
                   <div className="area-map">
-                    <div className="area-map-title">Orders by area</div>
-                    {locationBreakdown.map((a) => (
-                      <div key={a.area} className="area-row">
-                        <span className="area-name">{a.area}</span>
-                        <div className="area-bar-track">
-                          <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+                    <button
+                      type="button"
+                      className="area-map-toggle"
+                      onClick={() => setShowAreaMap((v) => !v)}
+                    >
+                      <span className="area-map-title">Orders by area</span>
+                      <span className="area-map-meta">
+                        {locationBreakdown.length} areas {showAreaMap ? '▴' : '▾'}
+                      </span>
+                    </button>
+                    {showAreaMap &&
+                      locationBreakdown.map((a) => (
+                        <div key={a.area} className="area-row">
+                          <span className="area-name">{a.area}</span>
+                          <div className="area-bar-track">
+                            <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+                          </div>
+                          <span className="area-count">{a.count}</span>
                         </div>
-                        <span className="area-count">{a.count}</span>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 )}
 
@@ -5508,12 +5519,29 @@ function Styles() {
         padding: 16px 20px;
         margin-bottom: 20px;
       }
+      .area-map-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-align: left;
+      }
+      .area-map-toggle:has(+ .area-row) {
+        margin-bottom: 12px;
+      }
       .area-map-title {
         font-family: var(--font-playfair), serif;
         font-weight: 900;
         font-size: 15px;
         color: var(--pc-green, #2d3510);
-        margin-bottom: 12px;
+      }
+      .area-map-meta {
+        font-size: 12px;
+        color: var(--pc-green-mid, #3a4516);
       }
       .area-row {
         display: grid;
