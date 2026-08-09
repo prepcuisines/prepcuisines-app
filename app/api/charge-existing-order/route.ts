@@ -160,11 +160,18 @@ export async function POST(req: NextRequest) {
 
     const totalAmount = Math.round((foodTotal + deliveryFee) * 100)
 
-    const orderItemsSnapshot = items.map((item) => ({
-      name: item.name,
-      price: item.price,
-      qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
-    }))
+    // Snapshot must reflect what was actually charged: discounted unit
+    // prices plus an explicit Delivery line. Storing full menu prices with
+    // no delivery item made correct charges look wrong in the admin (and
+    // broke the edit page's discount inference).
+    const orderItemsSnapshot = [
+      ...items.map((item) => ({
+        name: item.name,
+        price: Math.round(item.price * discountRate * 100) / 100,
+        qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
+      })),
+      { name: 'Delivery', price: deliveryFee, qty: 1 },
+    ]
 
     let paymentIntent: Stripe.PaymentIntent
     try {
