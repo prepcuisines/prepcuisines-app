@@ -2035,6 +2035,7 @@ export default function AdminDashboard() {
   const [stokeEmailsCopied, setStokeEmailsCopied] = useState(false)
   const [stokeTemplateCopied, setStokeTemplateCopied] = useState(false)
   const [stokeRouteLinksCopied, setStokeRouteLinksCopied] = useState(false)
+  const [stokeNavApp, setStokeNavApp] = useState<'google' | 'apple' | 'waze'>('google')
   const stokeRouteMapRef = useRef<HTMLDivElement>(null)
   const stokeRouteMapInstance = useRef<any>(null)
 
@@ -2260,16 +2261,28 @@ Bukr / prepcuisines`
     } catch {}
   }
 
+  const stokeNavUrl = (app: 'google' | 'apple' | 'waze', lat: number, lon: number) =>
+    app === 'google'
+      ? `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(6)},${lon.toFixed(6)}`
+      : app === 'apple'
+        ? `https://maps.apple.com/?daddr=${lat.toFixed(6)},${lon.toFixed(6)}&dirflg=d`
+        : `https://waze.com/ul?ll=${lat.toFixed(6)},${lon.toFixed(6)}&navigate=yes`
+
   const copyStokeRouteLinks = async () => {
+    const appName =
+      stokeNavApp === 'google' ? 'Google Maps' : stokeNavApp === 'apple' ? 'Apple Maps' : 'Waze'
     const lines = [
-      `prepcuisines Stoke run — ${stokeDeliveryDayLabel} (${stokeRouteStops.length} stops, ~${stokeRouteKm.toFixed(1)} km)`,
+      `prepcuisines Stoke run — ${stokeDeliveryDayLabel} (${stokeRouteStops.length} stops, ~${stokeRouteKm.toFixed(1)} km — ${appName})`,
+      'Start: Kitchen — 102A Sun Street, ST1 4JR',
       '',
-      ...stokeRouteLegs.map((l) => `${l.label}: ${l.url}`),
-      '',
+      ...(stokeNavApp === 'google' ? [...stokeRouteLegs.map((l) => `${l.label}: ${l.url}`), ''] : []),
       ...stokeRouteStops.map(
         (st, i) =>
-          `${i + 1}. ${st.name}${st.orderCount > 1 ? ` ×${st.orderCount}` : ''} — ${st.address}, ${st.postcode}`
+          `${i + 1}. ${st.name}${st.orderCount > 1 ? ` ×${st.orderCount}` : ''} — ${st.address}, ${st.postcode}` +
+          (stokeNavApp === 'google' ? '' : `\n${stokeNavUrl(stokeNavApp, st.lat, st.lon)}`)
       ),
+      '',
+      'End: back to Kitchen — 102A Sun Street',
     ]
     try {
       await navigator.clipboard.writeText(lines.join('\n'))
@@ -3914,21 +3927,44 @@ Bukr / prepcuisines`
                         <>
                           <div ref={stokeRouteMapRef} className="stoke-route-map" />
                           <div className="pc-modal-inline-row">
-                            {stokeRouteLegs.map((leg) => (
-                              <a
-                                key={leg.label}
-                                className="segment-pill"
-                                href={leg.url}
-                                target="_blank"
-                                rel="noreferrer"
+                            {(['google', 'apple', 'waze'] as const).map((app) => (
+                              <button
+                                key={app}
+                                className={`segment-pill ${stokeNavApp === app ? 'segment-pill-active' : ''}`}
+                                onClick={() => setStokeNavApp(app)}
                               >
-                                🗺 {leg.label} in Google Maps
-                              </a>
+                                {app === 'google'
+                                  ? 'Google Maps'
+                                  : app === 'apple'
+                                    ? 'Apple Maps'
+                                    : 'Waze'}
+                              </button>
                             ))}
                             <button className="segment-pill" onClick={copyStokeRouteLinks}>
                               {stokeRouteLinksCopied ? 'Copied!' : '🔗 Copy route to share'}
                             </button>
                           </div>
+                          {stokeNavApp === 'google' ? (
+                            <div className="pc-modal-inline-row">
+                              {stokeRouteLegs.map((leg) => (
+                                <a
+                                  key={leg.label}
+                                  className="segment-pill"
+                                  href={leg.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  🗺 {leg.label} in Google Maps
+                                </a>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="map-intro">
+                              {stokeNavApp === 'apple' ? 'Apple Maps' : 'Waze'} takes one stop per
+                              link — tap Go on each stop as you drive, or Copy route to share and
+                              tap down the list from your messages.
+                            </p>
+                          )}
                         </>
                       )}
                       <ul className="stoke-route-list">
@@ -3979,6 +4015,17 @@ Bukr / prepcuisines`
                                     Last
                                   </button>
                                 </span>
+                                {stokeRouteStops.length > 0 && (
+                                  <a
+                                    className="stoke-route-go"
+                                    href={stokeNavUrl(stokeNavApp, st.lat, st.lon)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Go ▸
+                                  </a>
+                                )}
                               </label>
                             </li>
                           )
@@ -7102,6 +7149,17 @@ function Styles() {
         background: var(--pc-green, #2d3510);
         color: #fff;
         border-color: var(--pc-green, #2d3510);
+      }
+      .stoke-route-go {
+        margin-left: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 1px 10px;
+        border-radius: 999px;
+        background: var(--pc-gold-dark, #9a7c45);
+        color: #fff;
+        text-decoration: none;
+        white-space: nowrap;
       }
       .stoke-route-template {
         margin-top: 16px;
