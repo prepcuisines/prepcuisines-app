@@ -2482,6 +2482,83 @@ Bukr / prepcuisines`
     printHtmlPages(regionOrders.map(generatePackingSlipHtml))
   }
 
+  // ── Bulk order selection & actions ───────────────────────────────
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([])
+  const [bulkStatus, setBulkStatus] = useState<'idle' | 'working'>('idle')
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null)
+
+  const toggleOrderSelected = (id: string) =>
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+
+  const selectedOrders = useMemo(
+    () => filteredOrders.filter((o) => selectedOrderIds.includes(o.id)),
+    [filteredOrders, selectedOrderIds]
+  )
+
+  // Same endpoint the single-order view uses, run across the selection.
+  const bulkPatch = async (action: string, payload: any, label: string) => {
+    if (!selectedOrders.length || bulkStatus === 'working') return
+    setBulkStatus('working')
+    setBulkMessage(null)
+    let ok = 0
+    const failed: string[] = []
+    for (const o of selectedOrders) {
+      try {
+        const res = await fetch('/api/admin/order-detail', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: o.id, action, payload }),
+        })
+        if (res.ok) ok++
+        else failed.push(o.customer_name || o.id)
+      } catch {
+        failed.push(o.customer_name || o.id)
+      }
+    }
+    setBulkStatus('idle')
+    setBulkMessage(
+      `${label}: ${ok} done${failed.length ? ` — failed for ${failed.join(', ')}` : ''}`
+    )
+    loadOrders()
+  }
+
+  const bulkSendEmail = async (emailType: 'confirmation' | 'fulfilled') => {
+    if (!selectedOrders.length || bulkStatus === 'working') return
+    setBulkStatus('working')
+    setBulkMessage(null)
+    let ok = 0
+    const failed: string[] = []
+    for (const o of selectedOrders) {
+      try {
+        const res = await fetch('/api/admin/send-order-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: o.id, emailType }),
+        })
+        if (res.ok) ok++
+        else failed.push(o.customer_name || o.id)
+      } catch {
+        failed.push(o.customer_name || o.id)
+      }
+    }
+    setBulkStatus('idle')
+    setBulkMessage(
+      `${emailType === 'confirmation' ? 'Confirmation' : 'Fulfilled'} emails: ${ok} sent${failed.length ? ` — failed for ${failed.join(', ')}` : ''}`
+    )
+  }
+
+  const bulkPrintPackingSlips = () => {
+    if (!selectedOrders.length) return
+    const sorted = [...selectedOrders].sort((a, b) =>
+      (a.customer_name || '').localeCompare(b.customer_name || '')
+    )
+    if (!printHtmlPages(sorted.map(generatePackingSlipHtml))) {
+      setBulkMessage('Pop-up blocked — allow pop-ups for this site, then try again.')
+    }
+  }
+
   const printAllShippingLabels = async () => {
     // Only orders whose label hasn't been printed yet — already-done ones
     // keep their ✓ and never get redone (reprint individually if needed).
@@ -3629,6 +3706,21 @@ Bukr / prepcuisines`
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          aria-label="Select all orders shown"
+                          checked={
+                            locationScopedOrders.length > 0 &&
+                            locationScopedOrders.every((o) => selectedOrderIds.includes(o.id))
+                          }
+                          onChange={(e) =>
+                            setSelectedOrderIds(
+                              e.target.checked ? locationScopedOrders.map((o) => o.id) : []
+                            )
+                          }
+                        />
+                      </th>
                       <th>Customer</th>
                       <th>Type</th>
                       <th>Items</th>
@@ -3643,7 +3735,15 @@ Bukr / prepcuisines`
                   </thead>
                   <tbody>
                     {locationScopedOrders.map((o) => (
-                      <tr key={o.id}>
+                      <tr key={o.id} className={selectedOrderIds.includes(o.id) ? 'row-selected' : ''}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`Select order for ${o.customer_name || 'customer'}`}
+                            checked={selectedOrderIds.includes(o.id)}
+                            onChange={() => toggleOrderSelected(o.id)}
+                          />
+                        </td>
                         <td>
                           <div className="customer-name">{o.customer_name}</div>
                           {o.customer_email && (
@@ -3726,6 +3826,78 @@ Bukr / prepcuisines`
                     ))}
                   </tbody>
                 </table>
+
+                {selectedOrderIds.length > 0 && (
+                  <div className="pc-bulk-bar">
+                    <span className="pc-bulk-count">
+                      {selectedOrderIds.length} selected
+                    </span>
+                    <button
+                      className="btn-primary"
+                      disabled={bulkStatus === 'working'}
+                      onClick={() => bulkPatch('set_fulfilled', { value: true }, 'Marked fulfilled')}
+                    >
+                      ✓ Mark fulfilled
+                    </button>
+                    <button
+                      className="segment-pill"
+                      disabled={bulkStatus === 'working'}
+                      onClick={() =>
+                        bulkPatch('set_fulfilled', { value: false }, 'Marked unfulfilled')
+                      }
+                    >
+                      Mark unfulfilled
+                    </button>
+                    <button
+                      className="segment-pill"
+                      disabled={bulkStatus === 'working'}
+                      onClick={bulkPrintPackingSlips}
+                    >
+                      🧾 Print packing slips
+                    </button>
+                    <button
+                      className="segment-pill"
+                      disabled={bulkStatus === 'working'}
+                      onClick={() => bulkSendEmail('confirmation')}
+                    >
+                      ✉ Confirmation email
+                    </button>
+                    <button
+                      className="segment-pill"
+                      disabled={bulkStatus === 'working'}
+                      onClick={() => bulkSendEmail('fulfilled')}
+                    >
+                      ✉ Fulfilled email
+                    </button>
+                    <button
+                      className="segment-pill"
+                      disabled={bulkStatus === 'working'}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Cancel ${selectedOrderIds.length} selected order${selectedOrderIds.length === 1 ? '' : 's'}? They stay on record but drop out of cook sheets and labels.`
+                          )
+                        )
+                          bulkPatch('set_cancelled', { value: true }, 'Cancelled')
+                      }}
+                    >
+                      Cancel orders
+                    </button>
+                    <button
+                      className="segment-pill"
+                      onClick={() => {
+                        setSelectedOrderIds([])
+                        setBulkMessage(null)
+                      }}
+                    >
+                      Clear
+                    </button>
+                    {bulkStatus === 'working' && (
+                      <span className="pc-bulk-count">Working…</span>
+                    )}
+                    {bulkMessage && <span className="pc-bulk-msg">{bulkMessage}</span>}
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -7235,6 +7407,34 @@ function Styles() {
       .pc-error-text {
         color: #a33;
         font-size: 13px;
+      }
+      .pc-bulk-bar {
+        position: sticky;
+        bottom: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        background: #fff;
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 14px;
+        padding: 10px 14px;
+        margin-top: 12px;
+        box-shadow: 0 6px 24px rgba(45, 53, 16, 0.14);
+        z-index: 20;
+      }
+      .pc-bulk-count {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--pc-green, #2d3510);
+        margin-right: 4px;
+      }
+      .pc-bulk-msg {
+        font-size: 12.5px;
+        color: var(--pc-green-mid, #3a4516);
+      }
+      tr.row-selected td {
+        background: var(--pc-cream, #f5f2ec);
       }
       .cook-sheet-header-row {
         display: flex;
