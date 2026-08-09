@@ -2030,6 +2030,8 @@ export default function AdminDashboard() {
   const [stokeRouteError, setStokeRouteError] = useState<string | null>(null)
   const [stokeRouteStops, setStokeRouteStops] = useState<StokeRouteStop[]>([])
   const [stokeRouteExcluded, setStokeRouteExcluded] = useState<string[]>([])
+  const [stokeRouteFirsts, setStokeRouteFirsts] = useState<string[]>([])
+  const [stokeRouteLasts, setStokeRouteLasts] = useState<string[]>([])
   const [stokeEmailsCopied, setStokeEmailsCopied] = useState(false)
   const [stokeTemplateCopied, setStokeTemplateCopied] = useState(false)
   const stokeRouteMapRef = useRef<HTMLDivElement>(null)
@@ -2066,12 +2068,30 @@ export default function AdminDashboard() {
     return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name))
   }, [printLabelsOrders])
 
-  const optimiseStokeRoute = (stops: StokeRouteStop[]): StokeRouteStop[] => {
-    if (stops.length <= 2) return stops
-    // Nearest neighbour from the kitchen, then 2-opt until no improvement.
+  const toggleStokePin = (key: string, slot: 'first' | 'last') => {
+    if (slot === 'first') {
+      setStokeRouteFirsts((prev) =>
+        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      )
+      setStokeRouteLasts((prev) => prev.filter((k) => k !== key))
+    } else {
+      setStokeRouteLasts((prev) =>
+        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      )
+      setStokeRouteFirsts((prev) => prev.filter((k) => k !== key))
+    }
+  }
+
+  const optimiseStokeRoute = (
+    stops: StokeRouteStop[],
+    startPt: { lat: number; lon: number } = STOKE_HQ,
+    endPt: { lat: number; lon: number } = STOKE_HQ
+  ): StokeRouteStop[] => {
+    if (stops.length <= 1) return stops
+    // Nearest neighbour from the start anchor, then 2-opt until no improvement.
     const remaining = [...stops]
     const ordered: StokeRouteStop[] = []
-    let cur: { lat: number; lon: number } = STOKE_HQ
+    let cur: { lat: number; lon: number } = startPt
     while (remaining.length) {
       let bi = 0
       let bd = Infinity
@@ -2086,7 +2106,7 @@ export default function AdminDashboard() {
       ordered.push(nxt)
       cur = nxt
     }
-    const pts: { lat: number; lon: number }[] = [STOKE_HQ, ...ordered, STOKE_HQ]
+    const pts: { lat: number; lon: number }[] = [startPt, ...ordered, endPt]
     let improved = true
     let guard = 0
     while (improved && guard++ < 80) {
@@ -2140,7 +2160,16 @@ export default function AdminDashboard() {
         .filter((st) => coords.has(st.postcode))
         .map((st) => ({ ...st, ...coords.get(st.postcode)! }))
       const missing = stops.filter((st) => !coords.has(st.postcode))
-      setStokeRouteStops(optimiseStokeRoute(located))
+      const byKey = new Map(located.map((st) => [st.key, st]))
+      const firsts = stokeRouteFirsts
+        .map((k) => byKey.get(k))
+        .filter(Boolean) as StokeRouteStop[]
+      const lasts = stokeRouteLasts.map((k) => byKey.get(k)).filter(Boolean) as StokeRouteStop[]
+      const pinnedKeys = new Set([...stokeRouteFirsts, ...stokeRouteLasts])
+      const middle = located.filter((st) => !pinnedKeys.has(st.key))
+      const startPt = firsts.length ? firsts[firsts.length - 1] : STOKE_HQ
+      const endPt = lasts.length ? lasts[0] : STOKE_HQ
+      setStokeRouteStops([...firsts, ...optimiseStokeRoute(middle, startPt, endPt), ...lasts])
       setStokeRouteStatus('ready')
       if (missing.length)
         setStokeRouteError(
@@ -3823,7 +3852,7 @@ Bukr / prepcuisines`
                       onClick={() => setShowStokeRoute((v) => !v)}
                     >
                       <span className="cook-sheet-title">
-                        {showStokeRoute ? '\u25be' : '\u25b8'} \ud83d\ude90 Stoke route planner
+                        {showStokeRoute ? '\u25be' : '\u25b8'} 🚐 Stoke route planner
                       </span>
                       <span className="cook-sheet-collapse-meta">
                         {stokeRouteBaseStops.length} stops
@@ -3834,8 +3863,9 @@ Bukr / prepcuisines`
                     <>
                       <p className="map-intro">
                         Uses the Delivery date selected in Print Labels above. Untick any test or
-                        non-delivery entries, then build — the order below is the optimised drive
-                        from the kitchen and back.
+                        non-delivery entries. Pin drops with 1st / Last — pinned stops keep the
+                        order you pin them in, and everything in between is optimised. Then hit
+                        Build; the numbers below are your drive order, kitchen to kitchen.
                       </p>
                       <div className="pc-modal-inline-row">
                         <button
@@ -3856,7 +3886,7 @@ Bukr / prepcuisines`
                         </button>
                         {stokeRouteStops.length > 0 && (
                           <span className="cook-sheet-collapse-meta">
-                            ~{stokeRouteKm.toFixed(1)} km round trip \u00b7 {stokeRouteStops.length} stops
+                            ~{stokeRouteKm.toFixed(1)} km round trip · {stokeRouteStops.length} stops
                           </span>
                         )}
                       </div>
@@ -3873,7 +3903,7 @@ Bukr / prepcuisines`
                                 target="_blank"
                                 rel="noreferrer"
                               >
-                                \ud83d\uddfa {leg.label} in Google Maps
+                                🗺 {leg.label} in Google Maps
                               </a>
                             ))}
                           </div>
@@ -3903,7 +3933,29 @@ Bukr / prepcuisines`
                                   {st.orderCount > 1 ? ` \u00d7${st.orderCount} boxes` : ''}
                                 </span>
                                 <span className="stoke-route-addr">
-                                  {st.address} \u00b7 {st.postcode}
+                                  {st.address} · {st.postcode}
+                                </span>
+                                <span className="stoke-route-pin-btns">
+                                  <button
+                                    type="button"
+                                    className={`stoke-route-pin-btn ${stokeRouteFirsts.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      toggleStokePin(st.key, 'first')
+                                    }}
+                                  >
+                                    1st
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`stoke-route-pin-btn ${stokeRouteLasts.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      toggleStokePin(st.key, 'last')
+                                    }}
+                                  >
+                                    Last
+                                  </button>
                                 </span>
                               </label>
                             </li>
@@ -3911,7 +3963,7 @@ Bukr / prepcuisines`
                         )}
                       </ul>
                       {stokeRouteStops.length > 0 && stokeRouteExcluded.length > 0 && (
-                        <p className="map-intro">Ticks changed \u2014 hit Rebuild route to re-optimise.</p>
+                        <p className="map-intro">Ticks changed — hit Rebuild route to re-optimise.</p>
                       )}
                       <div className="stoke-route-template">
                         <div className="cook-sheet-header-row">
@@ -7009,6 +7061,25 @@ function Styles() {
       .stoke-route-addr {
         color: var(--pc-green-mid, #3a4516);
         font-size: 12.5px;
+      }
+      .stoke-route-pin-btns {
+        margin-left: auto;
+        display: inline-flex;
+        gap: 4px;
+      }
+      .stoke-route-pin-btn {
+        font-size: 11px;
+        padding: 1px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        background: #fff;
+        color: var(--pc-green-mid, #3a4516);
+        cursor: pointer;
+      }
+      .stoke-route-pin-btn-active {
+        background: var(--pc-green, #2d3510);
+        color: #fff;
+        border-color: var(--pc-green, #2d3510);
       }
       .stoke-route-template {
         margin-top: 16px;
