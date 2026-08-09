@@ -17,7 +17,9 @@ type Order = {
   total_amount: number | null
   delivery_day: string | null
   created_at: string
-  menu_windows: { week_start_date: string } | null
+  menu_windows: { week_start_date: string; cutoff_datetime: string | null } | null
+  fulfilled?: boolean
+  cancelled?: boolean
   delivery_instructions: string | null
 }
 
@@ -46,7 +48,7 @@ export default function OrderHistoryPage() {
 
       const { data: rows } = await supabase
         .from('customer_window_orders')
-        .select('id, status, items, total_amount, delivery_day, created_at, delivery_instructions, menu_windows(week_start_date)')
+        .select('id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, menu_windows(week_start_date, cutoff_datetime)')
         .eq('customer_id', data.user.id)
         .order('created_at', { ascending: false })
 
@@ -128,6 +130,14 @@ export default function OrderHistoryPage() {
                             })}
                         {order.delivery_day ? ` (${order.delivery_day})` : ''}
                       </div>
+                      {!order.fulfilled &&
+                        !order.cancelled &&
+                        order.menu_windows?.cutoff_datetime &&
+                        new Date(order.menu_windows.cutoff_datetime).getTime() > Date.now() && (
+                          <a className="pc-order-edit-link" href={`/edit-order?id=${order.id}`}>
+                            Edit order →
+                          </a>
+                        )}
                       <div className={`pc-order-history-status ${order.status}`}>
                         {statusLabels[order.status] || order.status}
                       </div>
