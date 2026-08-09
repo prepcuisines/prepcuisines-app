@@ -53,6 +53,9 @@ export default function ChangePlanPage() {
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [primaryDay, setPrimaryDay] = useState<string | null>(null)
+  const [secondDay, setSecondDay] = useState<string | null>(null)
+  const [secondPlanSize, setSecondPlanSize] = useState<number>(4)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -70,7 +73,7 @@ export default function ChangePlanPage() {
         supabase
           .from('customer_profiles')
           .select(
-            'standing_plan_size, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert'
+            'standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert'
           )
           .eq('id', data.user.id)
           .single(),
@@ -78,6 +81,12 @@ export default function ChangePlanPage() {
       ])
 
       if (profile?.standing_plan_size) setPlanSize(profile.standing_plan_size)
+      setPrimaryDay(profile?.standing_delivery_day || null)
+      setSecondDay(
+        profile?.deliveries_per_week === 2 ? profile?.second_delivery_day || null : null
+      )
+      if (profile?.second_plan_size) setSecondPlanSize(profile.second_plan_size)
+      else if (profile?.standing_plan_size) setSecondPlanSize(profile.standing_plan_size)
       if (profile?.standing_breakfast_qty) setBreakfastQty(profile.standing_breakfast_qty)
       if (profile?.standing_dessert_qty) setDessertQty(profile.standing_dessert_qty)
       setSkipBreakfast(!!profile?.standing_skip_breakfast)
@@ -102,6 +111,7 @@ export default function ChangePlanPage() {
       .from('customer_profiles')
       .update({
         standing_plan_size: planSize,
+        second_plan_size: secondDay ? secondPlanSize : null,
         standing_breakfast_qty: skipBreakfast ? {} : breakfastQty,
         standing_dessert_qty: skipDessert ? {} : dessertQty,
         standing_skip_breakfast: skipBreakfast,
@@ -163,7 +173,9 @@ export default function ChangePlanPage() {
             </p>
           </div>
 
-          <div className="pc-mp-plans-label">Meals</div>
+          <div className="pc-mp-plans-label">
+            {secondDay ? `Meals — ${primaryDay || 'first delivery'}` : 'Meals'}
+          </div>
           <div className="pc-mp-plans-grid">
             {PLAN_SIZES.map((size) => (
               <div
@@ -176,6 +188,30 @@ export default function ChangePlanPage() {
               </div>
             ))}
           </div>
+
+          {secondDay && (
+            <>
+              <div className="pc-mp-plans-label" style={{ marginTop: 28 }}>
+                Meals — {secondDay}
+              </div>
+              <div className="pc-mp-plans-grid">
+                {PLAN_SIZES.map((size) => (
+                  <div
+                    key={size}
+                    className={`pc-mp-plan-card ${secondPlanSize === size ? 'selected' : ''}`}
+                    onClick={() => setSecondPlanSize(size)}
+                  >
+                    <div className="pc-mp-meals-count">{size}</div>
+                    <div className="pc-mp-meals-label">Meals</div>
+                  </div>
+                ))}
+              </div>
+              <p className="pc-mp-subtitle" style={{ marginTop: 10 }}>
+                You get two deliveries a week, so you can set a different number of meals
+                for each one.
+              </p>
+            </>
+          )}
 
           {breakfasts.length > 0 && (
             <div style={{ marginTop: 40 }}>

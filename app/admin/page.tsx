@@ -31,6 +31,7 @@ type Customer = {
   avgDaysBetweenOrders?: number | null
   orders_completed: number | null
   standing_plan_size: number | null
+  second_plan_size: number | null
   standing_delivery_day: string | null
   second_delivery_day: string | null
   deliveries_per_week: number | null
@@ -268,6 +269,8 @@ export default function AdminDashboard() {
     'Sunday'
   )
   const [editDeliveryPerWeek, setEditDeliveryPerWeek] = useState<1 | 2>(1)
+  const [editDeliveryStandingSize, setEditDeliveryStandingSize] = useState<number>(4)
+  const [editDeliverySecondSize, setEditDeliverySecondSize] = useState<number>(4)
   const [editDeliveryStatus, setEditDeliveryStatus] = useState<
     'idle' | 'saving' | 'done' | 'error'
   >('idle')
@@ -1007,6 +1010,8 @@ export default function AdminDashboard() {
     setEditDeliveryCustomer({ id: customer.id, name: customer.full_name || 'this customer' })
     setEditDeliveryPrimaryDay((customer.standing_delivery_day as 'Sunday' | 'Wednesday') || 'Sunday')
     setEditDeliveryPerWeek((customer.deliveries_per_week as 1 | 2) || 1)
+    setEditDeliveryStandingSize(customer.standing_plan_size || 4)
+    setEditDeliverySecondSize(customer.second_plan_size || customer.standing_plan_size || 4)
     setEditDeliveryStatus('idle')
     setEditDeliveryError(null)
   }
@@ -1023,6 +1028,8 @@ export default function AdminDashboard() {
           customerId: editDeliveryCustomer.id,
           primaryDay: editDeliveryPrimaryDay,
           deliveriesPerWeek: editDeliveryPerWeek,
+          standingPlanSize: editDeliveryStandingSize,
+          secondPlanSize: editDeliverySecondSize,
         }),
       })
       const data = await res.json()
@@ -3048,7 +3055,7 @@ Bukr / prepcuisines`
                         <td>
                           {c.second_delivery_day ? (
                             <span title="Twice a week">
-                              2x/week: {c.standing_delivery_day || '—'}, {c.second_delivery_day}
+                              2x/week: {c.standing_delivery_day || '—'} ×{c.standing_plan_size || '?'}, {c.second_delivery_day} ×{c.second_plan_size || c.standing_plan_size || '?'}
                             </span>
                           ) : c.standing_delivery_day ? (
                             <span title="Once a week">1x/week: {c.standing_delivery_day}</span>
@@ -5421,6 +5428,42 @@ Bukr / prepcuisines`
                   <p className="map-intro" style={{ marginTop: 8 }}>
                     They'll be set up for both Sunday and Wednesday.
                   </p>
+                )}
+              </div>
+              <div className="pc-modal-section">
+                <label className="field-label">
+                  {editDeliveryPerWeek === 2
+                    ? `Meals on ${editDeliveryPrimaryDay}`
+                    : 'Meals per delivery'}
+                </label>
+                <div className="pc-modal-inline-row">
+                  {[4, 6, 8, 10, 12, 14, 16].map((n) => (
+                    <button
+                      key={n}
+                      className={`segment-pill ${editDeliveryStandingSize === n ? 'segment-pill-active' : ''}`}
+                      onClick={() => setEditDeliveryStandingSize(n)}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                {editDeliveryPerWeek === 2 && (
+                  <>
+                    <label className="field-label" style={{ marginTop: 12 }}>
+                      Meals on {editDeliveryPrimaryDay === 'Sunday' ? 'Wednesday' : 'Sunday'}
+                    </label>
+                    <div className="pc-modal-inline-row">
+                      {[4, 6, 8, 10, 12, 14, 16].map((n) => (
+                        <button
+                          key={n}
+                          className={`segment-pill ${editDeliverySecondSize === n ? 'segment-pill-active' : ''}`}
+                          onClick={() => setEditDeliverySecondSize(n)}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
               <div className="pc-modal-section">

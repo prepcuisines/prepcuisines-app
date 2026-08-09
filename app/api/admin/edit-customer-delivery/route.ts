@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const { customerId, primaryDay, deliveriesPerWeek } = await req.json()
+  const { customerId, primaryDay, deliveriesPerWeek, standingPlanSize, secondPlanSize } = await req.json()
 
   if (!customerId || !primaryDay || !['Sunday', 'Wednesday'].includes(primaryDay)) {
     return NextResponse.json({ error: 'Missing or invalid customerId/primaryDay' }, {
@@ -32,13 +32,24 @@ export async function POST(req: NextRequest) {
   const secondDay =
     deliveriesPerWeek === 2 ? (primaryDay === 'Sunday' ? 'Wednesday' : 'Sunday') : null
 
+  const update: Record<string, unknown> = {
+    standing_delivery_day: primaryDay,
+    deliveries_per_week: deliveriesPerWeek,
+    second_delivery_day: secondDay,
+  }
+  if (Number.isInteger(standingPlanSize) && standingPlanSize > 0)
+    update.standing_plan_size = standingPlanSize
+  // Second size only means anything for 2x/week; clear it when dropping to 1x.
+  if (deliveriesPerWeek === 2) {
+    if (Number.isInteger(secondPlanSize) && secondPlanSize > 0)
+      update.second_plan_size = secondPlanSize
+  } else {
+    update.second_plan_size = null
+  }
+
   const { error } = await supabase
     .from('customer_profiles')
-    .update({
-      standing_delivery_day: primaryDay,
-      deliveries_per_week: deliveriesPerWeek,
-      second_delivery_day: secondDay,
-    })
+    .update(update)
     .eq('id', customerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

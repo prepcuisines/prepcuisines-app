@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const { data: customers, error } = await supabase
     .from('customer_profiles')
     .select(
-      'id, full_name, email, phone, house_number, street, postcode, subscription_status, orders_completed, standing_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, created_at, marketing_consent'
+      'id, full_name, email, phone, house_number, street, postcode, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, created_at, marketing_consent'
     )
     .gte('created_at', LAUNCH_CUTOFF)
     .order('created_at', { ascending: false })

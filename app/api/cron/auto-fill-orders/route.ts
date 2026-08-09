@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       const { data: subscribers } = await supabase
         .from('customer_profiles')
         .select(
-          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status'
+          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status'
         )
         .eq('subscription_status', 'active')
         .or(`standing_delivery_day.eq.${window.delivery_day},second_delivery_day.eq.${window.delivery_day}`)
@@ -95,7 +95,18 @@ export async function POST(req: NextRequest) {
           continue
         }
 
-        const planSize = sub.standing_plan_size || 4
+        // Per-day plan size: a 2x/week customer can have a different plan
+        // for each delivery day (e.g. Sunday x10, Wednesday x4). If this
+        // window is their SECOND day and a second size is set, use it —
+        // otherwise fall back to the standing size.
+        const isSecondDay =
+          (sub.second_delivery_day || '').toLowerCase() ===
+            (window.delivery_day || '').toLowerCase() &&
+          (sub.standing_delivery_day || '').toLowerCase() !==
+            (window.delivery_day || '').toLowerCase()
+        const planSize =
+          (isSecondDay ? sub.second_plan_size || sub.standing_plan_size : sub.standing_plan_size) ||
+          4
 
         const { data: windowItems } = await supabase
           .from('menu_window_items')
