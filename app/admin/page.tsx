@@ -2034,6 +2034,7 @@ export default function AdminDashboard() {
   const [stokeRouteLasts, setStokeRouteLasts] = useState<string[]>([])
   const [stokeEmailsCopied, setStokeEmailsCopied] = useState(false)
   const [stokeTemplateCopied, setStokeTemplateCopied] = useState(false)
+  const [stokeRouteLinksCopied, setStokeRouteLinksCopied] = useState(false)
   const stokeRouteMapRef = useRef<HTMLDivElement>(null)
   const stokeRouteMapInstance = useRef<any>(null)
 
@@ -2256,6 +2257,24 @@ Bukr / prepcuisines`
       await navigator.clipboard.writeText(stokeEmailTemplate)
       setStokeTemplateCopied(true)
       setTimeout(() => setStokeTemplateCopied(false), 2000)
+    } catch {}
+  }
+
+  const copyStokeRouteLinks = async () => {
+    const lines = [
+      `prepcuisines Stoke run — ${stokeDeliveryDayLabel} (${stokeRouteStops.length} stops, ~${stokeRouteKm.toFixed(1)} km)`,
+      '',
+      ...stokeRouteLegs.map((l) => `${l.label}: ${l.url}`),
+      '',
+      ...stokeRouteStops.map(
+        (st, i) =>
+          `${i + 1}. ${st.name}${st.orderCount > 1 ? ` ×${st.orderCount}` : ''} — ${st.address}, ${st.postcode}`
+      ),
+    ]
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      setStokeRouteLinksCopied(true)
+      setTimeout(() => setStokeRouteLinksCopied(false), 2000)
     } catch {}
   }
 
@@ -3906,6 +3925,9 @@ Bukr / prepcuisines`
                                 🗺 {leg.label} in Google Maps
                               </a>
                             ))}
+                            <button className="segment-pill" onClick={copyStokeRouteLinks}>
+                              {stokeRouteLinksCopied ? 'Copied!' : '🔗 Copy route to share'}
+                            </button>
                           </div>
                         </>
                       )}
