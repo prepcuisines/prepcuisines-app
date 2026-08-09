@@ -35,6 +35,7 @@ type Customer = {
   standing_delivery_day: string | null
   second_delivery_day: string | null
   deliveries_per_week: number | null
+  skip_next_order: boolean | null
   created_at: string
   marketing_consent: boolean | null
   lastOrderAt: string | null
@@ -103,6 +104,7 @@ const statusLabels: Record<string, string> = {
 }
 
 const segmentFilters = [
+  { key: 'skipped_week', label: 'Skipped this week' },
   { key: 'lapsed_30', label: 'Lapsed 30+' },
   { key: 'lapsed_60', label: 'Lapsed 60+' },
   { key: 'lapsed_90', label: 'Lapsed 90+' },
@@ -1418,6 +1420,8 @@ export default function AdminDashboard() {
               return status === 'cancelled'
             case 'payg':
               return !status || status === 'none' || status === 'incomplete'
+            case 'skipped_week':
+              return !!c.skip_next_order && status === 'active'
             case 'lapsed_30':
               return c.lapsedTier === '30'
             case 'lapsed_60':
@@ -3051,6 +3055,16 @@ Bukr / prepcuisines`
                         </td>
                         <td>
                           <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
+                          {c.skip_next_order &&
+                            (c.effectiveStatus ?? c.subscription_status) === 'active' && (
+                              <span
+                                className="pill pill-warn"
+                                style={{ marginLeft: 6 }}
+                                title="They've skipped their next order — no auto-fill at this week's cutoff"
+                              >
+                                Skipping next
+                              </span>
+                            )}
                         </td>
                         <td>
                           {c.second_delivery_day ? (
