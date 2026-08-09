@@ -21,17 +21,37 @@ function useCountdown(target: string) {
   return { days, hours, minutes, seconds }
 }
 
-function NextDeliveryLine({ day, formattedDate, cutoff }: { day: string; formattedDate: string; cutoff: string }) {
+function NextDeliveryLine({
+  day,
+  formattedDate,
+  cutoff,
+  meals,
+  orderId,
+}: {
+  day: string
+  formattedDate: string
+  cutoff: string
+  meals?: number | null
+  orderId?: string | null
+}) {
   const countdown = useCountdown(cutoff)
   const urgent = countdown && countdown.days === 0 && countdown.hours < 6
   return (
     <div className={`pc-dashboard-delivery-line${urgent ? ' urgent' : ''}`}>
-      <span className="pc-dashboard-delivery-date">{formattedDate}</span>
+      <span className="pc-dashboard-delivery-date">
+        {formattedDate}
+        {meals ? ` — ${meals} meals` : ''}
+      </span>
       {countdown && (
         <span className="pc-dashboard-delivery-countdown">
           cutoff in {countdown.days > 0 ? `${countdown.days}d ` : ''}
           {countdown.hours}h {countdown.minutes}m
         </span>
+      )}
+      {orderId && (
+        <a className="pc-dashboard-edit-order" href={`/edit-order?id=${orderId}`}>
+          Edit this order →
+        </a>
       )}
     </div>
   )
@@ -43,6 +63,7 @@ type Profile = {
   subscription_status: string
   orders_completed: number
   standing_plan_size: number | null
+  second_plan_size: number | null
   standing_delivery_day: string | null
   second_delivery_day: string | null
   deliveries_per_week: number | null
@@ -64,7 +85,7 @@ export default function DashboardPage() {
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
-  const [nextDeliveries, setNextDeliveries] = useState<{ day: string; formattedDate: string; cutoff: string }[]>([])
+  const [nextDeliveries, setNextDeliveries] = useState<{ day: string; formattedDate: string; cutoff: string; meals: number | null; orderId: string | null }[]>([])
   const [breakfastNames, setBreakfastNames] = useState<string[]>([])
   const [dessertNames, setDessertNames] = useState<string[]>([])
 
@@ -84,7 +105,7 @@ export default function DashboardPage() {
     const { data } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, subscription_status, orders_completed, standing_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id'
+        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id'
       )
       .eq('id', user.id)
       .single()
@@ -101,11 +122,17 @@ export default function DashboardPage() {
       // duplicating the same delivery on the dashboard.
       const daysToCheck = Array.from(new Set(rawDays))
 
-      const results: { day: string; formattedDate: string; cutoff: string }[] = []
+      const results: {
+        day: string
+        formattedDate: string
+        cutoff: string
+        meals: number | null
+        orderId: string | null
+      }[] = []
       for (const day of daysToCheck) {
         const { data: window } = await supabase
           .from('menu_windows')
-          .select('week_start_date, cutoff_datetime')
+          .select('id, week_start_date, cutoff_datetime')
           .eq('delivery_day', day)
           .gt('cutoff_datetime', new Date().toISOString())
           .order('cutoff_datetime', { ascending: true })
@@ -117,7 +144,29 @@ export default function DashboardPage() {
             day: 'numeric',
             month: 'long',
           })
-          results.push({ day, formattedDate: `${formatted} (${day})`, cutoff: window.cutoff_datetime })
+          // Per-day plan size: the second day uses its own size when set.
+          const isSecond =
+            data.deliveries_per_week === 2 &&
+            day === data.second_delivery_day &&
+            day !== data.standing_delivery_day
+          const meals = isSecond
+            ? data.second_plan_size || data.standing_plan_size || null
+            : data.standing_plan_size || null
+          // If they've already placed an order for this window, link straight
+          // to editing it (the edit page enforces the cutoff server-side).
+          const { data: existingOrder } = await supabase
+            .from('customer_window_orders')
+            .select('id, cancelled')
+            .eq('customer_id', user.id)
+            .eq('menu_window_id', window.id)
+            .maybeSingle()
+          results.push({
+            day,
+            formattedDate: `${formatted} (${day})`,
+            cutoff: window.cutoff_datetime,
+            meals,
+            orderId: existingOrder && !existingOrder.cancelled ? existingOrder.id : null,
+          })
         }
       }
 
@@ -435,9 +484,11 @@ export default function DashboardPage() {
             <div className="pc-dashboard-row">
               <span>Plan</span>
               <span>
-                {profile.standing_plan_size
-                  ? `${profile.standing_plan_size} meals`
-                  : 'Not set'}
+                {profile.deliveries_per_week === 2 && profile.second_delivery_day
+                  ? `${profile.standing_delivery_day} ×${profile.standing_plan_size || '—'} · ${profile.second_delivery_day} ×${profile.second_plan_size || profile.standing_plan_size || '—'}`
+                  : profile.standing_plan_size
+                    ? `${profile.standing_plan_size} meals`
+                    : 'Not set'}
               </span>
             </div>
             <div className="pc-dashboard-row">
@@ -481,6 +532,8 @@ export default function DashboardPage() {
                       day={d.day}
                       formattedDate={d.formattedDate}
                       cutoff={d.cutoff}
+                      meals={d.meals}
+                      orderId={d.orderId}
                     />
                   ))
                 ) : (

@@ -666,3 +666,12 @@ html, body { margin: 0; padding: 0; }
   color: var(--pc-green, #2d3510);
   text-decoration: underline;
 }
+
+.pc-dashboard-edit-order {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pc-green, #2d3510);
+  text-decoration: underline;
+  margin-top: 2px;
+}
