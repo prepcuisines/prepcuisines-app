@@ -70,6 +70,29 @@ type Order = {
   label_printed_at?: string | null
 }
 
+type StokeRouteStop = {
+  key: string
+  name: string
+  address: string
+  postcode: string
+  emails: string[]
+  orderCount: number
+  lat: number
+  lon: number
+}
+
+const STOKE_HQ = { lat: 53.025, lon: -2.175 }
+
+const havKm = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+  const R = 6371
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180
+  const dLon = ((b.lon - a.lon) * Math.PI) / 180
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+
 const statusLabels: Record<string, string> = {
   manually_ordered: 'Placed by customer',
   auto_filled: 'Auto-filled',
@@ -2001,6 +2024,270 @@ export default function AdminDashboard() {
     })
   }, [filteredOrders, printLabelsWindowKey])
 
+  // ── Stoke route planner ──────────────────────────────────────────
+  const [showStokeRoute, setShowStokeRoute] = useState(false)
+  const [stokeRouteStatus, setStokeRouteStatus] = useState<'idle' | 'working' | 'ready'>('idle')
+  const [stokeRouteError, setStokeRouteError] = useState<string | null>(null)
+  const [stokeRouteStops, setStokeRouteStops] = useState<StokeRouteStop[]>([])
+  const [stokeRouteExcluded, setStokeRouteExcluded] = useState<string[]>([])
+  const [stokeEmailsCopied, setStokeEmailsCopied] = useState(false)
+  const [stokeTemplateCopied, setStokeTemplateCopied] = useState(false)
+  const stokeRouteMapRef = useRef<HTMLDivElement>(null)
+  const stokeRouteMapInstance = useRef<any>(null)
+
+  // Stops = Stoke orders in the selected Delivery date, grouped by
+  // person+postcode (two orders to one house = one stop, two boxes).
+  const stokeRouteBaseStops = useMemo(() => {
+    const groups = new Map<string, StokeRouteStop>()
+    for (const o of printLabelsOrders) {
+      if (!isStokeOrder(o)) continue
+      const pc = (o.ship_postcode || '').toUpperCase().replace(/\s+/g, '')
+      if (!pc) continue
+      const name = (o.ship_full_name || o.customer_name || 'Unknown').trim()
+      const key = `${pc}__${name.toLowerCase()}`
+      const existing = groups.get(key)
+      if (existing) {
+        existing.orderCount += 1
+        if (o.customer_email && !existing.emails.includes(o.customer_email))
+          existing.emails.push(o.customer_email)
+      } else {
+        groups.set(key, {
+          key,
+          name,
+          address: [o.ship_house_number, o.ship_street].filter(Boolean).join(' '),
+          postcode: pc,
+          emails: o.customer_email ? [o.customer_email] : [],
+          orderCount: 1,
+          lat: 0,
+          lon: 0,
+        })
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [printLabelsOrders])
+
+  const optimiseStokeRoute = (stops: StokeRouteStop[]): StokeRouteStop[] => {
+    if (stops.length <= 2) return stops
+    // Nearest neighbour from the kitchen, then 2-opt until no improvement.
+    const remaining = [...stops]
+    const ordered: StokeRouteStop[] = []
+    let cur: { lat: number; lon: number } = STOKE_HQ
+    while (remaining.length) {
+      let bi = 0
+      let bd = Infinity
+      remaining.forEach((st, i) => {
+        const d = havKm(cur, st)
+        if (d < bd) {
+          bd = d
+          bi = i
+        }
+      })
+      const nxt = remaining.splice(bi, 1)[0]
+      ordered.push(nxt)
+      cur = nxt
+    }
+    const pts: { lat: number; lon: number }[] = [STOKE_HQ, ...ordered, STOKE_HQ]
+    let improved = true
+    let guard = 0
+    while (improved && guard++ < 80) {
+      improved = false
+      for (let i = 1; i < pts.length - 2; i++) {
+        for (let k = i + 1; k < pts.length - 1; k++) {
+          const delta =
+            havKm(pts[i - 1], pts[k]) +
+            havKm(pts[i], pts[k + 1]) -
+            havKm(pts[i - 1], pts[i]) -
+            havKm(pts[k], pts[k + 1])
+          if (delta < -1e-6) {
+            const seg = pts.slice(i, k + 1).reverse()
+            pts.splice(i, k - i + 1, ...seg)
+            improved = true
+          }
+        }
+      }
+    }
+    return pts.slice(1, -1) as StokeRouteStop[]
+  }
+
+  const buildStokeRoute = async () => {
+    setStokeRouteStatus('working')
+    setStokeRouteError(null)
+    try {
+      const stops = stokeRouteBaseStops.filter((st) => !stokeRouteExcluded.includes(st.key))
+      if (!stops.length) {
+        setStokeRouteStops([])
+        setStokeRouteStatus('ready')
+        return
+      }
+      const unique = Array.from(new Set(stops.map((st) => st.postcode)))
+      const coords = new Map<string, { lat: number; lon: number }>()
+      for (let i = 0; i < unique.length; i += 100) {
+        const res = await fetch('https://api.postcodes.io/postcodes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postcodes: unique.slice(i, i + 100) }),
+        })
+        const data = await res.json()
+        for (const e of data.result || []) {
+          if (e.result)
+            coords.set(e.query.toUpperCase().replace(/\s+/g, ''), {
+              lat: e.result.latitude,
+              lon: e.result.longitude,
+            })
+        }
+      }
+      const located = stops
+        .filter((st) => coords.has(st.postcode))
+        .map((st) => ({ ...st, ...coords.get(st.postcode)! }))
+      const missing = stops.filter((st) => !coords.has(st.postcode))
+      setStokeRouteStops(optimiseStokeRoute(located))
+      setStokeRouteStatus('ready')
+      if (missing.length)
+        setStokeRouteError(
+          `Couldn't place ${missing.map((m) => `${m.name} (${m.postcode})`).join(', ')} — postcode not recognised, so they're NOT on the route. Check and deliver separately.`
+        )
+    } catch {
+      setStokeRouteStatus('idle')
+      setStokeRouteError('Route build failed — check your connection and try again.')
+    }
+  }
+
+  const stokeRouteKm = useMemo(() => {
+    if (!stokeRouteStops.length) return 0
+    let km = 0
+    let cur: { lat: number; lon: number } = STOKE_HQ
+    for (const st of stokeRouteStops) {
+      km += havKm(cur, st)
+      cur = st
+    }
+    km += havKm(cur, STOKE_HQ)
+    return km
+  }, [stokeRouteStops])
+
+  const stokeRouteLegs = useMemo(() => {
+    if (!stokeRouteStops.length) return []
+    const pts = [STOKE_HQ, ...stokeRouteStops.map((st) => ({ lat: st.lat, lon: st.lon })), STOKE_HQ]
+    const legs: { label: string; url: string }[] = []
+    const MAX = 10
+    let start = 0
+    while (start < pts.length - 1) {
+      const end = Math.min(start + MAX - 1, pts.length - 1)
+      legs.push({
+        label: `Leg ${legs.length + 1}`,
+        url:
+          'https://www.google.com/maps/dir/' +
+          pts
+            .slice(start, end + 1)
+            .map((pt) => `${pt.lat.toFixed(6)},${pt.lon.toFixed(6)}`)
+            .join('/'),
+      })
+      start = end
+    }
+    return legs
+  }, [stokeRouteStops])
+
+  const stokeRouteEmails = useMemo(() => {
+    const set = new Set<string>()
+    for (const st of stokeRouteBaseStops) {
+      if (stokeRouteExcluded.includes(st.key)) continue
+      st.emails.forEach((e) => e && set.add(e))
+    }
+    return Array.from(set)
+  }, [stokeRouteBaseStops, stokeRouteExcluded])
+
+  const stokeDeliveryDayLabel = useMemo(() => {
+    if (printLabelsWindowKey === 'all') return 'Sunday'
+    const [wk, dy] = printLabelsWindowKey.split('__')
+    return `${dy}${wk && wk !== 'null' ? ` ${wk}` : ''}`
+  }, [printLabelsWindowKey])
+
+  const stokeEmailTemplate = `Subject: Your prepcuisines delivery — ${stokeDeliveryDayLabel}
+
+Hi,
+
+A quick update on your prepcuisines order: your meals are out for delivery on ${stokeDeliveryDayLabel} and should arrive between [START TIME] and [END TIME].
+
+Everything is cooked fresh the day before and delivered chilled — pop your meals straight into the fridge when they arrive. If you won't be in, just reply to this email and let us know a safe place to leave your box.
+
+Any questions at all, reply to this email and we'll sort it.
+
+Thanks,
+Bukr / prepcuisines`
+
+  const copyStokeEmails = async () => {
+    try {
+      await navigator.clipboard.writeText(stokeRouteEmails.join(', '))
+      setStokeEmailsCopied(true)
+      setTimeout(() => setStokeEmailsCopied(false), 2000)
+    } catch {}
+  }
+
+  const copyStokeTemplate = async () => {
+    try {
+      await navigator.clipboard.writeText(stokeEmailTemplate)
+      setStokeTemplateCopied(true)
+      setTimeout(() => setStokeTemplateCopied(false), 2000)
+    } catch {}
+  }
+
+  // Mini map for the optimised route (Leaflet from CDN, shared with Map tab).
+  useEffect(() => {
+    if (!showStokeRoute || stokeRouteStatus !== 'ready' || stokeRouteStops.length === 0) return
+    const render = () => {
+      const L = (window as any).L
+      if (!L || !stokeRouteMapRef.current) return
+      if (stokeRouteMapInstance.current) {
+        stokeRouteMapInstance.current.remove()
+        stokeRouteMapInstance.current = null
+      }
+      const map = L.map(stokeRouteMapRef.current, { scrollWheelZoom: false })
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map)
+      const mk = (lat: number, lon: number, label: string, cls: string) =>
+        L.marker([lat, lon], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div class="stoke-route-pin ${cls}">${label}</div>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13],
+          }),
+        }).addTo(map)
+      mk(STOKE_HQ.lat, STOKE_HQ.lon, 'K', 'stoke-route-pin-hq').bindTooltip('Kitchen — Sun Street')
+      stokeRouteStops.forEach((st, i) =>
+        mk(st.lat, st.lon, String(i + 1), '').bindTooltip(`${i + 1}. ${st.name} — ${st.postcode}`)
+      )
+      const line = [
+        [STOKE_HQ.lat, STOKE_HQ.lon],
+        ...stokeRouteStops.map((st) => [st.lat, st.lon]),
+        [STOKE_HQ.lat, STOKE_HQ.lon],
+      ]
+      L.polyline(line, { color: '#2d3510', weight: 3, opacity: 0.75 }).addTo(map)
+      map.fitBounds(line, { padding: [24, 24] })
+      stokeRouteMapInstance.current = map
+    }
+    const w = window as any
+    if (w.L) {
+      render()
+      return
+    }
+    if (!document.querySelector('link[href*="leaflet.css"]')) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      document.head.appendChild(link)
+    }
+    const existing = document.querySelector('script[src*="leaflet"]') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', render)
+      return () => existing.removeEventListener('load', render)
+    }
+    const script = document.createElement('script')
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    script.onload = render
+    document.body.appendChild(script)
+  }, [showStokeRoute, stokeRouteStatus, stokeRouteStops])
+
   const locationScopedOrders = useMemo(() => {
     if (locationFilter === 'all') return printLabelsOrders
     return printLabelsOrders.filter((o) => {
@@ -3527,6 +3814,121 @@ export default function AdminDashboard() {
                       ))}
                   </div>
                 )}
+
+                <div className="cook-sheet-panel">
+                  <div className="cook-sheet-header-row">
+                    <button
+                      type="button"
+                      className="cook-sheet-collapse-toggle"
+                      onClick={() => setShowStokeRoute((v) => !v)}
+                    >
+                      <span className="cook-sheet-title">
+                        {showStokeRoute ? '\u25be' : '\u25b8'} \ud83d\ude90 Stoke route planner
+                      </span>
+                      <span className="cook-sheet-collapse-meta">
+                        {stokeRouteBaseStops.length} stops
+                      </span>
+                    </button>
+                  </div>
+                  {showStokeRoute && (
+                    <>
+                      <p className="map-intro">
+                        Uses the Delivery date selected in Print Labels above. Untick any test or
+                        non-delivery entries, then build — the order below is the optimised drive
+                        from the kitchen and back.
+                      </p>
+                      <div className="pc-modal-inline-row">
+                        <button
+                          className="segment-pill segment-pill-active"
+                          onClick={buildStokeRoute}
+                          disabled={stokeRouteStatus === 'working'}
+                        >
+                          {stokeRouteStatus === 'working'
+                            ? 'Building\u2026'
+                            : stokeRouteStops.length
+                              ? '\u21bb Rebuild route'
+                              : 'Build optimised route'}
+                        </button>
+                        <button className="segment-pill" onClick={copyStokeEmails}>
+                          {stokeEmailsCopied
+                            ? 'Copied!'
+                            : `\u2709 Copy ${stokeRouteEmails.length} customer emails`}
+                        </button>
+                        {stokeRouteStops.length > 0 && (
+                          <span className="cook-sheet-collapse-meta">
+                            ~{stokeRouteKm.toFixed(1)} km round trip \u00b7 {stokeRouteStops.length} stops
+                          </span>
+                        )}
+                      </div>
+                      {stokeRouteError && <p className="pc-error-text">{stokeRouteError}</p>}
+                      {stokeRouteStops.length > 0 && (
+                        <>
+                          <div ref={stokeRouteMapRef} className="stoke-route-map" />
+                          <div className="pc-modal-inline-row">
+                            {stokeRouteLegs.map((leg) => (
+                              <a
+                                key={leg.label}
+                                className="segment-pill"
+                                href={leg.url}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                \ud83d\uddfa {leg.label} in Google Maps
+                              </a>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      <ul className="stoke-route-list">
+                        {(stokeRouteStops.length ? stokeRouteStops : stokeRouteBaseStops).map(
+                          (st, i) => (
+                            <li key={st.key}>
+                              <label className="stoke-route-row">
+                                <input
+                                  type="checkbox"
+                                  checked={!stokeRouteExcluded.includes(st.key)}
+                                  onChange={() =>
+                                    setStokeRouteExcluded((prev) =>
+                                      prev.includes(st.key)
+                                        ? prev.filter((k) => k !== st.key)
+                                        : [...prev, st.key]
+                                    )
+                                  }
+                                />
+                                <span className="stoke-route-num">
+                                  {stokeRouteStops.length ? `${i + 1}.` : '\u2022'}
+                                </span>
+                                <span className="stoke-route-name">
+                                  {st.name}
+                                  {st.orderCount > 1 ? ` \u00d7${st.orderCount} boxes` : ''}
+                                </span>
+                                <span className="stoke-route-addr">
+                                  {st.address} \u00b7 {st.postcode}
+                                </span>
+                              </label>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                      {stokeRouteStops.length > 0 && stokeRouteExcluded.length > 0 && (
+                        <p className="map-intro">Ticks changed \u2014 hit Rebuild route to re-optimise.</p>
+                      )}
+                      <div className="stoke-route-template">
+                        <div className="cook-sheet-header-row">
+                          <span className="area-map-title">Delivery update email template</span>
+                          <button className="segment-pill" onClick={copyStokeTemplate}>
+                            {stokeTemplateCopied ? 'Copied!' : 'Copy template'}
+                          </button>
+                        </div>
+                        <pre className="stoke-route-template-pre">{stokeEmailTemplate}</pre>
+                        <p className="map-intro">
+                          Paste the copied emails into <strong>BCC</strong> (never To/CC), fill the
+                          two times, send from info@prepcuisines.co.uk.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
               </>
           </section>
         )}
@@ -6556,6 +6958,75 @@ function Styles() {
         color: var(--pc-green-mid, #3a4516);
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
+      }
+      .stoke-route-map {
+        height: 340px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        margin: 12px 0;
+      }
+      .stoke-route-pin {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--pc-green, #2d3510);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+      }
+      .stoke-route-pin-hq {
+        background: var(--pc-gold-dark, #9a7c45);
+      }
+      .stoke-route-list {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+      }
+      .stoke-route-row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 6px 4px;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+        font-size: 13.5px;
+        color: var(--pc-green, #2d3510);
+        cursor: pointer;
+      }
+      .stoke-route-num {
+        font-weight: 700;
+        color: var(--pc-gold-dark, #9a7c45);
+        min-width: 26px;
+      }
+      .stoke-route-name {
+        font-weight: 600;
+      }
+      .stoke-route-addr {
+        color: var(--pc-green-mid, #3a4516);
+        font-size: 12.5px;
+      }
+      .stoke-route-template {
+        margin-top: 16px;
+      }
+      .stoke-route-template-pre {
+        white-space: pre-wrap;
+        background: var(--pc-cream, #f5f2ec);
+        border: 1px solid var(--pc-cream-dark, #ede8de);
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 13px;
+        font-family: inherit;
+        color: var(--pc-green, #2d3510);
+        margin: 8px 0;
+      }
+      .pc-error-text {
+        color: #a33;
+        font-size: 13px;
       }
       .cook-sheet-header-row {
         display: flex;
