@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
+import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer, sendAdminAlertEmail } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
@@ -25,21 +25,32 @@ export async function POST(req: NextRequest) {
   const results: any[] = []
 
   try {
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    // 3h lookback (not 2): wide enough that the +1h retry run can always
+    // still see a window the on-time run missed, with margin for clock skew.
+    const twoHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
     const now = new Date().toISOString()
 
-    const { data: windows } = await supabase
+    const { data: windows, error: windowsError } = await supabase
       .from('menu_windows')
       .select('id, delivery_day')
       .gt('cutoff_datetime', twoHoursAgo)
       .lt('cutoff_datetime', now)
+
+    if (windowsError) {
+      // A failed query is NOT "no windows" — alert and fail loudly.
+      await sendAdminAlertEmail(
+        'Auto-fill cron failed: could not load windows',
+        windowsError.message || String(windowsError)
+      )
+      return NextResponse.json({ error: windowsError.message }, { status: 500 })
+    }
 
     if (!windows || windows.length === 0) {
       return NextResponse.json({ processed: 0, message: 'No windows just cut off.' })
     }
 
     for (const window of windows) {
-      const { data: subscribers } = await supabase
+      const { data: subscribers, error: subsError } = await supabase
         .from('customer_profiles')
         .select(
           'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status'
@@ -47,6 +58,17 @@ export async function POST(req: NextRequest) {
         .eq('subscription_status', 'active')
         .or(`standing_delivery_day.eq.${window.delivery_day},second_delivery_day.eq.${window.delivery_day}`)
 
+      if (subsError) {
+        // This exact failure once cost a whole window: a broken query used
+        // to read as "no subscribers" and the run ended in silence. Never
+        // again — alert with the real error and surface it in results.
+        await sendAdminAlertEmail(
+          `Auto-fill cron failed: could not load subscribers for ${window.delivery_day}`,
+          subsError.message || String(subsError)
+        )
+        results.push({ window: window.id, status: 'subscriber_query_error', message: subsError.message })
+        continue
+      }
       if (!subscribers) continue
 
       for (const sub of subscribers) {
@@ -278,6 +300,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ processed: results.length, results })
   } catch (err: any) {
+    await sendAdminAlertEmail(
+      'Auto-fill cron crashed',
+      err?.message || String(err)
+    ).catch(() => {})
     console.error('Auto-fill job error:', err)
     return NextResponse.json({ error: err.message || 'Auto-fill failed' }, { status: 500 })
   }

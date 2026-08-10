@@ -5,6 +5,10 @@
       "schedule": "0 20 * * 4,0"
     },
     {
+      "path": "/api/cron/auto-fill-orders",
+      "schedule": "0 21 * * 4,0"
+    },
+    {
       "path": "/api/cron/process-recurring-manual-orders",
       "schedule": "0 20 * * 4,0"
     },

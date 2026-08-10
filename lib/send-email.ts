@@ -9,6 +9,17 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY!
 const FROM_ADDRESS = process.env.RESEND_FROM_ADDRESS || 'prepcuisines <onboarding@resend.dev>'
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || ''
 
+// Loud-failure alert for automated jobs: mails the shop inbox the moment a
+// cron hits an error, so a broken run can never pass silently again.
+export async function sendAdminAlertEmail(subject: string, detail: string) {
+  const to = ADMIN_EMAIL || 'info@prepcuisines.co.uk'
+  await sendEmail(
+    to,
+    `⚠️ ${subject}`,
+    `<div style="font-family:sans-serif"><h2 style="color:#a33">${subject}</h2><pre style="background:#f5f2ec;padding:12px;border-radius:8px;white-space:pre-wrap">${detail}</pre><p>Time: ${new Date().toISOString()}</p></div>`
+  )
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY is not set — skipping email send:', subject, 'to', to)
