@@ -27,7 +27,16 @@ type Props = {
 }
 
 export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props) {
-  const [buffer, setBuffer] = useState(DEFAULT_BUFFER)
+  // Sticky: whatever gets typed here is the number that counts — persisted
+  // so no remount, refresh, or region switch can quietly revert it to the
+  // default of 2.
+  const [buffer, setBuffer] = useState<number>(() => {
+    if (typeof window === 'undefined') return DEFAULT_BUFFER
+    const saved = window.localStorage.getItem('pc-cook-buffer')
+    if (saved === null) return DEFAULT_BUFFER
+    const n = Number(saved)
+    return Number.isFinite(n) ? Math.max(0, Math.min(20, n)) : DEFAULT_BUFFER
+  })
   const [includeBreakfast, setIncludeBreakfast] = useState(true)
   const [includeDesserts, setIncludeDesserts] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
@@ -109,7 +118,13 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
             className="text-input"
             style={{ width: 80 }}
             value={buffer}
-            onChange={(e) => setBuffer(Math.max(0, Number(e.target.value) || 0))}
+            onChange={(e) => {
+              const n = Math.max(0, Math.min(20, Number(e.target.value) || 0))
+              setBuffer(n)
+              try {
+                window.localStorage.setItem('pc-cook-buffer', String(n))
+              } catch {}
+            }}
           />
           <button
             className={`segment-pill ${includeBreakfast ? 'segment-pill-active' : ''}`}
