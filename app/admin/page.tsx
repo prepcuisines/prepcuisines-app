@@ -5,6 +5,15 @@ import Papa from 'papaparse'
 import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
 
 type Overview = {
+  range?: {
+    from: string
+    to: string
+    sales: number
+    orders: number
+    meals: number
+    avgBasket: number
+    newCustomers: number
+  }
   totalCustomers: number
   activeSubscriptions: number
   newSignupsThisWeek: number
@@ -165,6 +174,11 @@ export default function AdminDashboard() {
   >('overview')
 
   const [overview, setOverview] = useState<Overview | null>(null)
+  const [homeRangePreset, setHomeRangePreset] = useState<
+    'today' | 'yesterday' | '7d' | '30d' | '90d' | 'custom'
+  >('today')
+  const [homeFrom, setHomeFrom] = useState('')
+  const [homeTo, setHomeTo] = useState('')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [segment, setSegment] = useState('all')
@@ -444,6 +458,48 @@ export default function AdminDashboard() {
       // Non-critical — the bell just shows 0 if this fails.
     }
   }
+
+  const loadOverview = async (from?: string, to?: string) => {
+    try {
+      const qs = from ? `?from=${from}&to=${to || from}` : ''
+      const res = await fetch(`/api/admin/overview${qs}`, { cache: 'no-store' })
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (res.ok) setOverview(await res.json())
+    } catch {}
+  }
+
+  const homeRangeDates = (): { from: string; to: string } => {
+    const iso = (d: Date) => d.toISOString().slice(0, 10)
+    const today = new Date()
+    if (homeRangePreset === 'custom' && homeFrom)
+      return { from: homeFrom, to: homeTo || homeFrom }
+    if (homeRangePreset === 'yesterday') {
+      const y = new Date(today)
+      y.setDate(y.getDate() - 1)
+      return { from: iso(y), to: iso(y) }
+    }
+    const days =
+      homeRangePreset === '7d'
+        ? 6
+        : homeRangePreset === '30d'
+          ? 29
+          : homeRangePreset === '90d'
+            ? 89
+            : 0
+    const start = new Date(today)
+    start.setDate(start.getDate() - days)
+    return { from: iso(start), to: iso(today) }
+  }
+
+  useEffect(() => {
+    if (!authenticated || tab !== 'overview') return
+    const r = homeRangeDates()
+    loadOverview(r.from, r.to)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeRangePreset, homeFrom, homeTo, tab, authenticated])
 
   useEffect(() => {
     checkAuthAndLoad()
@@ -1441,7 +1497,10 @@ export default function AdminDashboard() {
       else if (tab === 'product-analytics')
         jobs.push(loadTopDishes(topDishesPeriod), loadDishPairs(), loadProductDashboard())
       else if (tab === 'ops-hub') jobs.push(loadOpsHub())
-      else jobs.push(loadOrders(), loadCustomers())
+      else {
+        const r = homeRangeDates()
+        jobs.push(loadOverview(r.from, r.to), loadOrders(), loadCustomers())
+      }
       await Promise.all(jobs)
     } finally {
       setRefreshing(false)
@@ -2913,85 +2972,82 @@ Bukr / prepcuisines`
         </header>
 
         {tab === 'overview' && (
-          <div className="pc-greeting-block">
-            <div className="pc-greeting-title">{getGreeting()}!</div>
-            <div className="pc-greeting-sub">Let's see how prepcuisines is doing.</div>
-            <form
-              className="pc-ask-box"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (!topSearchValue.trim()) return
-                setTab('customers')
-                setCustomerSearch(topSearchValue.trim())
-                setTopSearchValue('')
-              }}
-            >
+          <div className="pc-home-range">
+            <div className="pc-modal-inline-row" style={{ flexWrap: 'wrap' }}>
+              {(
+                [
+                  ['today', 'Today'],
+                  ['yesterday', 'Yesterday'],
+                  ['7d', 'Last 7 days'],
+                  ['30d', 'Last 30 days'],
+                  ['90d', 'Last 90 days'],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`segment-pill ${homeRangePreset === key ? 'segment-pill-active' : ''}`}
+                  onClick={() => setHomeRangePreset(key)}
+                >
+                  {label}
+                </button>
+              ))}
               <input
-                className="pc-ask-input"
-                placeholder="Search a customer, order, or dish…"
-                value={topSearchValue}
-                onChange={(e) => setTopSearchValue(e.target.value)}
+                type="date"
+                className="text-input"
+                value={homeFrom}
+                onChange={(e) => {
+                  setHomeFrom(e.target.value)
+                  setHomeRangePreset('custom')
+                }}
+                aria-label="From date"
               />
-              <button type="submit" className="pc-ask-submit" aria-label="Search">
-                →
-              </button>
-            </form>
-            <div className="pc-quick-actions">
-              <button
-                className="pc-quick-action-pill"
-                onClick={() => setTab('ops-hub')}
-              >
-                Next delivery {nextDelivery ? `· ${nextDelivery.totalOrders} orders` : ''}
-              </button>
-              <button
-                className="pc-quick-action-pill"
-                onClick={() => setTab('ops-hub')}
-              >
-                Failed payments <span className="pc-quick-action-count">{topAlertsCount}</span>
-              </button>
-              <button
-                className="pc-quick-action-pill"
-                onClick={() => setTab('customers')}
-              >
-                New signups (7d) <span className="pc-quick-action-count">{overview?.newSignupsThisWeek ?? 0}</span>
-              </button>
+              <span className="cook-sheet-collapse-meta">to</span>
+              <input
+                type="date"
+                className="text-input"
+                value={homeTo}
+                onChange={(e) => {
+                  setHomeTo(e.target.value)
+                  setHomeRangePreset('custom')
+                }}
+                aria-label="To date (optional)"
+              />
             </div>
           </div>
         )}
 
         {tab === 'overview' && overview && (
           <>
-            <div className="today-snapshot">
-              <div className="today-snapshot-title">Today</div>
-              <div className="today-snapshot-row">
-                <div className="today-snapshot-item">
-                  <span className="today-snapshot-value">{overview.todaysOrderCount ?? 0}</span>
-                  <span className="today-snapshot-label">Orders</span>
-                </div>
-                <div className="today-snapshot-item">
-                  <span className="today-snapshot-value">{overview.todaysMeals ?? 0}</span>
-                  <span className="today-snapshot-label">Meals</span>
-                </div>
-                <div className="today-snapshot-item">
-                  <span className="today-snapshot-value">
-                    {(overview.todaysAvgBasket ?? 0).toFixed(1)}
-                  </span>
-                  <span className="today-snapshot-label">Avg. basket</span>
-                </div>
-                <div className="today-snapshot-item">
-                  <span className="today-snapshot-value">
-                    {(overview.avgMealsPerOrder ?? 0).toFixed(1)}
-                  </span>
-                  <span className="today-snapshot-label">Avg. meals/order (all-time)</span>
-                </div>
+            <div className="pc-home-tiles">
+              <div className="pc-home-tile">
+                <span className="pc-home-tile-value">{money(overview.range?.sales || 0)}</span>
+                <span className="pc-home-tile-label">Total sales</span>
               </div>
+              <div className="pc-home-tile">
+                <span className="pc-home-tile-value">{overview.range?.orders ?? 0}</span>
+                <span className="pc-home-tile-label">Orders</span>
+              </div>
+              <div className="pc-home-tile">
+                <span className="pc-home-tile-value">{overview.range?.meals ?? 0}</span>
+                <span className="pc-home-tile-label">Meals</span>
+              </div>
+              <div className="pc-home-tile">
+                <span className="pc-home-tile-value">{money(overview.range?.avgBasket || 0)}</span>
+                <span className="pc-home-tile-label">Avg. basket</span>
+              </div>
+              <div className="pc-home-tile">
+                <span className="pc-home-tile-value">{overview.range?.newCustomers ?? 0}</span>
+                <span className="pc-home-tile-label">New customers</span>
+              </div>
+              <button className="pc-home-tile pc-home-tile-action" onClick={() => setTab('ops-hub')}>
+                <span className="pc-home-tile-value">{topAlertsCount}</span>
+                <span className="pc-home-tile-label">Failed payments →</span>
+              </button>
             </div>
 
             <div className="stat-grid">
               <StatCard label="Total customers" value={overview.totalCustomers} />
               <StatCard label="Active subscriptions" value={overview.activeSubscriptions} />
-              <StatCard label="New signups (7d)" value={overview.newSignupsThisWeek} />
-              <StatCard label="Orders (7d)" value={overview.ordersThisWeek} />
               <StatCard
                 label="Avg. customer LTV"
                 value={

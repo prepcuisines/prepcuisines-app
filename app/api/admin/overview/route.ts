@@ -58,6 +58,50 @@ export async function GET(req: NextRequest) {
     .select('id', { count: 'exact', head: true })
     .gte('created_at', startOfWeekIso)
 
+  // ── Shopify-style range block: ?from=YYYY-MM-DD&to=YYYY-MM-DD ──────
+  const url = new URL(req.url)
+  const fromParam = url.searchParams.get('from')
+  const toParam = url.searchParams.get('to')
+  const rangeStart = new Date(`${fromParam || new Date().toISOString().slice(0, 10)}T00:00:00`)
+  const rangeEnd = new Date(`${toParam || fromParam || new Date().toISOString().slice(0, 10)}T23:59:59.999`)
+  const rangeStartIso =
+    rangeStart.toISOString() > LAUNCH_CUTOFF ? rangeStart.toISOString() : LAUNCH_CUTOFF
+
+  const { data: rangeOrders } = await supabase
+    .from('customer_window_orders')
+    .select('total_amount, items, cancelled, status, created_at')
+    .gte('created_at', rangeStartIso)
+    .lte('created_at', rangeEnd.toISOString())
+
+  const realRangeOrders = (rangeOrders || []).filter(
+    (o) => !o.cancelled && o.status !== 'redo' && o.status !== 'skipped'
+  )
+  const rangeSales = realRangeOrders.reduce((s, o) => s + (o.total_amount || 0), 0)
+  const rangeMeals = realRangeOrders.reduce(
+    (s, o) =>
+      s +
+      (o.items || []).reduce(
+        (t: number, i: any) => t + (i.name !== 'Delivery' ? i.qty || 0 : 0),
+        0
+      ),
+    0
+  )
+  const { count: rangeNewCustomers } = await supabase
+    .from('customer_profiles')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', rangeStartIso)
+    .lte('created_at', rangeEnd.toISOString())
+
+  const range = {
+    from: fromParam || new Date().toISOString().slice(0, 10),
+    to: toParam || fromParam || new Date().toISOString().slice(0, 10),
+    sales: rangeSales,
+    orders: realRangeOrders.length,
+    meals: rangeMeals,
+    avgBasket: realRangeOrders.length ? rangeSales / realRangeOrders.length : 0,
+    newCustomers: rangeNewCustomers || 0,
+  }
+
   const { data: recentOrders } = await supabase
     .from('customer_window_orders')
     .select('total_amount, created_at')
@@ -131,6 +175,7 @@ export async function GET(req: NextRequest) {
     (allItemsOrders || []).length > 0 ? totalMealsAllTime / (allItemsOrders || []).length : 0
 
   return NextResponse.json({
+    range,
     totalCustomers: totalCustomers || 0,
     activeSubscriptions: activeSubscriptions || 0,
     newSignupsThisWeek: newSignupsThisWeek || 0,

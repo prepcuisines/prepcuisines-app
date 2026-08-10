@@ -680,3 +680,35 @@ html, body { margin: 0; padding: 0; }
   font-weight: 700;
   color: var(--pc-green, #2d3510);
 }
+
+.pc-home-range { margin: 4px 0 14px; }
+.pc-home-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.pc-home-tile {
+  background: #fff;
+  border: 1px solid var(--pc-cream-dark, #ede8de);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 84px;
+  text-align: left;
+}
+.pc-home-tile-value {
+  font-family: var(--font-playfair), serif;
+  font-weight: 900;
+  font-size: 24px;
+  color: var(--pc-green, #2d3510);
+}
+.pc-home-tile-label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pc-green-mid, #3a4516);
+}
+.pc-home-tile-action { cursor: pointer; }
