@@ -97,6 +97,7 @@ const havKm = (a: { lat: number; lon: number }, b: { lat: number; lon: number })
 }
 
 const statusLabels: Record<string, string> = {
+  redo: 'Redo — resend',
   manually_ordered: 'Placed by customer',
   auto_filled: 'Auto-filled',
   skipped: 'Skipped',
@@ -242,6 +243,14 @@ export default function AdminDashboard() {
     'idle'
   )
   const [dpdShipmentError, setDpdShipmentError] = useState<string | null>(null)
+  const [redoWindows, setRedoWindows] = useState<
+    { id: string; delivery_day: string; week_start_date: string }[]
+  >([])
+  const [redoWindowId, setRedoWindowId] = useState('')
+  const [redoItemNames, setRedoItemNames] = useState<string[]>([])
+  const [redoStatus, setRedoStatus] = useState<'idle' | 'saving' | 'done'>('idle')
+  const [redoError, setRedoError] = useState<string | null>(null)
+  const [redoResult, setRedoResult] = useState<string | null>(null)
   const [dpdLabelStatus, setDpdLabelStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [dpdLabelError, setDpdLabelError] = useState<string | null>(null)
   const [dpdLabelHtml, setDpdLabelHtml] = useState<string | null>(null)
@@ -1088,6 +1097,15 @@ export default function AdminDashboard() {
     setDpdShipmentError(null)
     setDpdLabelStatus('idle')
     setDpdLabelError(null)
+    setRedoStatus('idle')
+    setRedoError(null)
+    setRedoResult(null)
+    setRedoWindowId('')
+    setRedoItemNames([])
+    fetch('/api/admin/redo-order', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setRedoWindows(d.windows || []))
+      .catch(() => setRedoWindows([]))
     setDpdLabelHtml(null)
     try {
       const res = await fetch(`/api/admin/order-detail?id=${orderId}`, { cache: 'no-store' })
@@ -1110,6 +1128,37 @@ export default function AdminDashboard() {
   const closeOrderDetail = () => {
     setSelectedOrderId(null)
     setOrderDetail(null)
+  }
+
+  const createRedoOrder = async () => {
+    if (!selectedOrderId || !redoWindowId) return
+    setRedoStatus('saving')
+    setRedoError(null)
+    try {
+      const res = await fetch('/api/admin/redo-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: selectedOrderId,
+          targetWindowId: redoWindowId,
+          itemNames: redoItemNames,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setRedoError(data.error || 'Something went wrong')
+        setRedoStatus('idle')
+        return
+      }
+      setRedoStatus('done')
+      setRedoResult(
+        `Redo created — #PC-${data.orderNumber} for ${data.window.day} (w/c ${new Date(data.window.weekStart).toLocaleDateString('en-GB')}). £0, on the cook sheet and label run for that date.`
+      )
+      loadOrders()
+    } catch {
+      setRedoError('Network error — please try again')
+      setRedoStatus('idle')
+    }
   }
 
   const resendOrderEmail = async () => {
@@ -1776,7 +1825,8 @@ export default function AdminDashboard() {
           (o.customer_email || '').toLowerCase().includes(q) ||
           (o.ship_postcode || '').toLowerCase().includes(q) ||
           (o.order_number != null &&
-            (`pc-${o.order_number}`.includes(q) || String(o.order_number).includes(q.replace(/^#?pc-?/, ''))))
+            (`pc-${o.order_number}`.includes(q) || String(o.order_number).includes(q.replace(/^#?pc-?/, '')))) ||
+          (statusLabels[o.status] || o.status).toLowerCase().includes(q)
         )
       }),
     [orders, orderSearch]
@@ -5820,6 +5870,79 @@ Bukr / prepcuisines`
                       {orderDetail.order.cancelled ? 'Reinstate order' : 'Cancel order'}
                     </button>
                   </div>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">Redo / resend this order</label>
+                  <p className="map-intro">
+                    Creates a £0 copy in the delivery date you pick — no charge, no link to the
+                    customer's account or subscription, doesn't use up their order slot. It lands
+                    on that date's cook sheet, packing slips and shipping labels like any order.
+                    Tick what needs remaking:
+                  </p>
+                  <div className="pc-modal-inline-row" style={{ flexWrap: 'wrap' }}>
+                    {(orderDetail.order.items || [])
+                      .filter((it: any) => it.name && it.name !== 'Delivery')
+                      .map((it: any) => (
+                        <label key={it.name} className="segment-pill" style={{ cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            style={{ marginRight: 6 }}
+                            checked={redoItemNames.includes(it.name)}
+                            onChange={() =>
+                              setRedoItemNames((prev) =>
+                                prev.includes(it.name)
+                                  ? prev.filter((n) => n !== it.name)
+                                  : [...prev, it.name]
+                              )
+                            }
+                          />
+                          {it.qty}× {it.name}
+                        </label>
+                      ))}
+                  </div>
+                  <div className="pc-modal-inline-row" style={{ marginTop: 10 }}>
+                    <button
+                      className="segment-pill"
+                      onClick={() =>
+                        setRedoItemNames(
+                          (orderDetail.order.items || [])
+                            .filter((it: any) => it.name && it.name !== 'Delivery')
+                            .map((it: any) => it.name)
+                        )
+                      }
+                    >
+                      Select all
+                    </button>
+                    <select
+                      className="text-input"
+                      style={{ minWidth: 220 }}
+                      value={redoWindowId}
+                      onChange={(e) => setRedoWindowId(e.target.value)}
+                    >
+                      <option value="">Choose delivery date…</option>
+                      {redoWindows.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn-primary"
+                      onClick={createRedoOrder}
+                      disabled={
+                        redoStatus === 'saving' || !redoWindowId || redoItemNames.length === 0
+                      }
+                    >
+                      {redoStatus === 'saving' ? 'Creating…' : 'Create redo order'}
+                    </button>
+                  </div>
+                  {redoError && <p className="pc-error-text">{redoError}</p>}
+                  {redoResult && (
+                    <p className="map-intro" style={{ marginTop: 6 }}>
+                      ✅ {redoResult}
+                    </p>
+                  )}
                 </div>
 
                 <div className="pc-modal-section">
