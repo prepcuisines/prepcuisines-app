@@ -2073,20 +2073,26 @@ export default function AdminDashboard() {
   // Which delivery day/week to work with — defaults to "all" (every date
   // currently in filteredOrders) but can be narrowed to one specific
   // window so the buttons only touch that day's orders.
-  const [printLabelsWindowKey, setPrintLabelsWindowKey] = useState<string>('all')
+  // Delivery date filter: leave both empty for everything, pick just the
+  // first date for a single day, add the second for an inclusive range.
+  const [printLabelsFrom, setPrintLabelsFrom] = useState('')
+  const [printLabelsTo, setPrintLabelsTo] = useState('')
 
   const printLabelsWindowOptions = useMemo(() => orderTally, [orderTally])
 
+  const orderDeliveryDateISO = (o: Order) =>
+    o.menu_windows?.week_start_date ? o.menu_windows.week_start_date.slice(0, 10) : null
+
   const printLabelsOrders = useMemo(() => {
-    if (printLabelsWindowKey === 'all') return filteredOrders
+    if (!printLabelsFrom && !printLabelsTo) return filteredOrders
     return filteredOrders.filter((o) => {
-      const week = o.menu_windows?.week_start_date
-        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
-        : null
-      const day = dayNameOf(o.delivery_day)
-      return `${week}__${day}` === printLabelsWindowKey
+      const d = orderDeliveryDateISO(o)
+      if (!d) return false
+      if (printLabelsFrom && printLabelsTo) return d >= printLabelsFrom && d <= printLabelsTo
+      if (printLabelsFrom) return d === printLabelsFrom
+      return d <= printLabelsTo
     })
-  }, [filteredOrders, printLabelsWindowKey])
+  }, [filteredOrders, printLabelsFrom, printLabelsTo])
 
   // ── Stoke route planner ──────────────────────────────────────────
   const [showStokeRoute, setShowStokeRoute] = useState(false)
@@ -2291,10 +2297,15 @@ export default function AdminDashboard() {
   }, [stokeRouteBaseStops, stokeRouteExcluded])
 
   const stokeDeliveryDayLabel = useMemo(() => {
-    if (printLabelsWindowKey === 'all') return 'Sunday'
-    const [wk, dy] = printLabelsWindowKey.split('__')
-    return `${dy}${wk && wk !== 'null' ? ` ${wk}` : ''}`
-  }, [printLabelsWindowKey])
+    if (printLabelsFrom && !printLabelsTo) {
+      const d = new Date(printLabelsFrom)
+      if (!Number.isNaN(d.getTime()))
+        return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+    }
+    if (printLabelsFrom && printLabelsTo)
+      return `${new Date(printLabelsFrom).toLocaleDateString('en-GB')} – ${new Date(printLabelsTo).toLocaleDateString('en-GB')}`
+    return 'Sunday'
+  }, [printLabelsFrom, printLabelsTo])
 
   const stokeEmailTemplate = `Subject: Your prepcuisines delivery — ${stokeDeliveryDayLabel}
 
@@ -3306,29 +3317,56 @@ Bukr / prepcuisines`
 
             <div className="pc-modal-section" style={{ marginTop: 12 }}>
               <label className="field-label">🏷 Print Labels</label>
-              <p className="map-intro">
-                Packing slip prints immediately before its shipping label, so they always travel
-                together. Stoke-on-Trent postcodes get a packing slip only — delivered in-house,
-                no DPD needed. Everyone else gets a real DPD shipping label, creating the shipment
-                first if one doesn't exist yet.
-              </p>
               <label className="field-label" style={{ marginTop: 10 }}>
                 Delivery date
               </label>
-              <select
-                className="text-input"
-                style={{ width: '100%', marginBottom: 10 }}
-                value={printLabelsWindowKey}
-                onChange={(e) => setPrintLabelsWindowKey(e.target.value)}
-              >
-                <option value="all">All dates currently listed</option>
-                {printLabelsWindowOptions.map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.day}
-                    {t.week ? ` — w/c ${t.week}` : ''} ({t.count} order{t.count !== 1 ? 's' : ''})
-                  </option>
-                ))}
-              </select>
+              <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
+                <input
+                  type="date"
+                  className="text-input"
+                  value={printLabelsFrom}
+                  onChange={(e) => setPrintLabelsFrom(e.target.value)}
+                  aria-label="Delivery date (or start of range)"
+                />
+                <span className="cook-sheet-collapse-meta">to</span>
+                <input
+                  type="date"
+                  className="text-input"
+                  value={printLabelsTo}
+                  onChange={(e) => setPrintLabelsTo(e.target.value)}
+                  aria-label="End of range (optional)"
+                />
+                {(printLabelsFrom || printLabelsTo) && (
+                  <button
+                    className="segment-pill"
+                    onClick={() => {
+                      setPrintLabelsFrom('')
+                      setPrintLabelsTo('')
+                    }}
+                  >
+                    All dates
+                  </button>
+                )}
+              </div>
+              <div className="pc-modal-inline-row" style={{ marginBottom: 10, flexWrap: 'wrap' }}>
+                {printLabelsWindowOptions.map((t) => {
+                  const iso = t.week
+                    ? t.week.split('/').reverse().join('-')
+                    : ''
+                  return (
+                    <button
+                      key={t.key}
+                      className={`segment-pill ${printLabelsFrom === iso && !printLabelsTo ? 'segment-pill-active' : ''}`}
+                      onClick={() => {
+                        setPrintLabelsFrom(iso)
+                        setPrintLabelsTo('')
+                      }}
+                    >
+                      {t.day} {t.week || ''} ({t.count})
+                    </button>
+                  )
+                })}
+              </div>
               <div className="pc-modal-inline-row">
                 <button
                   className="btn-primary"
