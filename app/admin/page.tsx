@@ -2172,7 +2172,14 @@ export default function AdminDashboard() {
   // person+postcode (two orders to one house = one stop, two boxes).
   const stokeRouteBaseStops = useMemo(() => {
     const groups = new Map<string, StokeRouteStop>()
-    for (const o of printLabelsOrders) {
+    // Route ONLY the day selected in the chips above — never "all orders".
+    if (!expandedTallyKey) return []
+    for (const o of filteredOrders) {
+      if (o.cancelled) continue
+      const week = o.menu_windows?.week_start_date
+        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
+        : null
+      if (`${week}__${dayNameOf(o.delivery_day)}` !== expandedTallyKey) continue
       if (!isStokeOrder(o)) continue
       const pc = (o.ship_postcode || '').toUpperCase().replace(/\s+/g, '')
       if (!pc) continue
@@ -2197,7 +2204,7 @@ export default function AdminDashboard() {
       }
     }
     return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [printLabelsOrders])
+  }, [filteredOrders, expandedTallyKey])
 
   const toggleStokePin = (key: string, slot: 'first' | 'last') => {
     if (slot === 'first') {
@@ -2356,15 +2363,10 @@ export default function AdminDashboard() {
   }, [stokeRouteBaseStops, stokeRouteExcluded])
 
   const stokeDeliveryDayLabel = useMemo(() => {
-    if (printLabelsFrom && !printLabelsTo) {
-      const d = new Date(printLabelsFrom)
-      if (!Number.isNaN(d.getTime()))
-        return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-    }
-    if (printLabelsFrom && printLabelsTo)
-      return `${new Date(printLabelsFrom).toLocaleDateString('en-GB')} – ${new Date(printLabelsTo).toLocaleDateString('en-GB')}`
-    return 'Sunday'
-  }, [printLabelsFrom, printLabelsTo])
+    if (!expandedTallyKey) return 'Select a day'
+    const [wk, dy] = expandedTallyKey.split('__')
+    return `${dy}${wk && wk !== 'null' ? ` ${wk}` : ''}`
+  }, [expandedTallyKey])
 
   const stokeEmailTemplate = `Subject: Your prepcuisines delivery — ${stokeDeliveryDayLabel}
 
@@ -4237,11 +4239,17 @@ Bukr / prepcuisines`
                   {showStokeRoute && (
                     <>
                       <p className="map-intro">
-                        Uses the Delivery date selected in Print Labels above. Untick any test or
-                        non-delivery entries. Pin drops with 1st / Last — pinned stops keep the
-                        order you pin them in, and everything in between is optimised. Then hit
-                        Build; the numbers below are your drive order, kitchen to kitchen.
+                        Routes the day you've selected in the chips above — and only that day.
+                        Untick any test or non-delivery entries. Pin drops with 1st / Last —
+                        pinned stops keep the order you pin them in, and everything in between is
+                        optimised. Then hit Build; the numbers below are your drive order,
+                        kitchen to kitchen.
                       </p>
+                      {!expandedTallyKey && (
+                        <p className="pc-error-text">
+                          Pick a delivery day chip above first — the route plans that day only.
+                        </p>
+                      )}
                       <div className="pc-modal-inline-row">
                         <button
                           className="segment-pill segment-pill-active"
