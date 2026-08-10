@@ -137,8 +137,10 @@ export async function sendOrderConfirmationEmailToCustomer(
   orderType: string = '',
   isSubscribed: boolean = false,
   isFirstOrder: boolean = false,
-  shipPostcode: string = ''
+  shipPostcode: string = '',
+  orderNumber: number | null = null
 ) {
+  const orderRef = orderNumber != null ? ` — #PC-${orderNumber}` : ''
   const realItems = items.filter((i) => i.name && i.name !== 'Delivery')
 
   const itemRows = realItems
@@ -222,7 +224,7 @@ export async function sendOrderConfirmationEmailToCustomer(
 
   await sendEmailViaNeo(
     toEmail,
-    'Your prepcuisines order is confirmed',
+    `Your prepcuisines order is confirmed${orderRef}`,
     `
     <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
       <tr>

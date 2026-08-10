@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const { data: order, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, customer_id, status, items, total_amount, delivery_day, created_at, ship_full_name, ship_email, ship_postcode'
+      'id, order_number, customer_id, status, items, total_amount, delivery_day, created_at, ship_full_name, ship_email, ship_postcode'
     )
     .eq('id', orderId)
     .maybeSingle()
@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
       order.status || '',
       isSubscribed,
       isFirstOrder,
-      postcode
+      postcode,
+      order.order_number ?? null
     )
   } else if (emailType === 'fulfilled') {
     await sendOrderFulfilledEmailToCustomer(email, name.split(' ')[0])

@@ -17,6 +17,7 @@ type Order = {
   total_amount: number | null
   delivery_day: string | null
   created_at: string
+  order_number?: number | null
   menu_windows: { week_start_date: string; cutoff_datetime: string | null } | null
   fulfilled?: boolean
   cancelled?: boolean
@@ -48,7 +49,7 @@ export default function OrderHistoryPage() {
 
       const { data: rows } = await supabase
         .from('customer_window_orders')
-        .select('id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, menu_windows(week_start_date, cutoff_datetime)')
+        .select('id, order_number, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, menu_windows(week_start_date, cutoff_datetime)')
         .eq('customer_id', data.user.id)
         .order('created_at', { ascending: false })
 
@@ -117,6 +118,9 @@ export default function OrderHistoryPage() {
                   <div className="pc-order-history-top">
                     <div>
                       <div className="pc-order-history-date">
+                        {order.order_number != null && (
+                          <span className="pc-order-number">#PC-{order.order_number} · </span>
+                        )}
                         {order.menu_windows?.week_start_date
                           ? new Date(order.menu_windows.week_start_date).toLocaleDateString('en-GB', {
                               day: 'numeric',

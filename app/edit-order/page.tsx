@@ -8,6 +8,7 @@ import Header from '../Header'
 type MenuItem = { id: string; name: string; price: number; category: string; image_url: string | null }
 type OrderRow = {
   id: string
+  order_number?: number | null
   items: { name: string; price: number; qty: number }[]
   total_amount: number
   ship_postcode: string | null
@@ -43,7 +44,7 @@ function EditOrderInner() {
       const { data: row } = await supabase
         .from('customer_window_orders')
         .select(
-          'id, items, total_amount, ship_postcode, fulfilled, cancelled, menu_window_id, menu_windows(cutoff_datetime, week_start_date)'
+          'id, order_number, items, total_amount, ship_postcode, fulfilled, cancelled, menu_window_id, menu_windows(cutoff_datetime, week_start_date)'
         )
         .eq('id', orderId)
         .eq('customer_id', auth.user.id)
@@ -169,6 +170,11 @@ function EditOrderInner() {
           <h1 className="pc-mp-title">
             Edit Your <em>Order</em>
           </h1>
+          {order.order_number != null && (
+            <p className="pc-mp-subtitle" style={{ marginTop: 2 }}>
+              Order <strong>#PC-{order.order_number}</strong>
+            </p>
+          )}
           {editable ? (
             <p className="pc-mp-subtitle">
               You can change this order until{' '}

@@ -675,3 +675,8 @@ html, body { margin: 0; padding: 0; }
   text-decoration: underline;
   margin-top: 2px;
 }
+
+.pc-order-number {
+  font-weight: 700;
+  color: var(--pc-green, #2d3510);
+}

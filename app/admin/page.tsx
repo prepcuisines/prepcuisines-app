@@ -50,6 +50,7 @@ type Customer = {
 
 type Order = {
   id: string
+  order_number: number | null
   customer_id: string | null
   status: string
   items: { name: string; price: number; qty: number }[]
@@ -1773,7 +1774,9 @@ export default function AdminDashboard() {
         return (
           o.customer_name.toLowerCase().includes(q) ||
           (o.customer_email || '').toLowerCase().includes(q) ||
-          (o.ship_postcode || '').toLowerCase().includes(q)
+          (o.ship_postcode || '').toLowerCase().includes(q) ||
+          (o.order_number != null &&
+            (`pc-${o.order_number}`.includes(q) || String(o.order_number).includes(q.replace(/^#?pc-?/, ''))))
         )
       }),
     [orders, orderSearch]
@@ -1940,7 +1943,7 @@ export default function AdminDashboard() {
       : ''
     return `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:28px;page-break-after:always;page-break-inside:avoid;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:3px solid #1a2e1a;padding-bottom:16px;">
-        <div><div style="font-size:26px;font-weight:700;letter-spacing:2px;color:#1a2e1a;">prepcuisines</div>
+        <div><div style="font-size:26px;font-weight:700;letter-spacing:2px;color:#1a2e1a;">prepcuisines</div>${o.order_number != null ? `<div style="font-size:14px;font-weight:700;color:#555;margin-top:2px;">Order #PC-${o.order_number}</div>` : ''}
         <div style="font-size:14px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Packing Slip</div></div>
         <div style="text-align:right;"><div style="font-size:32px;font-weight:800;color:#1a2e1a;">${o.delivery_day || ''}</div>
         <div style="font-size:14px;color:#888;margin-top:2px;">${new Date(o.created_at).toLocaleDateString('en-GB')}</div></div>
@@ -3746,6 +3749,9 @@ Bukr / prepcuisines`
                         </td>
                         <td>
                           <div className="customer-name">{o.customer_name}</div>
+                          {o.order_number != null && (
+                            <div className="customer-email">#PC-{o.order_number}</div>
+                          )}
                           {o.customer_email && (
                             <div className="customer-email">{o.customer_email}</div>
                           )}
