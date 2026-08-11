@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     menu_window_id: menuWindowId,
     status: 'imported',
     items: o.items || [],
-    total_amount: Number(o.totalAmount) || 0,
+    total_amount: Number(o.totalAmount),
     delivery_day: deliveryDay || null,
     delivery_instructions: o.deliveryInstructions || null,
     ship_full_name: o.customerName,
@@ -45,11 +45,19 @@ export async function POST(req: NextRequest) {
     ship_postcode: o.postcode || null,
   }))
 
-  const { error, data } = await supabase.from('customer_window_orders').insert(rows).select('id')
+  const invalid = rows.filter((r: any) => !Number.isFinite(r.total_amount) || r.total_amount <= 0)
+  const valid = rows.filter((r: any) => Number.isFinite(r.total_amount) && r.total_amount > 0)
+  if (!valid.length) {
+    return NextResponse.json(
+      { error: 'Every row needs a real total amount — nothing was imported.', skipped: invalid.length },
+      { status: 400 }
+    )
+  }
+  const { error, data } = await supabase.from('customer_window_orders').insert(valid).select('id')
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, count: data?.length || 0 })
+  return NextResponse.json({ success: true, skipped: invalid.length, count: data?.length || 0 })
 }
