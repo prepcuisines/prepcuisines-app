@@ -174,6 +174,7 @@ export default function AdminDashboard() {
     | 'product-analytics'
     | 'ops-hub'
   >('overview')
+  const [analyticsView, setAnalyticsView] = useState<'business' | 'product'>('business')
 
   const [overview, setOverview] = useState<Overview | null>(null)
   const [homeRangePreset, setHomeRangePreset] = useState<
@@ -1468,11 +1469,13 @@ export default function AdminDashboard() {
     if (tab === 'delivery' && !mapLoaded) loadMapPoints()
     if (tab === 'insights' && !insightsOverviewLoaded) loadInsightsOverview(insightsPeriod)
     if (tab === 'insights' && customers.length === 0) loadCustomers()
-    if (tab === 'product-analytics' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
-    if (tab === 'product-analytics' && !dishPairsLoaded) loadDishPairs()
-    if (tab === 'product-analytics' && !productDashboardLoaded) loadProductDashboard()
+    if (tab === 'insights' && analyticsView === 'product' && !topDishesLoaded)
+      loadTopDishes(topDishesPeriod)
+    if (tab === 'insights' && analyticsView === 'product' && !dishPairsLoaded) loadDishPairs()
+    if (tab === 'insights' && analyticsView === 'product' && !productDashboardLoaded)
+      loadProductDashboard()
     if (tab === 'ops-hub' && !opsHubLoaded) loadOpsHub()
-  }, [tab, authenticated])
+  }, [tab, analyticsView, authenticated])
 
   const [refreshing, setRefreshing] = useState(false)
 
@@ -1490,15 +1493,17 @@ export default function AdminDashboard() {
       else if (tab === 'menu') jobs.push(loadMenu())
       else if (tab === 'delivery')
         jobs.push(loadOrders(), loadMapPoints(mapDateFilter || undefined))
-      else if (tab === 'insights')
-        jobs.push(
-          insightsPeriod === 'custom'
-            ? loadInsightsOverview('custom', insightsCustomFrom, insightsCustomTo)
-            : loadInsightsOverview(insightsPeriod),
-          loadCustomers()
-        )
-      else if (tab === 'product-analytics')
-        jobs.push(loadTopDishes(topDishesPeriod), loadDishPairs(), loadProductDashboard())
+      else if (tab === 'insights') {
+        if (analyticsView === 'product')
+          jobs.push(loadTopDishes(topDishesPeriod), loadDishPairs(), loadProductDashboard())
+        else
+          jobs.push(
+            insightsPeriod === 'custom'
+              ? loadInsightsOverview('custom', insightsCustomFrom, insightsCustomTo)
+              : loadInsightsOverview(insightsPeriod),
+            loadCustomers()
+          )
+      }
       else if (tab === 'ops-hub') jobs.push(loadOpsHub())
       else {
         const r = homeRangeDates()
@@ -4763,6 +4768,25 @@ Bukr / prepcuisines`
         )}
 
         {tab === 'insights' && (
+          <div className="pc-modal-inline-row" style={{ marginBottom: 12 }}>
+            {(
+              [
+                ['business', 'Business'],
+                ['product', 'Products'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                className={`segment-pill ${analyticsView === key ? 'segment-pill-active' : ''}`}
+                onClick={() => setAnalyticsView(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === 'insights' && analyticsView === 'business' && (
           <section className="insights-block">
                 {locationBreakdown.length > 0 && (
                   <div className="area-map">
@@ -4791,7 +4815,7 @@ Bukr / prepcuisines`
           </section>
         )}
 
-        {tab === 'insights' && (
+        {tab === 'insights' && analyticsView === 'business' && (
           <section>
             <div className="insights-period-row">
               <div className="segment-pills" role="tablist" aria-label="Insights date filter">
@@ -5000,7 +5024,7 @@ Bukr / prepcuisines`
               <button
                 className="btn-primary"
                 style={{ marginTop: 14 }}
-                onClick={() => setTab('product-analytics')}
+                onClick={() => setAnalyticsView('product')}
               >
                 View full Product Analytics report
               </button>
@@ -5008,7 +5032,7 @@ Bukr / prepcuisines`
           </section>
         )}
 
-        {tab === 'product-analytics' && (
+        {tab === 'insights' && analyticsView === 'product' && (
           <section>
             <div className="insights-block">
               <h2 className="insights-block-title">Product dashboard</h2>
