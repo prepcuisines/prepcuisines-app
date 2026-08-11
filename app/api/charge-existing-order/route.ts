@@ -160,15 +160,6 @@ export async function POST(req: NextRequest) {
 
     const totalAmount = Math.round((foodTotal + deliveryFee) * 100)
 
-    // Hard floor: an order must contain items and a real amount. Nothing
-    // below Stripe's minimum ever reaches the charge, and a £0 order row
-    // can never be written by this route.
-    if (!orderItemsSnapshot.some((i) => i.name !== 'Delivery' && i.qty > 0) || totalAmount < 100) {
-      return NextResponse.json(
-        { error: 'Your basket looks empty — add some meals and try again.' },
-        { status: 400 }
-      )
-    }
 
     // Snapshot must reflect what was actually charged: discounted unit
     // prices plus an explicit Delivery line. Storing full menu prices with
@@ -182,6 +173,15 @@ export async function POST(req: NextRequest) {
       })),
       { name: 'Delivery', price: deliveryFee, qty: 1 },
     ]
+    // Hard floor: an order must contain items and a real amount. Nothing
+    // below Stripe's minimum ever reaches the charge, and a £0 order row
+    // can never be written by this route.
+    if (!orderItemsSnapshot.some((i) => i.name !== 'Delivery' && i.qty > 0) || totalAmount < 100) {
+      return NextResponse.json(
+        { error: 'Your basket looks empty — add some meals and try again.' },
+        { status: 400 }
+      )
+    }
 
     let paymentIntent: Stripe.PaymentIntent
     try {
