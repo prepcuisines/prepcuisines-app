@@ -181,6 +181,8 @@ export default function AdminDashboard() {
   const [homeFrom, setHomeFrom] = useState('')
   const [homeTo, setHomeTo] = useState('')
   const [showHomeDates, setShowHomeDates] = useState(false)
+  const [showPrintDates, setShowPrintDates] = useState(false)
+  const [showInsightsDates, setShowInsightsDates] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [segment, setSegment] = useState('all')
@@ -4501,38 +4503,10 @@ Bukr / prepcuisines`
           <section>
             <div className="pc-modal-section" style={{ marginTop: 12 }}>
               <label className="field-label">🏷 Print Labels</label>
-              <label className="field-label" style={{ marginTop: 10 }}>
-                Delivery date
-              </label>
-              <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
-                <input
-                  type="date"
-                  className="text-input"
-                  value={printLabelsFrom}
-                  onChange={(e) => setPrintLabelsFrom(e.target.value)}
-                  aria-label="Delivery date (or start of range)"
-                />
-                <span className="cook-sheet-collapse-meta">to</span>
-                <input
-                  type="date"
-                  className="text-input"
-                  value={printLabelsTo}
-                  onChange={(e) => setPrintLabelsTo(e.target.value)}
-                  aria-label="End of range (optional)"
-                />
-                {(printLabelsFrom || printLabelsTo) && (
-                  <button
-                    className="segment-pill"
-                    onClick={() => {
-                      setPrintLabelsFrom('')
-                      setPrintLabelsTo('')
-                    }}
-                  >
-                    All dates
-                  </button>
-                )}
-              </div>
-              <div className="pc-modal-inline-row" style={{ marginBottom: 10, flexWrap: 'wrap' }}>
+              <div
+                className="pc-modal-inline-row"
+                style={{ marginBottom: 10, flexWrap: 'wrap', position: 'relative' }}
+              >
                 {printLabelsWindowOptions.map((t) => {
                   const iso = t.week
                     ? t.week.split('/').reverse().join('-')
@@ -4550,6 +4524,50 @@ Bukr / prepcuisines`
                     </button>
                   )
                 })}
+                <button
+                  className={`segment-pill ${printLabelsFrom || printLabelsTo ? 'segment-pill-active' : ''}`}
+                  aria-label="Pick delivery date or range"
+                  onClick={() => setShowPrintDates((v) => !v)}
+                >
+                  {printLabelsFrom
+                    ? `📅 ${new Date(printLabelsFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}${printLabelsTo ? ` – ${new Date(printLabelsTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ''}`
+                    : '📅'}
+                </button>
+                {showPrintDates && (
+                  <div className="pc-date-popover">
+                    <input
+                      type="date"
+                      className="text-input"
+                      value={printLabelsFrom}
+                      onChange={(e) => setPrintLabelsFrom(e.target.value)}
+                      aria-label="Delivery date (or start of range)"
+                    />
+                    <span className="cook-sheet-collapse-meta">to</span>
+                    <input
+                      type="date"
+                      className="text-input"
+                      value={printLabelsTo}
+                      onChange={(e) => setPrintLabelsTo(e.target.value)}
+                      aria-label="End of range (optional)"
+                    />
+                    <button
+                      className="segment-pill"
+                      onClick={() => {
+                        setPrintLabelsFrom('')
+                        setPrintLabelsTo('')
+                        setShowPrintDates(false)
+                      }}
+                    >
+                      All dates
+                    </button>
+                    <button
+                      className="segment-pill segment-pill-active"
+                      onClick={() => setShowPrintDates(false)}
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="pc-modal-inline-row">
                 <button
@@ -4887,7 +4905,7 @@ Bukr / prepcuisines`
 
         {tab === 'insights' && analyticsView === 'business' && (
           <section>
-            <div className="insights-period-row">
+            <div className="insights-period-row" style={{ position: 'relative' }}>
               <div className="segment-pills" role="tablist" aria-label="Insights date filter">
                 {(
                   [
@@ -4910,29 +4928,43 @@ Bukr / prepcuisines`
                   </button>
                 ))}
               </div>
-              {insightsPeriod === 'custom' && (
-                <>
+              <button
+                className={`segment-pill ${insightsPeriod === 'custom' ? 'segment-pill-active' : ''}`}
+                aria-label="Custom date range"
+                onClick={() => {
+                  setInsightsPeriod('custom')
+                  setShowInsightsDates((v) => !v)
+                }}
+              >
+                {insightsPeriod === 'custom' && insightsCustomFrom
+                  ? `📅 ${new Date(insightsCustomFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}${insightsCustomTo ? ` – ${new Date(insightsCustomTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ''}`
+                  : '📅'}
+              </button>
+              {showInsightsDates && (
+                <div className="pc-date-popover">
                   <input
                     type="date"
-                    className="text-input search-input"
+                    className="text-input"
                     value={insightsCustomFrom}
                     onChange={(e) => setInsightsCustomFrom(e.target.value)}
                   />
+                  <span className="cook-sheet-collapse-meta">to</span>
                   <input
                     type="date"
-                    className="text-input search-input"
+                    className="text-input"
                     value={insightsCustomTo}
                     onChange={(e) => setInsightsCustomTo(e.target.value)}
                   />
                   <button
-                    className="btn-primary"
-                    onClick={() =>
+                    className="segment-pill segment-pill-active"
+                    onClick={() => {
                       loadInsightsOverview('custom', insightsCustomFrom, insightsCustomTo)
-                    }
+                      setShowInsightsDates(false)
+                    }}
                   >
                     Apply
                   </button>
-                </>
+                </div>
               )}
             </div>
 
