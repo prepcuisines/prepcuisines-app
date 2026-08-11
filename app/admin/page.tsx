@@ -166,12 +166,8 @@ export default function AdminDashboard() {
     | 'orders'
     | 'cook-sheet'
     | 'delivery'
-    | 'email-marketing'
-    | 'shopify-import'
     | 'menu'
-    | 'map'
     | 'insights'
-    | 'product-analytics'
     | 'ops-hub'
   >('overview')
   const [analyticsView, setAnalyticsView] = useState<'business' | 'product'>('business')
@@ -1367,13 +1363,13 @@ export default function AdminDashboard() {
   // real OpenStreetMap-backed map with actual roads/coastline, without
   // adding a new npm dependency to the build.
   useEffect(() => {
-    if (tab === 'email-marketing' && emailWindowOptions.length === 0) {
+    if (tab === 'customers' && showEmailMarketing && emailWindowOptions.length === 0) {
       loadEmailWindowOptions()
     }
-  }, [tab])
+  }, [tab, showEmailMarketing])
 
   useEffect(() => {
-    if (tab !== 'map') return
+    if (tab !== 'delivery') return
     if (loading || mapPoints.length === 0) return
     if (!leafletMapRef.current) return
 
