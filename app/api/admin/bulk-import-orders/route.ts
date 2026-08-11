@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const rows = orders.map((o: any) => ({
     customer_id: null,
     menu_window_id: menuWindowId,
-    status: 'manually_ordered',
+    status: 'imported',
     items: o.items || [],
     total_amount: Number(o.totalAmount) || 0,
     delivery_day: deliveryDay || null,

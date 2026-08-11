@@ -106,6 +106,7 @@ const havKm = (a: { lat: number; lon: number }, b: { lat: number; lon: number })
 }
 
 const statusLabels: Record<string, string> = {
+  imported: 'Imported (Shopify)',
   redo: 'Redo — resend',
   manually_ordered: 'Placed by customer',
   auto_filled: 'Auto-filled',

@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     .lte('created_at', rangeEnd.toISOString())
 
   const realRangeOrders = (rangeOrders || []).filter(
-    (o) => !o.cancelled && o.status !== 'redo' && o.status !== 'skipped'
+    (o) => !o.cancelled && o.status !== 'redo' && o.status !== 'skipped' && o.status !== 'imported'
   )
   const rangeSales = realRangeOrders.reduce((s, o) => s + (o.total_amount || 0), 0)
   const rangeMeals = realRangeOrders.reduce(
