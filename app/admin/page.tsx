@@ -175,6 +175,8 @@ export default function AdminDashboard() {
     | 'ops-hub'
   >('overview')
   const [analyticsView, setAnalyticsView] = useState<'business' | 'product'>('business')
+  const [showEmailMarketing, setShowEmailMarketing] = useState(false)
+  const [showShopifyImport, setShowShopifyImport] = useState(false)
 
   const [overview, setOverview] = useState<Overview | null>(null)
   const [homeRangePreset, setHomeRangePreset] = useState<
@@ -3091,17 +3093,41 @@ Bukr / prepcuisines`
 
             <div className="toolbar">
               <div className="segment-pills" role="tablist" aria-label="Customer segment">
-                {segmentFilters.map((s) => (
+                {(
+                  [
+                    ['all', 'All'],
+                    ['subscribed', 'Subscribed'],
+                    ['skipped_week', 'Skipped this week'],
+                  ] as const
+                ).map(([key, label]) => (
                   <button
-                    key={s.key}
-                    onClick={() => setSegment(s.key)}
-                    className={`segment-pill ${segment === s.key ? 'segment-pill-active' : ''}`}
+                    key={key}
+                    onClick={() => setSegment(key)}
+                    className={`segment-pill ${segment === key ? 'segment-pill-active' : ''}`}
                     role="tab"
-                    aria-selected={segment === s.key}
+                    aria-selected={segment === key}
                   >
-                    {s.label}
+                    {label}
                   </button>
                 ))}
+                <select
+                  className="text-input"
+                  style={{ width: 'auto' }}
+                  aria-label="More segments"
+                  value={
+                    ['all', 'subscribed', 'skipped_week'].includes(segment) ? '' : segment
+                  }
+                  onChange={(e) => e.target.value && setSegment(e.target.value)}
+                >
+                  <option value="">More…</option>
+                  {segmentFilters
+                    .filter((f) => f.key !== 'skipped_week')
+                    .map((f) => (
+                      <option key={f.key} value={f.key}>
+                        {f.label}
+                      </option>
+                    ))}
+                </select>
               </div>
               <input
                 aria-label="Search customers"
@@ -4077,7 +4103,24 @@ Bukr / prepcuisines`
           </section>
         )}
 
-        {tab === 'email-marketing' && (
+        {tab === 'customers' && (
+          <div className="date-filter-toggle-row" style={{ marginTop: 14 }}>
+            <button
+              className="date-filter-toggle"
+              onClick={() => setShowEmailMarketing((v) => !v)}
+            >
+              {showEmailMarketing ? '▾' : '▸'} Email marketing lists
+            </button>
+            <button
+              className="date-filter-toggle"
+              onClick={() => setShowShopifyImport((v) => !v)}
+            >
+              {showShopifyImport ? '▾' : '▸'} Import customers (Shopify)
+            </button>
+          </div>
+        )}
+
+        {tab === 'customers' && showEmailMarketing && (
           <section>
               <div className="insights-block">
                 <p className="map-intro">
@@ -4161,7 +4204,7 @@ Bukr / prepcuisines`
           </section>
         )}
 
-        {tab === 'shopify-import' && (
+        {tab === 'customers' && showShopifyImport && (
           <section>
               <div className="insights-block">
                 <p className="map-intro">
