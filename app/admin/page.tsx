@@ -180,6 +180,7 @@ export default function AdminDashboard() {
   >('today')
   const [homeFrom, setHomeFrom] = useState('')
   const [homeTo, setHomeTo] = useState('')
+  const [showHomeDates, setShowHomeDates] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [segment, setSegment] = useState('all')
@@ -2975,28 +2976,58 @@ Bukr / prepcuisines`
                   {label}
                 </button>
               ))}
-              <input
-                type="date"
-                className="text-input"
-                value={homeFrom}
-                onChange={(e) => {
-                  setHomeFrom(e.target.value)
-                  setHomeRangePreset('custom')
-                }}
-                aria-label="From date"
-              />
-              <span className="cook-sheet-collapse-meta">to</span>
-              <input
-                type="date"
-                className="text-input"
-                value={homeTo}
-                onChange={(e) => {
-                  setHomeTo(e.target.value)
-                  setHomeRangePreset('custom')
-                }}
-                aria-label="To date (optional)"
-              />
+              <button
+                className={`segment-pill ${homeRangePreset === 'custom' ? 'segment-pill-active' : ''}`}
+                aria-label="Custom date range"
+                onClick={() => setShowHomeDates((v) => !v)}
+              >
+                {homeRangePreset === 'custom' && homeFrom
+                  ? `📅 ${new Date(homeFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}${homeTo ? ` – ${new Date(homeTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ''}`
+                  : '📅'}
+              </button>
             </div>
+            {showHomeDates && (
+              <div className="pc-date-popover">
+                <input
+                  type="date"
+                  className="text-input"
+                  value={homeFrom}
+                  onChange={(e) => {
+                    setHomeFrom(e.target.value)
+                    setHomeRangePreset('custom')
+                  }}
+                  aria-label="From date"
+                />
+                <span className="cook-sheet-collapse-meta">to</span>
+                <input
+                  type="date"
+                  className="text-input"
+                  value={homeTo}
+                  onChange={(e) => {
+                    setHomeTo(e.target.value)
+                    setHomeRangePreset('custom')
+                  }}
+                  aria-label="To date (optional)"
+                />
+                <button
+                  className="segment-pill"
+                  onClick={() => {
+                    setHomeFrom('')
+                    setHomeTo('')
+                    setHomeRangePreset('today')
+                    setShowHomeDates(false)
+                  }}
+                >
+                  Clear
+                </button>
+                <button
+                  className="segment-pill segment-pill-active"
+                  onClick={() => setShowHomeDates(false)}
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         )}
 

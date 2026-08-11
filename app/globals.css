@@ -712,3 +712,21 @@ html, body { margin: 0; padding: 0; }
   color: var(--pc-green-mid, #3a4516);
 }
 .pc-home-tile-action { cursor: pointer; }
+
+.pc-home-range { position: relative; }
+.pc-date-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid var(--pc-cream-dark, #ede8de);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(45, 53, 16, 0.16);
+}
+.pc-date-popover .text-input { width: 150px; }
