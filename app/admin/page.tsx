@@ -1465,7 +1465,7 @@ export default function AdminDashboard() {
     if (tab === 'orders' && orders.length === 0) loadOrders()
     if (tab === 'orders' && recurringOrdersList.length === 0) loadRecurringOrders()
     if (tab === 'menu' && !menuLoaded) loadMenu()
-    if (tab === 'map' && !mapLoaded) loadMapPoints()
+    if (tab === 'delivery' && !mapLoaded) loadMapPoints()
     if (tab === 'insights' && !insightsOverviewLoaded) loadInsightsOverview(insightsPeriod)
     if (tab === 'insights' && customers.length === 0) loadCustomers()
     if (tab === 'product-analytics' && !topDishesLoaded) loadTopDishes(topDishesPeriod)
@@ -1488,7 +1488,8 @@ export default function AdminDashboard() {
       else if (tab === 'orders' || tab === 'cook-sheet')
         jobs.push(loadOrders(), loadRecurringOrders())
       else if (tab === 'menu') jobs.push(loadMenu())
-      else if (tab === 'map') jobs.push(loadMapPoints(mapDateFilter || undefined))
+      else if (tab === 'delivery')
+        jobs.push(loadOrders(), loadMapPoints(mapDateFilter || undefined))
       else if (tab === 'insights')
         jobs.push(
           insightsPeriod === 'custom'
@@ -2172,16 +2173,14 @@ export default function AdminDashboard() {
 
   // Stops = Stoke orders in the selected Delivery date, grouped by
   // person+postcode (two orders to one house = one stop, two boxes).
+  // Planner lives on Delivery beside the date picker: it routes exactly one
+  // selected delivery date — never "all", never a range.
+  const stokeRouteSingleDate = printLabelsFrom && !printLabelsTo ? printLabelsFrom : null
   const stokeRouteBaseStops = useMemo(() => {
     const groups = new Map<string, StokeRouteStop>()
-    // Route ONLY the day selected in the chips above — never "all orders".
-    if (!expandedTallyKey) return []
-    for (const o of filteredOrders) {
+    if (!stokeRouteSingleDate) return []
+    for (const o of printLabelsOrders) {
       if (o.cancelled) continue
-      const week = o.menu_windows?.week_start_date
-        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
-        : null
-      if (`${week}__${dayNameOf(o.delivery_day)}` !== expandedTallyKey) continue
       if (!isStokeOrder(o)) continue
       const pc = (o.ship_postcode || '').toUpperCase().replace(/\s+/g, '')
       if (!pc) continue
@@ -2206,7 +2205,7 @@ export default function AdminDashboard() {
       }
     }
     return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [filteredOrders, expandedTallyKey])
+  }, [printLabelsOrders, stokeRouteSingleDate])
 
   const toggleStokePin = (key: string, slot: 'first' | 'last') => {
     if (slot === 'first') {
@@ -2365,10 +2364,12 @@ export default function AdminDashboard() {
   }, [stokeRouteBaseStops, stokeRouteExcluded])
 
   const stokeDeliveryDayLabel = useMemo(() => {
-    if (!expandedTallyKey) return 'Select a day'
-    const [wk, dy] = expandedTallyKey.split('__')
-    return `${dy}${wk && wk !== 'null' ? ` ${wk}` : ''}`
-  }, [expandedTallyKey])
+    if (!stokeRouteSingleDate) return 'Select a date'
+    const d = new Date(stokeRouteSingleDate)
+    return Number.isNaN(d.getTime())
+      ? 'Select a date'
+      : d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+  }, [stokeRouteSingleDate])
 
   const stokeEmailTemplate = `Subject: Your prepcuisines delivery — ${stokeDeliveryDayLabel}
 
@@ -3351,98 +3352,6 @@ Bukr / prepcuisines`
               </button>
             </div>
 
-            <div className="pc-modal-section" style={{ marginTop: 12 }}>
-              <label className="field-label">🏷 Print Labels</label>
-              <label className="field-label" style={{ marginTop: 10 }}>
-                Delivery date
-              </label>
-              <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
-                <input
-                  type="date"
-                  className="text-input"
-                  value={printLabelsFrom}
-                  onChange={(e) => setPrintLabelsFrom(e.target.value)}
-                  aria-label="Delivery date (or start of range)"
-                />
-                <span className="cook-sheet-collapse-meta">to</span>
-                <input
-                  type="date"
-                  className="text-input"
-                  value={printLabelsTo}
-                  onChange={(e) => setPrintLabelsTo(e.target.value)}
-                  aria-label="End of range (optional)"
-                />
-                {(printLabelsFrom || printLabelsTo) && (
-                  <button
-                    className="segment-pill"
-                    onClick={() => {
-                      setPrintLabelsFrom('')
-                      setPrintLabelsTo('')
-                    }}
-                  >
-                    All dates
-                  </button>
-                )}
-              </div>
-              <div className="pc-modal-inline-row" style={{ marginBottom: 10, flexWrap: 'wrap' }}>
-                {printLabelsWindowOptions.map((t) => {
-                  const iso = t.week
-                    ? t.week.split('/').reverse().join('-')
-                    : ''
-                  return (
-                    <button
-                      key={t.key}
-                      className={`segment-pill ${printLabelsFrom === iso && !printLabelsTo ? 'segment-pill-active' : ''}`}
-                      onClick={() => {
-                        setPrintLabelsFrom(iso)
-                        setPrintLabelsTo('')
-                      }}
-                    >
-                      {t.day} {t.week || ''} ({t.count})
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="pc-modal-inline-row">
-                <button
-                  className="btn-primary"
-                  onClick={printAllShippingLabels}
-                  disabled={printLabelsStatus === 'working'}
-                >
-                  {printLabelsStatus === 'working'
-                    ? `Working… ${printLabelsProgress}`
-                    : `🚚 Print outstanding Shipping Labels (${outstandingShippingCount} left of ${printLabelsOrders.length - printLabelsStokeCount})`}
-                </button>
-                <button
-                  className="segment-pill"
-                  onClick={printAllStokePackingLabels}
-                  disabled={printLabelsStatus === 'working'}
-                >
-                  📦 Print outstanding Stoke Packing Labels ({outstandingStokeCount} left of {printLabelsStokeCount})
-                </button>
-              </div>
-              <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
-                <button
-                  className="segment-pill"
-                  onClick={() => printPackingSlipsForRegion('stoke')}
-                  disabled={printLabelsStatus === 'working'}
-                >
-                  🧾 Print Packing Slips — Stoke ({printLabelsStokeCount})
-                </button>
-                <button
-                  className="segment-pill"
-                  onClick={() => printPackingSlipsForRegion('nationwide')}
-                  disabled={printLabelsStatus === 'working'}
-                >
-                  🧾 Print Packing Slips — Nationwide ({printLabelsOrders.length - printLabelsStokeCount})
-                </button>
-              </div>
-              {printLabelsError && (
-                <p className="error-text" style={{ marginTop: 8 }}>
-                  {printLabelsError}
-                </p>
-              )}
-            </div>
 
             {showAddOrder && (
               <form className="add-order-panel" onSubmit={submitManualOrder}>
@@ -4158,214 +4067,7 @@ Bukr / prepcuisines`
                   </div>
                 )}
 
-                <div className="location-summary">
-                  <div className="dpd-card">
-                    <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
-                    <div className="dpd-value">{money(dpdEstimate)}</div>
-                    <div className="dpd-meta">
-                      {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
-                    </div>
-                  </div>
-                </div>
 
-                {locationBreakdown.length > 0 && (
-                  <div className="area-map">
-                    <button
-                      type="button"
-                      className="area-map-toggle"
-                      onClick={() => setShowAreaMap((v) => !v)}
-                    >
-                      <span className="area-map-title">Orders by area</span>
-                      <span className="area-map-meta">
-                        {locationBreakdown.length} areas {showAreaMap ? '▴' : '▾'}
-                      </span>
-                    </button>
-                    {showAreaMap &&
-                      locationBreakdown.map((a) => (
-                        <div key={a.area} className="area-row">
-                          <span className="area-name">{a.area}</span>
-                          <div className="area-bar-track">
-                            <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
-                          </div>
-                          <span className="area-count">{a.count}</span>
-                        </div>
-                      ))}
-                  </div>
-                )}
-
-                <div className="cook-sheet-panel">
-                  <div className="cook-sheet-header-row">
-                    <button
-                      type="button"
-                      className="cook-sheet-collapse-toggle"
-                      onClick={() => setShowStokeRoute((v) => !v)}
-                    >
-                      <span className="cook-sheet-title">
-                        {showStokeRoute ? '\u25be' : '\u25b8'} 🚐 Stoke route planner
-                      </span>
-                      <span className="cook-sheet-collapse-meta">
-                        {stokeRouteBaseStops.length} stops
-                      </span>
-                    </button>
-                  </div>
-                  {showStokeRoute && (
-                    <>
-                      {!expandedTallyKey && (
-                        <p className="pc-error-text">
-                          Pick a delivery day chip above first — the route plans that day only.
-                        </p>
-                      )}
-                      <div className="pc-modal-inline-row">
-                        <button
-                          className="segment-pill segment-pill-active"
-                          onClick={buildStokeRoute}
-                          disabled={stokeRouteStatus === 'working'}
-                        >
-                          {stokeRouteStatus === 'working'
-                            ? 'Building\u2026'
-                            : stokeRouteStops.length
-                              ? '\u21bb Rebuild route'
-                              : 'Build optimised route'}
-                        </button>
-                        <button className="segment-pill" onClick={copyStokeEmails}>
-                          {stokeEmailsCopied
-                            ? 'Copied!'
-                            : `\u2709 Copy ${stokeRouteEmails.length} customer emails`}
-                        </button>
-                        {stokeRouteStops.length > 0 && (
-                          <span className="cook-sheet-collapse-meta">
-                            ~{stokeRouteKm.toFixed(1)} km round trip · {stokeRouteStops.length} stops
-                          </span>
-                        )}
-                      </div>
-                      {stokeRouteError && <p className="pc-error-text">{stokeRouteError}</p>}
-                      {stokeRouteStops.length > 0 && (
-                        <>
-                          <div ref={stokeRouteMapRef} className="stoke-route-map" />
-                          <div className="pc-modal-inline-row">
-                            {(['google', 'apple', 'waze'] as const).map((app) => (
-                              <button
-                                key={app}
-                                className={`segment-pill ${stokeNavApp === app ? 'segment-pill-active' : ''}`}
-                                onClick={() => setStokeNavApp(app)}
-                              >
-                                {app === 'google'
-                                  ? 'Google Maps'
-                                  : app === 'apple'
-                                    ? 'Apple Maps'
-                                    : 'Waze'}
-                              </button>
-                            ))}
-                            <button className="segment-pill" onClick={copyStokeRouteLinks}>
-                              {stokeRouteLinksCopied ? 'Copied!' : '🔗 Copy route to share'}
-                            </button>
-                          </div>
-                          {stokeNavApp === 'google' ? (
-                            <div className="pc-modal-inline-row">
-                              {stokeRouteLegs.map((leg) => (
-                                <a
-                                  key={leg.label}
-                                  className="segment-pill"
-                                  href={leg.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  🗺 {leg.label} in Google Maps
-                                </a>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="map-intro">
-                              {stokeNavApp === 'apple' ? 'Apple Maps' : 'Waze'} takes one stop per
-                              link — tap Go on each stop as you drive, or Copy route to share and
-                              tap down the list from your messages.
-                            </p>
-                          )}
-                        </>
-                      )}
-                      <ul className="stoke-route-list">
-                        {(stokeRouteStops.length ? stokeRouteStops : stokeRouteBaseStops).map(
-                          (st, i) => (
-                            <li key={st.key}>
-                              <label className="stoke-route-row">
-                                <input
-                                  type="checkbox"
-                                  checked={!stokeRouteExcluded.includes(st.key)}
-                                  onChange={() =>
-                                    setStokeRouteExcluded((prev) =>
-                                      prev.includes(st.key)
-                                        ? prev.filter((k) => k !== st.key)
-                                        : [...prev, st.key]
-                                    )
-                                  }
-                                />
-                                <span className="stoke-route-num">
-                                  {stokeRouteStops.length ? `${i + 1}.` : '\u2022'}
-                                </span>
-                                <span className="stoke-route-name">
-                                  {st.name}
-                                  {st.orderCount > 1 ? ` \u00d7${st.orderCount} boxes` : ''}
-                                </span>
-                                <span className="stoke-route-addr">
-                                  {st.address} · {st.postcode}
-                                </span>
-                                <span className="stoke-route-pin-btns">
-                                  <button
-                                    type="button"
-                                    className={`stoke-route-pin-btn ${stokeRouteFirsts.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
-                                    onClick={(e) => {
-                                      e.preventDefault()
-                                      toggleStokePin(st.key, 'first')
-                                    }}
-                                  >
-                                    1st
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={`stoke-route-pin-btn ${stokeRouteLasts.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
-                                    onClick={(e) => {
-                                      e.preventDefault()
-                                      toggleStokePin(st.key, 'last')
-                                    }}
-                                  >
-                                    Last
-                                  </button>
-                                </span>
-                                {stokeRouteStops.length > 0 && (
-                                  <a
-                                    className="stoke-route-go"
-                                    href={stokeNavUrl(stokeNavApp, st.lat, st.lon)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    Go ▸
-                                  </a>
-                                )}
-                              </label>
-                            </li>
-                          )
-                        )}
-                      </ul>
-                      {stokeRouteStops.length > 0 && stokeRouteExcluded.length > 0 && (
-                        <p className="map-intro">Ticks changed — hit Rebuild route to re-optimise.</p>
-                      )}
-                      <div className="stoke-route-template">
-                        <div className="cook-sheet-header-row">
-                          <span className="area-map-title">Delivery update email template</span>
-                          <button className="segment-pill" onClick={copyStokeTemplate}>
-                            {stokeTemplateCopied ? 'Copied!' : 'Copy template'}
-                          </button>
-                        </div>
-                        <pre className="stoke-route-template-pre">{stokeEmailTemplate}</pre>
-                        <p className="map-intro">
-                          Paste the copied emails into <strong>BCC</strong> (never To/CC), fill the
-                          two times, send from info@prepcuisines.co.uk.
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
               </>
           </section>
         )}
@@ -4720,7 +4422,289 @@ Bukr / prepcuisines`
           </section>
         )}
 
-        {tab === 'map' && (
+        {tab === 'delivery' && (
+          <section>
+            <div className="pc-modal-section" style={{ marginTop: 12 }}>
+              <label className="field-label">🏷 Print Labels</label>
+              <label className="field-label" style={{ marginTop: 10 }}>
+                Delivery date
+              </label>
+              <div className="pc-modal-inline-row" style={{ marginBottom: 8 }}>
+                <input
+                  type="date"
+                  className="text-input"
+                  value={printLabelsFrom}
+                  onChange={(e) => setPrintLabelsFrom(e.target.value)}
+                  aria-label="Delivery date (or start of range)"
+                />
+                <span className="cook-sheet-collapse-meta">to</span>
+                <input
+                  type="date"
+                  className="text-input"
+                  value={printLabelsTo}
+                  onChange={(e) => setPrintLabelsTo(e.target.value)}
+                  aria-label="End of range (optional)"
+                />
+                {(printLabelsFrom || printLabelsTo) && (
+                  <button
+                    className="segment-pill"
+                    onClick={() => {
+                      setPrintLabelsFrom('')
+                      setPrintLabelsTo('')
+                    }}
+                  >
+                    All dates
+                  </button>
+                )}
+              </div>
+              <div className="pc-modal-inline-row" style={{ marginBottom: 10, flexWrap: 'wrap' }}>
+                {printLabelsWindowOptions.map((t) => {
+                  const iso = t.week
+                    ? t.week.split('/').reverse().join('-')
+                    : ''
+                  return (
+                    <button
+                      key={t.key}
+                      className={`segment-pill ${printLabelsFrom === iso && !printLabelsTo ? 'segment-pill-active' : ''}`}
+                      onClick={() => {
+                        setPrintLabelsFrom(iso)
+                        setPrintLabelsTo('')
+                      }}
+                    >
+                      {t.day} {t.week || ''} ({t.count})
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="pc-modal-inline-row">
+                <button
+                  className="btn-primary"
+                  onClick={printAllShippingLabels}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  {printLabelsStatus === 'working'
+                    ? `Working… ${printLabelsProgress}`
+                    : `🚚 Print outstanding Shipping Labels (${outstandingShippingCount} left of ${printLabelsOrders.length - printLabelsStokeCount})`}
+                </button>
+                <button
+                  className="segment-pill"
+                  onClick={printAllStokePackingLabels}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  📦 Print outstanding Stoke Packing Labels ({outstandingStokeCount} left of {printLabelsStokeCount})
+                </button>
+              </div>
+              <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
+                <button
+                  className="segment-pill"
+                  onClick={() => printPackingSlipsForRegion('stoke')}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  🧾 Print Packing Slips — Stoke ({printLabelsStokeCount})
+                </button>
+                <button
+                  className="segment-pill"
+                  onClick={() => printPackingSlipsForRegion('nationwide')}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  🧾 Print Packing Slips — Nationwide ({printLabelsOrders.length - printLabelsStokeCount})
+                </button>
+              </div>
+              {printLabelsError && (
+                <p className="error-text" style={{ marginTop: 8 }}>
+                  {printLabelsError}
+                </p>
+              )}
+            </div>
+            <div className="pc-modal-section" style={{ marginTop: 12 }}>
+                <div className="location-summary">
+                  <div className="dpd-card">
+                    <div className="dpd-label">Estimated DPD cost (outside Stoke)</div>
+                    <div className="dpd-value">{money(dpdEstimate)}</div>
+                    <div className="dpd-meta">
+                      {outsideStokeCount} deliveries × {money(DPD_COST_PER_DELIVERY)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="cook-sheet-panel">
+                  <div className="cook-sheet-header-row">
+                    <button
+                      type="button"
+                      className="cook-sheet-collapse-toggle"
+                      onClick={() => setShowStokeRoute((v) => !v)}
+                    >
+                      <span className="cook-sheet-title">
+                        {showStokeRoute ? '\u25be' : '\u25b8'} 🚐 Stoke route planner
+                      </span>
+                      <span className="cook-sheet-collapse-meta">
+                        {stokeRouteBaseStops.length} stops
+                      </span>
+                    </button>
+                  </div>
+                  {showStokeRoute && (
+                    <>
+                      {!stokeRouteSingleDate && (
+                        <p className="pc-error-text">
+                          Pick a single delivery date above (no range) — the route plans one day.
+                        </p>
+                      )}
+                      <div className="pc-modal-inline-row">
+                        <button
+                          className="segment-pill segment-pill-active"
+                          onClick={buildStokeRoute}
+                          disabled={stokeRouteStatus === 'working'}
+                        >
+                          {stokeRouteStatus === 'working'
+                            ? 'Building\u2026'
+                            : stokeRouteStops.length
+                              ? '\u21bb Rebuild route'
+                              : 'Build optimised route'}
+                        </button>
+                        <button className="segment-pill" onClick={copyStokeEmails}>
+                          {stokeEmailsCopied
+                            ? 'Copied!'
+                            : `\u2709 Copy ${stokeRouteEmails.length} customer emails`}
+                        </button>
+                        {stokeRouteStops.length > 0 && (
+                          <span className="cook-sheet-collapse-meta">
+                            ~{stokeRouteKm.toFixed(1)} km round trip · {stokeRouteStops.length} stops
+                          </span>
+                        )}
+                      </div>
+                      {stokeRouteError && <p className="pc-error-text">{stokeRouteError}</p>}
+                      {stokeRouteStops.length > 0 && (
+                        <>
+                          <div ref={stokeRouteMapRef} className="stoke-route-map" />
+                          <div className="pc-modal-inline-row">
+                            {(['google', 'apple', 'waze'] as const).map((app) => (
+                              <button
+                                key={app}
+                                className={`segment-pill ${stokeNavApp === app ? 'segment-pill-active' : ''}`}
+                                onClick={() => setStokeNavApp(app)}
+                              >
+                                {app === 'google'
+                                  ? 'Google Maps'
+                                  : app === 'apple'
+                                    ? 'Apple Maps'
+                                    : 'Waze'}
+                              </button>
+                            ))}
+                            <button className="segment-pill" onClick={copyStokeRouteLinks}>
+                              {stokeRouteLinksCopied ? 'Copied!' : '🔗 Copy route to share'}
+                            </button>
+                          </div>
+                          {stokeNavApp === 'google' ? (
+                            <div className="pc-modal-inline-row">
+                              {stokeRouteLegs.map((leg) => (
+                                <a
+                                  key={leg.label}
+                                  className="segment-pill"
+                                  href={leg.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  🗺 {leg.label} in Google Maps
+                                </a>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="map-intro">
+                              {stokeNavApp === 'apple' ? 'Apple Maps' : 'Waze'} takes one stop per
+                              link — tap Go on each stop as you drive, or Copy route to share and
+                              tap down the list from your messages.
+                            </p>
+                          )}
+                        </>
+                      )}
+                      <ul className="stoke-route-list">
+                        {(stokeRouteStops.length ? stokeRouteStops : stokeRouteBaseStops).map(
+                          (st, i) => (
+                            <li key={st.key}>
+                              <label className="stoke-route-row">
+                                <input
+                                  type="checkbox"
+                                  checked={!stokeRouteExcluded.includes(st.key)}
+                                  onChange={() =>
+                                    setStokeRouteExcluded((prev) =>
+                                      prev.includes(st.key)
+                                        ? prev.filter((k) => k !== st.key)
+                                        : [...prev, st.key]
+                                    )
+                                  }
+                                />
+                                <span className="stoke-route-num">
+                                  {stokeRouteStops.length ? `${i + 1}.` : '\u2022'}
+                                </span>
+                                <span className="stoke-route-name">
+                                  {st.name}
+                                  {st.orderCount > 1 ? ` \u00d7${st.orderCount} boxes` : ''}
+                                </span>
+                                <span className="stoke-route-addr">
+                                  {st.address} · {st.postcode}
+                                </span>
+                                <span className="stoke-route-pin-btns">
+                                  <button
+                                    type="button"
+                                    className={`stoke-route-pin-btn ${stokeRouteFirsts.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      toggleStokePin(st.key, 'first')
+                                    }}
+                                  >
+                                    1st
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`stoke-route-pin-btn ${stokeRouteLasts.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      toggleStokePin(st.key, 'last')
+                                    }}
+                                  >
+                                    Last
+                                  </button>
+                                </span>
+                                {stokeRouteStops.length > 0 && (
+                                  <a
+                                    className="stoke-route-go"
+                                    href={stokeNavUrl(stokeNavApp, st.lat, st.lon)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Go ▸
+                                  </a>
+                                )}
+                              </label>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                      {stokeRouteStops.length > 0 && stokeRouteExcluded.length > 0 && (
+                        <p className="map-intro">Ticks changed — hit Rebuild route to re-optimise.</p>
+                      )}
+                      <div className="stoke-route-template">
+                        <div className="cook-sheet-header-row">
+                          <span className="area-map-title">Delivery update email template</span>
+                          <button className="segment-pill" onClick={copyStokeTemplate}>
+                            {stokeTemplateCopied ? 'Copied!' : 'Copy template'}
+                          </button>
+                        </div>
+                        <pre className="stoke-route-template-pre">{stokeEmailTemplate}</pre>
+                        <p className="map-intro">
+                          Paste the copied emails into <strong>BCC</strong> (never To/CC), fill the
+                          two times, send from info@prepcuisines.co.uk.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+            </div>
+          </section>
+        )}
+
+        {tab === 'delivery' && (
           <section>
             <p className="map-intro">
               Real map of delivery postcodes, pin size shows order count. Shows orders being
@@ -4775,6 +4759,35 @@ Bukr / prepcuisines`
                 </div>
               </div>
             )}
+          </section>
+        )}
+
+        {tab === 'insights' && (
+          <section className="insights-block">
+                {locationBreakdown.length > 0 && (
+                  <div className="area-map">
+                    <button
+                      type="button"
+                      className="area-map-toggle"
+                      onClick={() => setShowAreaMap((v) => !v)}
+                    >
+                      <span className="area-map-title">Orders by area</span>
+                      <span className="area-map-meta">
+                        {locationBreakdown.length} areas {showAreaMap ? '▴' : '▾'}
+                      </span>
+                    </button>
+                    {showAreaMap &&
+                      locationBreakdown.map((a) => (
+                        <div key={a.area} className="area-row">
+                          <span className="area-name">{a.area}</span>
+                          <div className="area-bar-track">
+                            <div className="area-bar-fill" style={{ width: `${a.pct}%` }} />
+                          </div>
+                          <span className="area-count">{a.count}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
           </section>
         )}
 
