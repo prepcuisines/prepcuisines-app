@@ -165,6 +165,7 @@ export default function AdminDashboard() {
     | 'customers'
     | 'orders'
     | 'cook-sheet'
+    | 'delivery'
     | 'email-marketing'
     | 'shopify-import'
     | 'menu'
@@ -2927,15 +2928,11 @@ Bukr / prepcuisines`
             [
               { key: 'overview', label: 'Home' },
               { key: 'orders', label: 'Orders' },
-              { key: 'cook-sheet', label: 'Cook Sheet' },
+              { key: 'delivery', label: 'Delivery' },
+              { key: 'cook-sheet', label: 'Kitchen' },
               { key: 'menu', label: 'Products' },
               { key: 'customers', label: 'Customers' },
-              { key: 'email-marketing', label: 'Email Marketing' },
-              { key: 'shopify-import', label: 'Shopify Import' },
               { key: 'insights', label: 'Analytics' },
-              { key: 'product-analytics', label: 'Product Analytics' },
-              { key: 'map', label: 'Map' },
-              { key: 'ops-hub', label: 'Operations' },
             ] as const
           ).map((t) => (
             <button
