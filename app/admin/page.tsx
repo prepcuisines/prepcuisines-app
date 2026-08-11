@@ -2954,26 +2954,6 @@ Bukr / prepcuisines`
       </aside>
 
       <main className="main-content">
-        <header className="page-header">
-          <h1 className="page-title">
-            {tab === 'overview'
-              ? 'Overview'
-              : tab === 'customers'
-              ? 'Customers'
-              : tab === 'orders'
-              ? 'Orders'
-              : tab === 'menu'
-              ? 'Menu'
-              : tab === 'map'
-              ? 'Order Map'
-              : tab === 'insights'
-              ? 'Insights'
-              : tab === 'product-analytics'
-              ? 'Product Analytics'
-              : 'Ops Hub'}
-          </h1>
-        </header>
-
         {tab === 'overview' && (
           <div className="pc-home-range">
             <div className="pc-modal-inline-row" style={{ flexWrap: 'wrap' }}>
@@ -3460,11 +3440,6 @@ Bukr / prepcuisines`
                   🧾 Print Packing Slips — Nationwide ({printLabelsOrders.length - printLabelsStokeCount})
                 </button>
               </div>
-              <p className="map-intro" style={{ marginTop: 6, marginBottom: 0 }}>
-                Slips print for every order in the selected date for that area, sorted by customer
-                name. Slips only — no DPD shipments are created and the outstanding counts above
-                aren&apos;t affected, so it&apos;s safe to re-run for reprints.
-              </p>
               {printLabelsError && (
                 <p className="error-text" style={{ marginTop: 8 }}>
                   {printLabelsError}
@@ -4058,7 +4033,6 @@ Bukr / prepcuisines`
 
         {tab === 'cook-sheet' && (
           <section>
-            <h2 className="section-title">Cook Sheet, Delivery Cost & Area Breakdown</h2>
               <>
                 {orderTally.length > 0 && (
                   <div className="tally-row">
@@ -4239,13 +4213,6 @@ Bukr / prepcuisines`
                   </div>
                   {showStokeRoute && (
                     <>
-                      <p className="map-intro">
-                        Routes the day you've selected in the chips above — and only that day.
-                        Untick any test or non-delivery entries. Pin drops with 1st / Last —
-                        pinned stops keep the order you pin them in, and everything in between is
-                        optimised. Then hit Build; the numbers below are your drive order,
-                        kitchen to kitchen.
-                      </p>
                       {!expandedTallyKey && (
                         <p className="pc-error-text">
                           Pick a delivery day chip above first — the route plans that day only.
@@ -4408,7 +4375,6 @@ Bukr / prepcuisines`
 
         {tab === 'email-marketing' && (
           <section>
-            <h2 className="section-title">Email Marketing Lists</h2>
               <div className="insights-block">
                 <p className="map-intro">
                   One-click copy — pastes as a comma-separated list ready for your email tool.
@@ -4493,7 +4459,6 @@ Bukr / prepcuisines`
 
         {tab === 'shopify-import' && (
           <section>
-            <h2 className="section-title">Import Customers from Shopify</h2>
               <div className="insights-block">
                 <p className="map-intro">
                   Upload your Shopify customer export (CSV). Only rows with "Accepts Email
@@ -5977,12 +5942,7 @@ Bukr / prepcuisines`
 
                 <div className="pc-modal-section">
                   <label className="field-label">Redo / resend this order</label>
-                  <p className="map-intro">
-                    Creates a £0 copy in the delivery date you pick — no charge, no link to the
-                    customer's account or subscription, doesn't use up their order slot. It lands
-                    on that date's cook sheet, packing slips and shipping labels like any order.
-                    Tick what needs remaking:
-                  </p>
+                  <p className="map-intro">£0 copy into the date you pick — no charge, no account link.</p>
                   <div className="pc-modal-inline-row" style={{ flexWrap: 'wrap' }}>
                     {(orderDetail.order.items || [])
                       .filter((it: any) => it.name && it.name !== 'Delivery')

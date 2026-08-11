@@ -101,10 +101,6 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
           </div>
         </div>
 
-        <p className="map-intro">
-          Scales each dish&apos;s recipe by the number of portions you&apos;re cooking, then rolls
-          everything up into shopping lists and label counts. Weights are raw unless marked cooked.
-        </p>
 
         <div className="toolbar">
           <label className="field-label" htmlFor="cs-buffer" style={{ marginBottom: 0 }}>
