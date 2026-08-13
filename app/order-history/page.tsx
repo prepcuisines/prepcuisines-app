@@ -93,6 +93,36 @@ export default function OrderHistoryPage() {
     )
   }
 
+  const cancelDeadline = (createdAt: string) => {
+    const d = new Date(createdAt)
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 20, 30, 0)
+  }
+
+  const canCancelAutofill = (o: Order) =>
+    o.status === 'auto_filled' && !o.cancelled && !o.fulfilled && Date.now() < cancelDeadline(o.created_at)
+
+  const cancelAutofill = async (o: Order) => {
+    if (!window.confirm('Cancel this order? Your card will be refunded and nothing will be delivered this week.'))
+      return
+    try {
+      const res = await fetch('/api/cancel-autofill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: o.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        window.alert(data.error || 'Could not cancel — please try again.')
+        return
+      }
+      setOrders((prev) =>
+        prev.map((x) => (x.id === o.id ? { ...x, cancelled: true, status: 'cancelled' } : x))
+      )
+    } catch {
+      window.alert('Network error — please try again.')
+    }
+  }
+
   return (
     <>
       <Header />
@@ -145,6 +175,14 @@ export default function OrderHistoryPage() {
                       <div className={`pc-order-history-status ${order.status}`}>
                         {statusLabels[order.status] || order.status}
                       </div>
+                      {canCancelAutofill(order) && (
+                        <button
+                          className="pc-order-cancel-btn"
+                          onClick={() => cancelAutofill(order)}
+                        >
+                          Cancel this order — free until 9:30pm
+                        </button>
+                      )}
                     </div>
                     <div className="pc-order-history-total-wrap">
                       <div className="pc-order-history-total-label">Total Charged</div>
