@@ -61,6 +61,8 @@ export async function GET(req: NextRequest) {
     .select('ship_postcode, created_at, menu_windows(week_start_date)')
     .gte('created_at', LAUNCH_CUTOFF)
     .not('ship_postcode', 'is', null)
+    .or('cancelled.is.null,cancelled.eq.false')
+    .neq('status', 'skipped')
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

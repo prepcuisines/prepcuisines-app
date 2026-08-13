@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
     .select('ship_email, customer_id')
     .eq('menu_window_id', windowId)
     .or('cancelled.is.null,cancelled.eq.false')
+    .neq('status', 'skipped')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

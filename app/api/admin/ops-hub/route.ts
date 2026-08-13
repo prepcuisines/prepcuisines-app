@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     )
     .eq('menu_window_id', nextWindow.id)
     .or('cancelled.is.null,cancelled.eq.false')
+    .neq('status', 'skipped')
 
   const orders = windowOrders || []
 
