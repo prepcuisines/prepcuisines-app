@@ -2150,7 +2150,20 @@ export default function AdminDashboard() {
   const [printLabelsFrom, setPrintLabelsFrom] = useState('')
   const [printLabelsTo, setPrintLabelsTo] = useState('')
 
-  const printLabelsWindowOptions = useMemo(() => orderTally, [orderTally])
+  // Only three date chips ever: the last prep day, the one coming up, and
+  // the one after it. Older dates stay reachable through the calendar
+  // fields rather than piling up as chips week after week.
+  const printLabelsWindowOptions = useMemo(() => {
+    const dated = orderTally
+      .map((t) => ({ ...t, iso: t.week ? t.week.split('/').reverse().join('-') : '' }))
+      .filter((t) => t.iso)
+      .sort((a, b) => a.iso.localeCompare(b.iso))
+    if (dated.length <= 3) return dated
+    const today = new Date().toISOString().slice(0, 10)
+    const upcoming = dated.findIndex((t) => t.iso >= today)
+    if (upcoming === -1) return dated.slice(-3)
+    return dated.slice(Math.max(0, upcoming - 1), Math.max(0, upcoming - 1) + 3)
+  }, [orderTally])
 
   const orderDeliveryDateISO = (o: Order) =>
     o.menu_windows?.week_start_date ? o.menu_windows.week_start_date.slice(0, 10) : null
