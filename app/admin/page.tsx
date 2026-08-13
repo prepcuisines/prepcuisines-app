@@ -317,6 +317,7 @@ export default function AdminDashboard() {
   const [editEmailInput, setEditEmailInput] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [showOrdersDates, setShowOrdersDates] = useState(false)
+  const [orderStateFilter, setOrderStateFilter] = useState<'all' | 'live' | 'skipped' | 'cancelled'>('all')
   const [loading, setLoading] = useState(false)
 
   const [showAddOrder, setShowAddOrder] = useState(false)
@@ -2519,13 +2520,23 @@ Bukr / prepcuisines`
     document.body.appendChild(script)
   }, [showStokeRoute, stokeRouteStatus, stokeRouteStops])
 
+  const matchesOrderState = (o: Order, state: 'all' | 'live' | 'skipped' | 'cancelled') =>
+    state === 'all'
+      ? true
+      : state === 'cancelled'
+        ? !!o.cancelled
+        : state === 'skipped'
+          ? !o.cancelled && o.status === 'skipped'
+          : !o.cancelled && o.status !== 'skipped'
+
   const locationScopedOrders = useMemo(() => {
-    if (locationFilter === 'all') return printLabelsOrders
-    return printLabelsOrders.filter((o) => {
+    const byState = printLabelsOrders.filter((o) => matchesOrderState(o, orderStateFilter))
+    if (locationFilter === 'all') return byState
+    return byState.filter((o) => {
       const isStoke = (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
       return locationFilter === 'st' ? isStoke : !isStoke
     })
-  }, [printLabelsOrders, locationFilter])
+  }, [printLabelsOrders, locationFilter, orderStateFilter])
 
   const printLabelsStokeCount = useMemo(
     () => deliverableOrders.filter(isStokeOrder).length,
@@ -3869,6 +3880,27 @@ Bukr / prepcuisines`
                   </button>
                 </div>
               )}
+            </div>
+
+            <div className="segment-pills" role="tablist" aria-label="Order state">
+              {(
+                [
+                  ['all', 'All'],
+                  ['live', 'Orders'],
+                  ['skipped', 'Skipped'],
+                  ['cancelled', 'Cancelled'],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={orderStateFilter === key}
+                  className={`segment-pill ${orderStateFilter === key ? 'segment-pill-active' : ''}`}
+                  onClick={() => setOrderStateFilter(key)}
+                >
+                  {label} ({printLabelsOrders.filter((o) => matchesOrderState(o, key)).length})
+                </button>
+              ))}
             </div>
 
             <div className="result-count">{locationScopedOrders.length} orders</div>
