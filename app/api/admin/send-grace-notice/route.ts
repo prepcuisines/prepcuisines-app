@@ -38,11 +38,7 @@ export async function GET(req: NextRequest) {
         o.ship_email,
         (o.ship_full_name || '').split(' ')[0],
         o.order_number,
-        new Date(new Date(o.created_at).getTime() + 30 * 60 * 1000).toLocaleTimeString('en-GB', {
-          timeZone: 'Europe/London',
-          hour: '2-digit',
-          minute: '2-digit',
-        })
+        '10pm'
       )
       sent.push(`${o.ship_full_name} <${o.ship_email}>`)
     } catch {

@@ -59,9 +59,11 @@ export async function POST(req: Request) {
   const cutoff = win?.cutoff_datetime ? new Date(win.cutoff_datetime) : null
   // Auto-filled orders get their own edit window: 30 minutes from creation,
   // same grace as cancellation — they're born after cutoff by definition.
+  const graceCreated = new Date(order.created_at)
   const inGrace =
     order.status === 'auto_filled' &&
-    Date.now() < new Date(order.created_at).getTime() + 30 * 60 * 1000
+    Date.now() <
+      Date.UTC(graceCreated.getUTCFullYear(), graceCreated.getUTCMonth(), graceCreated.getUTCDate(), 21, 0, 0)
   if (!inGrace && (!cutoff || cutoff.getTime() <= Date.now())) {
     return NextResponse.json(
       { error: 'The cutoff for this delivery has passed — this order can no longer be changed.' },

@@ -93,8 +93,10 @@ export default function OrderHistoryPage() {
     )
   }
 
-  const cancelDeadline = (createdAt: string) =>
-    new Date(createdAt).getTime() + 30 * 60 * 1000
+  const cancelDeadline = (createdAt: string) => {
+    const c = new Date(createdAt)
+    return Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate(), 21, 0, 0)
+  }
 
   const canCancelAutofill = (o: Order) =>
     o.status === 'auto_filled' && !o.cancelled && !o.fulfilled && Date.now() < cancelDeadline(o.created_at)
@@ -179,7 +181,7 @@ export default function OrderHistoryPage() {
                           className="pc-order-cancel-btn"
                           onClick={() => cancelAutofill(order)}
                         >
-                          Cancel this order — free for {Math.max(1, Math.ceil((cancelDeadline(order.created_at) - Date.now()) / 60000))} more min
+                          Cancel this order — free until 10pm
                         </button>
                       )}
                     </div>
