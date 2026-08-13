@@ -11,9 +11,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    `https://${req.headers.get('host') || 'prepcuisines.co.uk'}`
+  // Always call THIS deployment's own cron route: the auth secret then
+  // matches by construction on production and previews alike.
+  const base = `https://${req.headers.get('host') || 'www.prepcuisines.co.uk'}`
   const res = await fetch(`${base}/api/cron/auto-fill-orders`, {
     method: 'POST',
     headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
