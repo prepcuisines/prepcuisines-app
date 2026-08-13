@@ -316,6 +316,7 @@ export default function AdminDashboard() {
   const [chargeAmountInput, setChargeAmountInput] = useState('')
   const [editEmailInput, setEditEmailInput] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
+  const [showOrdersDates, setShowOrdersDates] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const [showAddOrder, setShowAddOrder] = useState(false)
@@ -3779,7 +3780,7 @@ Bukr / prepcuisines`
               </div>
             )}
 
-            <div className="toolbar">
+            <div className="toolbar" style={{ position: 'relative' }}>
               <input
                 aria-label="Search orders"
                 placeholder="Search name, email, postcode…"
@@ -3787,6 +3788,66 @@ Bukr / prepcuisines`
                 onChange={(e) => setOrderSearch(e.target.value)}
                 className="text-input search-input"
               />
+              <button
+                className={`segment-pill ${printLabelsFrom || printLabelsTo ? 'segment-pill-active' : ''}`}
+                aria-label="Filter orders by delivery date"
+                onClick={() => setShowOrdersDates((v) => !v)}
+              >
+                {printLabelsFrom
+                  ? `📅 ${new Date(printLabelsFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}${printLabelsTo ? ` – ${new Date(printLabelsTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ''}`
+                  : '📅'}
+              </button>
+              {showOrdersDates && (
+                <div className="pc-date-popover">
+                  {printLabelsWindowOptions.map((t) => {
+                    const iso = t.week ? t.week.split('/').reverse().join('-') : ''
+                    return (
+                      <button
+                        key={t.key}
+                        className={`segment-pill ${printLabelsFrom === iso && !printLabelsTo ? 'segment-pill-active' : ''}`}
+                        onClick={() => {
+                          setPrintLabelsFrom(iso)
+                          setPrintLabelsTo('')
+                          setShowOrdersDates(false)
+                        }}
+                      >
+                        {t.day} {t.week || ''} ({t.count})
+                      </button>
+                    )
+                  })}
+                  <input
+                    type="date"
+                    className="text-input"
+                    value={printLabelsFrom}
+                    onChange={(e) => setPrintLabelsFrom(e.target.value)}
+                    aria-label="Delivery date (or start of range)"
+                  />
+                  <span className="cook-sheet-collapse-meta">to</span>
+                  <input
+                    type="date"
+                    className="text-input"
+                    value={printLabelsTo}
+                    onChange={(e) => setPrintLabelsTo(e.target.value)}
+                    aria-label="End of range (optional)"
+                  />
+                  <button
+                    className="segment-pill"
+                    onClick={() => {
+                      setPrintLabelsFrom('')
+                      setPrintLabelsTo('')
+                      setShowOrdersDates(false)
+                    }}
+                  >
+                    All dates
+                  </button>
+                  <button
+                    className="segment-pill segment-pill-active"
+                    onClick={() => setShowOrdersDates(false)}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="result-count">{locationScopedOrders.length} orders</div>
