@@ -243,7 +243,11 @@ export async function POST(req: NextRequest) {
                 false,
                 sub.postcode || '',
                 null,
-                '9:30pm'
+                new Date(Date.now() + 30 * 60 * 1000).toLocaleTimeString('en-GB', {
+                  timeZone: 'Europe/London',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
               )
               await klaviyoTrackEvent(
                 sub.email,

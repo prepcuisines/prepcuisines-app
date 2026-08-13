@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { data: orders, error } = await supabase
     .from('customer_window_orders')
-    .select('id, order_number, ship_email, ship_full_name')
+    .select('id, order_number, ship_email, ship_full_name, created_at')
     .eq('status', 'auto_filled')
     .eq('cancelled', false)
     .gt('created_at', new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString())
@@ -38,7 +38,11 @@ export async function GET(req: NextRequest) {
         o.ship_email,
         (o.ship_full_name || '').split(' ')[0],
         o.order_number,
-        '9:30pm'
+        new Date(new Date(o.created_at).getTime() + 30 * 60 * 1000).toLocaleTimeString('en-GB', {
+          timeZone: 'Europe/London',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
       )
       sent.push(`${o.ship_full_name} <${o.ship_email}>`)
     } catch {

@@ -51,10 +51,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'This order has already been delivered.' }, { status: 400 })
   }
 
-  const created = new Date(order.created_at)
-  const deadline = new Date(
-    Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate(), 20, 30, 0)
-  )
+  // 30 minutes from the moment the order was created — holds whether the
+  // fill ran on time or the retry did it an hour later.
+  const deadline = new Date(new Date(order.created_at).getTime() + 30 * 60 * 1000)
   if (Date.now() > deadline.getTime()) {
     return NextResponse.json(
       { error: 'The cancellation window for this order has closed \u2014 it\u2019s being prepared.' },
