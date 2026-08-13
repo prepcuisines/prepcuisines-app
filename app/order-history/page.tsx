@@ -173,8 +173,12 @@ export default function OrderHistoryPage() {
                             Edit order →
                           </a>
                         )}
-                      <div className={`pc-order-history-status ${order.status}`}>
-                        {statusLabels[order.status] || order.status}
+                      <div
+                        className={`pc-order-history-status ${order.cancelled ? 'cancelled' : order.status}`}
+                      >
+                        {order.cancelled
+                          ? 'Cancelled — refunded'
+                          : statusLabels[order.status] || order.status}
                       </div>
                       {canCancelAutofill(order) && (
                         <button

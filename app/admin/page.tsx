@@ -3848,8 +3848,10 @@ Bukr / prepcuisines`
                           )}
                         </td>
                         <td>
-                          <span className="pill pill-muted">
-                            {statusLabels[o.status] || o.status}
+                          <span className={`pill ${o.cancelled ? 'pill-warn' : 'pill-muted'}`}>
+                            {o.cancelled
+                              ? `Cancelled — was ${statusLabels[o.status] || o.status}`
+                              : statusLabels[o.status] || o.status}
                           </span>
                         </td>
                         <td className="items-cell">
