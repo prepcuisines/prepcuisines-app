@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient as createServerClient } from '@/utils/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import Stripe from 'stripe'
 import { sendAdminAlertEmail } from '@/lib/send-email'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 // Grace window for auto-filled orders ONLY: on cutoff night the subscription
 // fills at 9pm UK and the customer can self-cancel until 9:30pm UK.
@@ -29,7 +32,7 @@ export async function POST(req: Request) {
 
   const { data: order } = await supabase
     .from('customer_window_orders')
-    .select('id, order_number, customer_id, status, total_amount, fulfilled, cancelled, created_at, ship_full_name, ship_email')
+    .select('id, order_number, customer_id, status, total_amount, fulfilled, cancelled, created_at, ship_full_name, ship_email, stripe_payment_intent_id')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -67,11 +70,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Could not cancel \u2014 please try again.' }, { status: 500 })
   }
 
-  // Refund is issued from Stripe by the shop — flag it loudly and instantly.
+  // Refund automatically: stored payment id first, else find tonight's
+  // auto-fill payment by its metadata. Cancellation stands either way — the
+  // box must not ship — and the shop is alerted with the refund outcome.
+  const amountPence = Math.round((order.total_amount || 0) * 100)
+  let refunded = false
+  try {
+    let piId: string | null = (order as any).stripe_payment_intent_id || null
+    if (!piId) {
+      const search = await stripe.paymentIntents.search({
+        query: `metadata['userId']:'${user.id}' AND metadata['autoFilled']:'true'`,
+        limit: 10,
+      })
+      const cutoffMs = Date.now() - 6 * 60 * 60 * 1000
+      const match = search.data
+        .filter(
+          (pi) =>
+            pi.status === 'succeeded' && pi.amount === amountPence && pi.created * 1000 > cutoffMs
+        )
+        .sort((a, b) => b.created - a.created)[0]
+      piId = match?.id || null
+    }
+    if (piId) {
+      await stripe.refunds.create({
+        payment_intent: piId,
+        metadata: { order_id: order.id, kind: 'autofill_grace_cancel' },
+      })
+      refunded = true
+    }
+  } catch {
+    refunded = false
+  }
+
+  const amountText = (order.total_amount || 0).toFixed(2)
   await sendAdminAlertEmail(
-    `Auto-fill cancelled \u2014 refund \u00a3${(order.total_amount || 0).toFixed(2)}`,
-    `${order.ship_full_name || order.ship_email || 'Customer'} cancelled auto-filled order #PC-${order.order_number} within the grace window.\n\nRefund \u00a3${(order.total_amount || 0).toFixed(2)} in Stripe \u2192 Payments (their latest charge tonight). The order is off the cook sheet and labels already.`
+    refunded
+      ? `Auto-fill cancelled — £${amountText} refunded automatically`
+      : `Auto-fill cancelled — REFUND NEEDED: £${amountText}`,
+    `${order.ship_full_name || order.ship_email || 'Customer'} cancelled auto-filled order #PC-${order.order_number} within the grace window.\n\n${
+      refunded
+        ? 'Their card has been refunded automatically — nothing to do.'
+        : `Automatic refund could not be matched — refund £${amountText} in Stripe → Payments (their latest charge tonight).`
+    }\n\nThe order is off the cook sheet and labels already.`
   ).catch(() => {})
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, refunded })
 }

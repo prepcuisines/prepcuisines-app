@@ -219,6 +219,7 @@ export async function POST(req: NextRequest) {
               customer_id: sub.id,
               menu_window_id: window.id,
               status: 'auto_filled',
+              stripe_payment_intent_id: paymentIntent.id,
               items: orderItemsSnapshot,
               total_amount: totalAmount / 100,
               delivery_day: window.delivery_day,
@@ -240,7 +241,9 @@ export async function POST(req: NextRequest) {
                 'auto_filled',
                 true,
                 false,
-                sub.postcode || ''
+                sub.postcode || '',
+                null,
+                '9:30pm'
               )
               await klaviyoTrackEvent(
                 sub.email,

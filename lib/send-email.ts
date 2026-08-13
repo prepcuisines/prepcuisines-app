@@ -20,6 +20,27 @@ export async function sendAdminAlertEmail(subject: string, detail: string) {
   )
 }
 
+export async function sendGraceNoticeEmailToCustomer(
+  toEmail: string,
+  firstName: string,
+  orderNumber: number | null,
+  deadlineLabel: string
+) {
+  const ref = orderNumber != null ? ` (#PC-${orderNumber})` : ''
+  await sendEmail(
+    toEmail,
+    'Your prepcuisines order for Sunday — thank you!',
+    `<div style="font-family:sans-serif;color:#2d3510;max-width:560px">
+      <h2 style="font-family:Georgia,serif;">Thank you${firstName ? `, ${firstName}` : ''}!</h2>
+      <p>Your order${ref} for this Sunday has just been placed automatically from your plan, and your card has been charged as usual. Your meals will be cooked fresh and delivered on Sunday.</p>
+      <p style="background:#f5f2ec;border-radius:10px;padding:12px 14px;">Plans changed this week? No problem — you can cancel this order free of charge until <strong>${deadlineLabel} tonight</strong>, and your card will be refunded in full.</p>
+      <p>To cancel: log in, open <a href="https://prepcuisines.co.uk/order-history">Order History</a>, and tap "Cancel this order".</p>
+      <p>Thank you for being with us — see you Sunday!</p>
+      <p>Bukr / prepcuisines</p>
+    </div>`
+  )
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY is not set — skipping email send:', subject, 'to', to)
@@ -138,9 +159,13 @@ export async function sendOrderConfirmationEmailToCustomer(
   isSubscribed: boolean = false,
   isFirstOrder: boolean = false,
   shipPostcode: string = '',
-  orderNumber: number | null = null
+  orderNumber: number | null = null,
+  graceCancelUntil: string | null = null
 ) {
   const orderRef = orderNumber != null ? ` — #PC-${orderNumber}` : ''
+  const graceNote = graceCancelUntil
+    ? `<p style="font-size:14px;line-height:1.7;color:#2d3510;background:#f5f2ec;border-radius:10px;padding:12px 14px;margin:0 0 16px;">Plans changed this week? You can cancel this order free of charge until <strong>${graceCancelUntil} tonight</strong> — your card will be refunded in full. Open your <a href="https://prepcuisines.co.uk/order-history" style="color:#2d3510;">Order History</a> and tap "Cancel this order".</p>`
+    : ''
   const realItems = items.filter((i) => i.name && i.name !== 'Delivery')
 
   const itemRows = realItems
@@ -267,7 +292,7 @@ export async function sendOrderConfirmationEmailToCustomer(
                   </tr>
                 </table>
 
-                ${dpdNote}
+                ${graceNote}${dpdNote}
                 ${subscriptionNote}
               </td>
             </tr>
