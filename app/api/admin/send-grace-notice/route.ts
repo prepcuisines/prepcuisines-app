@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         o.ship_email,
         (o.ship_full_name || '').split(' ')[0],
         o.order_number,
-        '10pm'
+        '9pm'
       )
       sent.push(`${o.ship_full_name} <${o.ship_email}>`)
     } catch {

@@ -51,9 +51,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'This order has already been delivered.' }, { status: 400 })
   }
 
-  // Until 10pm UK on the night the order was created (21:00 UTC in summer).
+  // Until 9pm UK on the night the order was created (21:00 UTC in summer).
   const c = new Date(order.created_at)
-  const deadline = new Date(Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate(), 21, 0, 0))
+  const deadline = new Date(Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate(), 20, 0, 0))
   if (Date.now() > deadline.getTime()) {
     return NextResponse.json(
       { error: 'The cancellation window for this order has closed \u2014 it\u2019s being prepared.' },

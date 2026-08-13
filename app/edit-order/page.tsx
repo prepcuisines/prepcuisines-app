@@ -88,7 +88,7 @@ function EditOrderInner() {
     order.status === 'auto_filled' &&
     !!graceCreated &&
     Date.now() <
-      Date.UTC(graceCreated.getUTCFullYear(), graceCreated.getUTCMonth(), graceCreated.getUTCDate(), 21, 0, 0)
+      Date.UTC(graceCreated.getUTCFullYear(), graceCreated.getUTCMonth(), graceCreated.getUTCDate(), 20, 0, 0)
   const editable =
     !!order && !order.fulfilled && !order.cancelled &&
     ((!!cutoff && cutoff.getTime() > Date.now()) || inGrace)

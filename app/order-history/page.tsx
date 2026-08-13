@@ -95,7 +95,7 @@ export default function OrderHistoryPage() {
 
   const cancelDeadline = (createdAt: string) => {
     const c = new Date(createdAt)
-    return Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate(), 21, 0, 0)
+    return Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate(), 20, 0, 0)
   }
 
   const canCancelAutofill = (o: Order) =>
@@ -181,7 +181,7 @@ export default function OrderHistoryPage() {
                           className="pc-order-cancel-btn"
                           onClick={() => cancelAutofill(order)}
                         >
-                          Cancel this order — free until 10pm
+                          Cancel this order — free until 9pm
                         </button>
                       )}
                     </div>

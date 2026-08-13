@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
                 false,
                 sub.postcode || '',
                 null,
-                '10pm'
+                '9pm'
               )
               await klaviyoTrackEvent(
                 sub.email,

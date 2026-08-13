@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   const inGrace =
     order.status === 'auto_filled' &&
     Date.now() <
-      Date.UTC(graceCreated.getUTCFullYear(), graceCreated.getUTCMonth(), graceCreated.getUTCDate(), 21, 0, 0)
+      Date.UTC(graceCreated.getUTCFullYear(), graceCreated.getUTCMonth(), graceCreated.getUTCDate(), 20, 0, 0)
   if (!inGrace && (!cutoff || cutoff.getTime() <= Date.now())) {
     return NextResponse.json(
       { error: 'The cutoff for this delivery has passed — this order can no longer be changed.' },
