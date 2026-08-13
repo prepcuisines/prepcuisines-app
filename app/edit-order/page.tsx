@@ -9,6 +9,8 @@ type MenuItem = { id: string; name: string; price: number; category: string; ima
 type OrderRow = {
   id: string
   order_number?: number | null
+  status?: string
+  created_at?: string
   items: { name: string; price: number; qty: number }[]
   total_amount: number
   ship_postcode: string | null
@@ -44,7 +46,7 @@ function EditOrderInner() {
       const { data: row } = await supabase
         .from('customer_window_orders')
         .select(
-          'id, order_number, items, total_amount, ship_postcode, fulfilled, cancelled, menu_window_id, menu_windows(cutoff_datetime, week_start_date)'
+          'id, order_number, status, created_at, items, total_amount, ship_postcode, fulfilled, cancelled, menu_window_id, menu_windows(cutoff_datetime, week_start_date)'
         )
         .eq('id', orderId)
         .eq('customer_id', auth.user.id)
@@ -80,7 +82,14 @@ function EditOrderInner() {
   }, [orderId])
 
   const cutoff = order?.menu_windows?.cutoff_datetime ? new Date(order.menu_windows.cutoff_datetime) : null
-  const editable = !!order && !order.fulfilled && !order.cancelled && !!cutoff && cutoff.getTime() > Date.now()
+  const inGrace =
+    !!order &&
+    order.status === 'auto_filled' &&
+    !!order.created_at &&
+    Date.now() < new Date(order.created_at).getTime() + 30 * 60 * 1000
+  const editable =
+    !!order && !order.fulfilled && !order.cancelled &&
+    ((!!cutoff && cutoff.getTime() > Date.now()) || inGrace)
 
   // Same fairness rule as the server: infer the discount rate the order was
   // priced at and apply it to everything shown here, so the preview matches

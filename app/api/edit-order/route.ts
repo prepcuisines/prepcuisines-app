@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   const { data: order } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, customer_id, items, total_amount, ship_postcode, stripe_session_id, fulfilled, cancelled, menu_window_id, menu_windows(cutoff_datetime)'
+      'id, customer_id, status, created_at, items, total_amount, ship_postcode, stripe_session_id, stripe_payment_intent_id, fulfilled, cancelled, menu_window_id, menu_windows(cutoff_datetime)'
     )
     .eq('id', orderId)
     .maybeSingle()
@@ -57,7 +57,12 @@ export async function POST(req: Request) {
     ? (order.menu_windows as any[])[0]
     : order.menu_windows
   const cutoff = win?.cutoff_datetime ? new Date(win.cutoff_datetime) : null
-  if (!cutoff || cutoff.getTime() <= Date.now()) {
+  // Auto-filled orders get their own edit window: 30 minutes from creation,
+  // same grace as cancellation — they're born after cutoff by definition.
+  const inGrace =
+    order.status === 'auto_filled' &&
+    Date.now() < new Date(order.created_at).getTime() + 30 * 60 * 1000
+  if (!inGrace && (!cutoff || cutoff.getTime() <= Date.now())) {
     return NextResponse.json(
       { error: 'The cutoff for this delivery has passed — this order can no longer be changed.' },
       { status: 400 }
@@ -152,7 +157,22 @@ export async function POST(req: Request) {
     }
   } else if (deltaPence < 0) {
     // Refund the difference against the original checkout payment.
-    if (!order.stripe_session_id) {
+    if ((order as any).stripe_payment_intent_id) {
+      // Auto-filled orders carry their payment intent directly.
+      try {
+        await stripe.refunds.create({
+          payment_intent: (order as any).stripe_payment_intent_id,
+          amount: -deltaPence,
+          metadata: { order_id: order.id, kind: 'order_edit_refund' },
+        })
+        settlement = 'refunded'
+      } catch {
+        return NextResponse.json(
+          { error: 'The refund couldn’t be processed — your order is unchanged.' },
+          { status: 400 }
+        )
+      }
+    } else if (!order.stripe_session_id) {
       return NextResponse.json(
         {
           error:

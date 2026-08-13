@@ -164,8 +164,9 @@ export default function OrderHistoryPage() {
                       </div>
                       {!order.fulfilled &&
                         !order.cancelled &&
-                        order.menu_windows?.cutoff_datetime &&
-                        new Date(order.menu_windows.cutoff_datetime).getTime() > Date.now() && (
+                        ((order.menu_windows?.cutoff_datetime &&
+                          new Date(order.menu_windows.cutoff_datetime).getTime() > Date.now()) ||
+                          canCancelAutofill(order)) && (
                           <a className="pc-order-edit-link" href={`/edit-order?id=${order.id}`}>
                             Edit order →
                           </a>
