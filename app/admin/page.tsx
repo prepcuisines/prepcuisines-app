@@ -1919,7 +1919,7 @@ export default function AdminDashboard() {
       { key: string; day: string; week: string | null; count: number; total: number }
     >()
     for (const o of filteredOrders) {
-      if (o.cancelled) continue
+      if (o.cancelled || o.status === 'skipped') continue
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
         : null
@@ -1945,7 +1945,7 @@ export default function AdminDashboard() {
     if (!expandedTallyKey) return []
     const dishTotals = new Map<string, { qty: number; stokeQty: number; outQty: number }>()
     for (const o of filteredOrders) {
-      if (o.cancelled) continue
+      if (o.cancelled || o.status === 'skipped') continue
       const week = o.menu_windows?.week_start_date
         ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
         : null
@@ -2166,6 +2166,14 @@ export default function AdminDashboard() {
     })
   }, [filteredOrders, printLabelsFrom, printLabelsTo])
 
+  // Everything that actually gets cooked, packed, labelled or driven:
+  // cancelled orders and skipped weeks are excluded, so they can never
+  // reach the kitchen, a packing slip, a shipping label or the route.
+  const deliverableOrders = useMemo(
+    () => printLabelsOrders.filter((o) => !o.cancelled && o.status !== 'skipped'),
+    [printLabelsOrders]
+  )
+
   // ── Stoke route planner ──────────────────────────────────────────
   const [showStokeRoute, setShowStokeRoute] = useState(false)
   const [stokeRouteStatus, setStokeRouteStatus] = useState<'idle' | 'working' | 'ready'>('idle')
@@ -2189,7 +2197,7 @@ export default function AdminDashboard() {
   const stokeRouteBaseStops = useMemo(() => {
     const groups = new Map<string, StokeRouteStop>()
     if (!stokeRouteSingleDate) return []
-    for (const o of printLabelsOrders) {
+    for (const o of deliverableOrders) {
       if (o.cancelled) continue
       if (!isStokeOrder(o)) continue
       const pc = (o.ship_postcode || '').toUpperCase().replace(/\s+/g, '')
@@ -2215,7 +2223,7 @@ export default function AdminDashboard() {
       }
     }
     return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [printLabelsOrders, stokeRouteSingleDate])
+  }, [deliverableOrders, stokeRouteSingleDate])
 
   const toggleStokePin = (key: string, slot: 'first' | 'last') => {
     if (slot === 'first') {
@@ -2507,17 +2515,17 @@ Bukr / prepcuisines`
   }, [printLabelsOrders, locationFilter])
 
   const printLabelsStokeCount = useMemo(
-    () => printLabelsOrders.filter(isStokeOrder).length,
-    [printLabelsOrders]
+    () => deliverableOrders.filter(isStokeOrder).length,
+    [deliverableOrders]
   )
 
   const outstandingShippingCount = useMemo(
-    () => printLabelsOrders.filter((o) => !isStokeOrder(o) && !o.label_printed_at).length,
-    [printLabelsOrders]
+    () => deliverableOrders.filter((o) => !isStokeOrder(o) && !o.label_printed_at).length,
+    [deliverableOrders]
   )
   const outstandingStokeCount = useMemo(
-    () => printLabelsOrders.filter((o) => isStokeOrder(o) && !o.label_printed_at).length,
-    [printLabelsOrders]
+    () => deliverableOrders.filter((o) => isStokeOrder(o) && !o.label_printed_at).length,
+    [deliverableOrders]
   )
 
   const printSingleStokePackingLabel = (o: Order) => {
@@ -2583,9 +2591,9 @@ Bukr / prepcuisines`
   }
 
   const printAllStokePackingLabels = () => {
-    const stokeOrders = printLabelsOrders.filter((o) => isStokeOrder(o) && !o.label_printed_at)
+    const stokeOrders = deliverableOrders.filter((o) => isStokeOrder(o) && !o.label_printed_at)
     if (!stokeOrders.length) {
-      const totalStoke = printLabelsOrders.filter(isStokeOrder).length
+      const totalStoke = deliverableOrders.filter(isStokeOrder).length
       setPrintLabelsError(
         totalStoke > 0
           ? `All ${totalStoke} Stoke packing labels in the selected date are already marked as printed. Reprint individually from the table, or reset their printed status if they never actually came out.`
@@ -2605,7 +2613,7 @@ Bukr / prepcuisines`
   // created and label_printed_at is left untouched, so the outstanding
   // shipping/packing-label counters above are unaffected. Safe to re-run.
   const printPackingSlipsForRegion = (region: 'stoke' | 'nationwide') => {
-    const regionOrders = printLabelsOrders
+    const regionOrders = deliverableOrders
       .filter((o) => (region === 'stoke' ? isStokeOrder(o) : !isStokeOrder(o)))
       .sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''))
     if (!regionOrders.length) {
@@ -2700,11 +2708,11 @@ Bukr / prepcuisines`
   const printAllShippingLabels = async () => {
     // Only orders whose label hasn't been printed yet — already-done ones
     // keep their ✓ and never get redone (reprint individually if needed).
-    const shippingOrders = printLabelsOrders.filter(
+    const shippingOrders = deliverableOrders.filter(
       (o) => !isStokeOrder(o) && !o.label_printed_at
     )
     if (!shippingOrders.length) {
-      const totalNonStoke = printLabelsOrders.filter((o) => !isStokeOrder(o)).length
+      const totalNonStoke = deliverableOrders.filter((o) => !isStokeOrder(o)).length
       setPrintLabelsError(
         totalNonStoke > 0
           ? `All ${totalNonStoke} non-Stoke labels in the selected date are already marked as printed. Reprint individually from the table, or reset their printed status if they never actually came out.`
@@ -2797,8 +2805,8 @@ Bukr / prepcuisines`
   }
 
   const stokeOrderCount = useMemo(
-    () => printLabelsOrders.filter((o) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
-    [printLabelsOrders]
+    () => deliverableOrders.filter((o) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
+    [deliverableOrders]
   )
 
   // DPD only charges for deliveries outside Stoke-on-Trent — those are
@@ -3376,7 +3384,7 @@ Bukr / prepcuisines`
                   className={`segment-pill ${locationFilter === 'all' ? 'segment-pill-active' : ''}`}
                   onClick={() => setLocationFilter('all')}
                 >
-                  All areas ({printLabelsOrders.length})
+                  All areas ({deliverableOrders.length})
                 </button>
                 <button
                   className={`segment-pill ${locationFilter === 'st' ? 'segment-pill-active' : ''}`}
@@ -3388,7 +3396,7 @@ Bukr / prepcuisines`
                   className={`segment-pill ${locationFilter === 'outside' ? 'segment-pill-active' : ''}`}
                   onClick={() => setLocationFilter('outside')}
                 >
-                  Outside Stoke ({printLabelsOrders.length - stokeOrderCount})
+                  Outside Stoke ({deliverableOrders.length - stokeOrderCount})
                 </button>
               </div>
               <button
@@ -4643,7 +4651,7 @@ Bukr / prepcuisines`
                 >
                   {printLabelsStatus === 'working'
                     ? `Working… ${printLabelsProgress}`
-                    : `🚚 Print outstanding Shipping Labels (${outstandingShippingCount} left of ${printLabelsOrders.length - printLabelsStokeCount})`}
+                    : `🚚 Print outstanding Shipping Labels (${outstandingShippingCount} left of ${deliverableOrders.length - printLabelsStokeCount})`}
                 </button>
                 <button
                   className="segment-pill"
@@ -4666,7 +4674,7 @@ Bukr / prepcuisines`
                   onClick={() => printPackingSlipsForRegion('nationwide')}
                   disabled={printLabelsStatus === 'working'}
                 >
-                  🧾 Print Packing Slips — Nationwide ({printLabelsOrders.length - printLabelsStokeCount})
+                  🧾 Print Packing Slips — Nationwide ({deliverableOrders.length - printLabelsStokeCount})
                 </button>
               </div>
               {printLabelsError && (
