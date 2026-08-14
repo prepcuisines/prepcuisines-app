@@ -37,16 +37,27 @@ export async function GET(req: NextRequest) {
       const metadataWindowId = session.metadata.windowId || null
       const planSize = session.metadata.planSize ? parseInt(session.metadata.planSize) : null
 
-      await supabase
-        .from('customer_profiles')
-        .update({
-          stripe_payment_method_id: paymentMethodId || null,
-          orders_completed: 1,
-          subscription_status: 'active',
-          standing_plan_size: planSize,
-          standing_delivery_day: deliveryDay,
-        })
-        .eq('id', userId)
+      // Is this genuinely their first order, or an existing customer coming
+      // back through the public ordering flow? Getting this wrong labelled
+      // repeat orders as "signup" AND reset their completed-order count,
+      // which quietly kept them on the first-orders discount forever.
+      const { data: priorOrder } = await supabase
+        .from('customer_window_orders')
+        .select('id')
+        .eq('customer_id', userId)
+        .limit(1)
+        .maybeSingle()
+      const isFirstOrder = !priorOrder
+
+      const profileUpdate: Record<string, unknown> = {
+        stripe_payment_method_id: paymentMethodId || null,
+        subscription_status: 'active',
+        standing_plan_size: planSize,
+        standing_delivery_day: deliveryDay,
+      }
+      if (isFirstOrder) profileUpdate.orders_completed = 1
+
+      await supabase.from('customer_profiles').update(profileUpdate).eq('id', userId)
 
       // Log this first order into history too — pulling the itemized
       // detail straight from Stripe's own line items for this session,
@@ -102,7 +113,7 @@ export async function GET(req: NextRequest) {
           await supabase.from('customer_window_orders').insert({
             customer_id: userId,
             menu_window_id: matchedWindowId,
-            status: 'signup_order',
+            status: isFirstOrder ? 'signup_order' : 'manually_ordered',
             stripe_session_id: sessionId,
             items: orderItemsSnapshot,
             total_amount: (session.amount_total || 0) / 100,
