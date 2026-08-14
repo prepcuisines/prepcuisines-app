@@ -6175,18 +6175,69 @@ Bukr / prepcuisines`
 
                 <div className="pc-modal-section">
                   <label className="field-label">Items</label>
+                  {(orderDetail?.windowMenuItems?.length ?? 0) === 0 && (
+                    <p className="map-intro">
+                      No menu on file for that delivery date — type item names by hand.
+                    </p>
+                  )}
                   {editingItems.map((item, idx) => (
                     <div key={idx} className="pc-modal-item-row">
-                      <input
-                        className="text-input"
-                        style={{ flex: 1 }}
-                        value={item.name}
-                        onChange={(e) => {
-                          const next = [...editingItems]
-                          next[idx] = { ...next[idx], name: e.target.value }
-                          setEditingItems(next)
-                        }}
-                      />
+                      {orderDetail?.windowMenuItems?.length ? (
+                        <select
+                          className="text-input"
+                          style={{ flex: 1 }}
+                          value={
+                            orderDetail.windowMenuItems.some((m: any) => m.name === item.name)
+                              ? item.name
+                              : item.name === 'Delivery'
+                                ? 'Delivery'
+                                : '__custom__'
+                          }
+                          onChange={(e) => {
+                            const next = [...editingItems]
+                            if (e.target.value === '__custom__') {
+                              next[idx] = { ...next[idx], name: '' }
+                            } else if (e.target.value === 'Delivery') {
+                              next[idx] = { ...next[idx], name: 'Delivery' }
+                            } else {
+                              const menuItem = orderDetail.windowMenuItems.find(
+                                (m: any) => m.name === e.target.value
+                              )
+                              next[idx] = {
+                                ...next[idx],
+                                name: e.target.value,
+                                price: menuItem?.price ?? next[idx].price,
+                              }
+                            }
+                            setEditingItems(next)
+                          }}
+                        >
+                          <option value="__custom__">Type manually…</option>
+                          <option value="Delivery">Delivery</option>
+                          {orderDetail.windowMenuItems.map((m: any) => (
+                            <option key={m.name} value={m.name}>
+                              {m.name} — £{m.price.toFixed(2)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+                      {(!orderDetail?.windowMenuItems?.length ||
+                        !(
+                          orderDetail.windowMenuItems.some((m: any) => m.name === item.name) ||
+                          item.name === 'Delivery'
+                        )) && (
+                        <input
+                          className="text-input"
+                          style={{ flex: 1 }}
+                          placeholder="Item name"
+                          value={item.name}
+                          onChange={(e) => {
+                            const next = [...editingItems]
+                            next[idx] = { ...next[idx], name: e.target.value }
+                            setEditingItems(next)
+                          }}
+                        />
+                      )}
                       <input
                         type="number"
                         className="text-input"

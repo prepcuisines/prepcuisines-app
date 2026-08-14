@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const { data: order, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, dpd_shipment_id, dpd_consignment_number, menu_windows(week_start_date)'
+      'id, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, dpd_shipment_id, dpd_consignment_number, menu_window_id, menu_windows(week_start_date)'
     )
     .eq('id', id)
     .maybeSingle()
@@ -59,7 +59,21 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ order, customerName, customerEmail, canCharge })
+  // That week's actual menu, so the admin can pick items rather than
+  // free-typing them — names must match exactly for cook-sheet tallying.
+  let windowMenuItems: { name: string; price: number; category: string | null }[] = []
+  if (order.menu_window_id) {
+    const { data: windowItems } = await supabase
+      .from('menu_window_items')
+      .select('menu_items(name, price, category)')
+      .eq('menu_window_id', order.menu_window_id)
+    windowMenuItems = (windowItems || [])
+      .map((wi: any) => wi.menu_items)
+      .filter(Boolean)
+      .sort((a: any, b: any) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name))
+  }
+
+  return NextResponse.json({ order, customerName, customerEmail, canCharge, windowMenuItems })
 }
 
 export async function DELETE(req: NextRequest) {
