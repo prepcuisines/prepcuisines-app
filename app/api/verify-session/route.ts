@@ -100,11 +100,24 @@ export async function GET(req: NextRequest) {
           matchedWindowId = window?.id || null
         }
 
-        // Only skip if we've already logged this exact window for this
-        // customer (dedup). If there's no matching window at all, we
-        // still log the order — better to have it with no window link
-        // than to lose it from our records entirely while Stripe still
-        // took the payment.
+        // One payment can only ever produce one order. Matching on the
+        // window alone wasn't enough: revisiting the confirmation page days
+        // later matched the NEXT window and minted a second order off the
+        // same paid session. The session id is the real idempotency key.
+        const { data: sessionOrder } = await supabase
+          .from('customer_window_orders')
+          .select('id')
+          .eq('stripe_session_id', sessionId)
+          .limit(1)
+          .maybeSingle()
+        if (sessionOrder) {
+          return NextResponse.json({ success: true, alreadyRecorded: true })
+        }
+
+        // Otherwise skip only if we've already logged this exact window for
+        // this customer. If there's no matching window at all, we still log
+        // the order — better to have it with no window link than to lose it
+        // from our records entirely while Stripe still took the payment.
         const { data: existing } = matchedWindowId
           ? await supabase
               .from('customer_window_orders')
