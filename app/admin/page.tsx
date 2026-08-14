@@ -354,6 +354,8 @@ export default function AdminDashboard() {
   const [repeatError, setRepeatError] = useState<string | null>(null)
   const [recurringOrdersList, setRecurringOrdersList] = useState<any[]>([])
   const [showRecurringOrdersList, setShowRecurringOrdersList] = useState(false)
+  const [fillManualStatus, setFillManualStatus] = useState<string | null>(null)
+  const [fillManualBusyId, setFillManualBusyId] = useState<string | null>(null)
 
   const [menuItems, setMenuItems] = useState<
     { id: string; name: string; category: string | null; price: number | null }[]
@@ -2729,6 +2731,38 @@ Bukr / prepcuisines`
     }
   }
 
+  // Fill a recurring manual order by hand into a chosen delivery date.
+  const fillManualOrder = async (recurringId: string, targetWindowId: string) => {
+    if (!targetWindowId) {
+      setFillManualStatus('Pick a delivery date first.')
+      return
+    }
+    setFillManualBusyId(recurringId)
+    setFillManualStatus(null)
+    try {
+      const res = await fetch('/api/admin/fill-manual-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recurringId, targetWindowId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setFillManualStatus(data.error || 'Could not create the order')
+      } else {
+        setFillManualStatus(
+          `Created #PC-${data.orderNumber} — ${data.mealsAdded} meals, ${money(data.total)}` +
+            (data.unavailable?.length
+              ? ` · not on that menu: ${data.unavailable.join(', ')} — add substitutes in the order`
+              : '')
+        )
+        loadOrders()
+      }
+    } catch {
+      setFillManualStatus('Network error — please try again')
+    }
+    setFillManualBusyId(null)
+  }
+
   const printAllShippingLabels = async () => {
     // Only orders whose label hasn't been printed yet — already-done ones
     // keep their ✓ and never get redone (reprint individually if needed).
@@ -3754,12 +3788,24 @@ Bukr / prepcuisines`
             <div className="date-filter-toggle-row">
               <button
                 className="date-filter-toggle"
-                onClick={() => setShowRecurringOrdersList((v) => !v)}
+                onClick={() => {
+                  setShowRecurringOrdersList((v) => !v)
+                  if (redoWindows.length === 0) {
+                    fetch('/api/admin/redo-order', { cache: 'no-store' })
+                      .then((r) => r.json())
+                      .then((d) => setRedoWindows(d.windows || []))
+                      .catch(() => {})
+                  }
+                }}
               >
                 {showRecurringOrdersList ? '▾' : '▸'} Recurring manual orders (
                 {recurringOrdersList.filter((r) => r.active).length} active)
               </button>
             </div>
+
+            {showRecurringOrdersList && fillManualStatus && (
+              <p className="map-intro">{fillManualStatus}</p>
+            )}
 
             {showRecurringOrdersList && (
               <div className="insights-block">
@@ -3796,12 +3842,35 @@ Bukr / prepcuisines`
                               )}
                             </td>
                             <td>
-                              <button
-                                className="segment-pill"
-                                onClick={() => toggleRecurringOrderActive(r.id, !r.active)}
-                              >
-                                {r.active ? 'Pause' : 'Resume'}
-                              </button>
+                              <div className="pc-modal-inline-row">
+                                <select
+                                  className="text-input"
+                                  aria-label={`Delivery date for ${r.customer_name || 'customer'}`}
+                                  value={redoWindowId}
+                                  onChange={(e) => setRedoWindowId(e.target.value)}
+                                >
+                                  <option value="">Delivery date…</option>
+                                  {redoWindows.map((w) => (
+                                    <option key={w.id} value={w.id}>
+                                      {w.delivery_day}{' '}
+                                      {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  className="btn-primary"
+                                  disabled={fillManualBusyId === r.id}
+                                  onClick={() => fillManualOrder(r.id, redoWindowId)}
+                                >
+                                  {fillManualBusyId === r.id ? 'Adding…' : 'Add order'}
+                                </button>
+                                <button
+                                  className="segment-pill"
+                                  onClick={() => toggleRecurringOrderActive(r.id, !r.active)}
+                                >
+                                  {r.active ? 'Pause' : 'Resume'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -6191,6 +6260,32 @@ Bukr / prepcuisines`
                       disabled={orderActionStatus === 'saving'}
                     >
                       {orderDetail.order.cancelled ? 'Reinstate order' : 'Cancel order'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">Move to another delivery date</label>
+                  <div className="pc-modal-inline-row">
+                    <select
+                      className="text-input"
+                      style={{ minWidth: 220 }}
+                      value={redoWindowId}
+                      onChange={(e) => setRedoWindowId(e.target.value)}
+                    >
+                      <option value="">Choose delivery date…</option>
+                      {redoWindows.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="segment-pill"
+                      disabled={!redoWindowId || orderActionStatus === 'saving'}
+                      onClick={() => orderDetailAction('move_window', { windowId: redoWindowId })}
+                    >
+                      Move order
                     </button>
                   </div>
                 </div>

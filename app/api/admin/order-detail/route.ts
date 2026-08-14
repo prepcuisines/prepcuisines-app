@@ -150,6 +150,26 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
+  // Move an order to a different delivery date: switches the menu window
+  // and the day label together, so cook sheets, labels and the customer's
+  // own order history all follow it to the new date.
+  if (action === 'move_window') {
+    const { data: target } = await supabase
+      .from('menu_windows')
+      .select('id, delivery_day')
+      .eq('id', payload.windowId)
+      .maybeSingle()
+    if (!target) {
+      return NextResponse.json({ error: 'That delivery date no longer exists' }, { status: 400 })
+    }
+    const { error } = await supabase
+      .from('customer_window_orders')
+      .update({ menu_window_id: target.id, delivery_day: target.delivery_day })
+      .eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true, movedTo: target.delivery_day })
+  }
+
   if (action === 'update_email') {
     const newEmail = (payload.email || '').trim().toLowerCase()
     if (!newEmail) {
