@@ -20,8 +20,13 @@ export async function GET(req: NextRequest) {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['payment_intent'],
     })
+    // Only a genuinely PAID session may create an order. A session can reach
+    // status 'complete' without money moving (card-saving/setup sessions, or
+    // a payment that never settled), and treating that as paid mints orders
+    // nobody has been charged for.
     const paid =
-      session.payment_status === 'paid' || session.status === 'complete'
+      session.payment_status === 'paid' ||
+      (session.mode !== 'payment' && session.status === 'complete')
 
     if (paid && session.metadata?.payMode === 'subscribe' && session.metadata?.userId) {
       // Save the card used here so our weekly job can charge it later,
