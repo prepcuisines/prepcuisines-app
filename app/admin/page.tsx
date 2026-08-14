@@ -265,6 +265,10 @@ export default function AdminDashboard() {
     { id: string; delivery_day: string; week_start_date: string }[]
   >([])
   const [redoWindowId, setRedoWindowId] = useState('')
+  const [moveWindowId, setMoveWindowId] = useState('')
+  const [moveStatus, setMoveStatus] = useState<'idle' | 'saving' | 'done'>('idle')
+  const [moveError, setMoveError] = useState<string | null>(null)
+  const [moveResult, setMoveResult] = useState<string | null>(null)
   const [redoItemNames, setRedoItemNames] = useState<string[]>([])
   const [redoStatus, setRedoStatus] = useState<'idle' | 'saving' | 'done'>('idle')
   const [redoError, setRedoError] = useState<string | null>(null)
@@ -1166,6 +1170,10 @@ export default function AdminDashboard() {
     setRedoResult(null)
     setRedoWindowId('')
     setRedoItemNames([])
+    setMoveWindowId('')
+    setMoveStatus('idle')
+    setMoveError(null)
+    setMoveResult(null)
     fetch('/api/admin/redo-order', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => setRedoWindows(d.windows || []))
@@ -1337,6 +1345,38 @@ export default function AdminDashboard() {
     } catch {
       setOrderActionError('Network error — please try again')
       setOrderActionStatus('error')
+    }
+  }
+
+  const moveOrderToWindow = async () => {
+    if (!selectedOrderId || !moveWindowId) return
+    const target = redoWindows.find((w) => w.id === moveWindowId)
+    setMoveStatus('saving')
+    setMoveError(null)
+    try {
+      const res = await fetch('/api/admin/order-detail', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedOrderId, action: 'move_window', payload: { windowId: moveWindowId } }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMoveError(data.error || 'Could not move this order')
+        setMoveStatus('idle')
+        return
+      }
+      const label = target
+        ? `${target.delivery_day} ${new Date(target.week_start_date).toLocaleDateString('en-GB')}`
+        : 'the new date'
+      setMoveStatus('idle')
+      // openOrderDetail resets this section's fields (including this result) —
+      // it's re-set below, AFTER the refresh, so the confirmation survives.
+      await openOrderDetail(selectedOrderId)
+      setMoveResult(`✅ Moved to ${label}.`)
+      loadOrders()
+    } catch {
+      setMoveError('Network error — please try again')
+      setMoveStatus('idle')
     }
   }
 
@@ -6316,13 +6356,25 @@ Bukr / prepcuisines`
                 </div>
 
                 <div className="pc-modal-section">
-                  <label className="field-label">Move to another delivery date</label>
+                  <label className="field-label">
+                    Move to another delivery date
+                    {orderDetail.order.menu_windows?.week_start_date && (
+                      <span className="cook-sheet-collapse-meta" style={{ marginLeft: 8 }}>
+                        currently {orderDetail.order.delivery_day}{' '}
+                        {new Date(orderDetail.order.menu_windows.week_start_date).toLocaleDateString('en-GB')}
+                      </span>
+                    )}
+                  </label>
                   <div className="pc-modal-inline-row">
                     <select
                       className="text-input"
                       style={{ minWidth: 220 }}
-                      value={redoWindowId}
-                      onChange={(e) => setRedoWindowId(e.target.value)}
+                      value={moveWindowId}
+                      onChange={(e) => {
+                        setMoveWindowId(e.target.value)
+                        setMoveResult(null)
+                        setMoveError(null)
+                      }}
                     >
                       <option value="">Choose delivery date…</option>
                       {redoWindows.map((w) => (
@@ -6333,12 +6385,14 @@ Bukr / prepcuisines`
                     </select>
                     <button
                       className="segment-pill"
-                      disabled={!redoWindowId || orderActionStatus === 'saving'}
-                      onClick={() => orderDetailAction('move_window', { windowId: redoWindowId })}
+                      disabled={!moveWindowId || moveStatus === 'saving'}
+                      onClick={moveOrderToWindow}
                     >
-                      Move order
+                      {moveStatus === 'saving' ? 'Moving…' : 'Move order'}
                     </button>
                   </div>
+                  {moveError && <p className="pc-error-text">{moveError}</p>}
+                  {moveResult && <p className="map-intro">{moveResult}</p>}
                 </div>
 
                 <div className="pc-modal-section">
