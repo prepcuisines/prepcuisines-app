@@ -64,6 +64,8 @@ type Order = {
   status: string
   items: { name: string; price: number; qty: number }[]
   total_amount: number | null
+  cash_order?: boolean
+  cash_collected?: boolean
   delivery_day: string | null
   created_at: string
   delivery_instructions: string | null
@@ -1346,6 +1348,49 @@ export default function AdminDashboard() {
       setOrderActionError('Network error — please try again')
       setOrderActionStatus('error')
     }
+  }
+
+  // Cash-pay orders: toggled straight from the table row, no modal needed.
+  // Optimistic update so ticking a row feels instant; refreshes the real
+  // list underneath so the running total is always the source of truth.
+  const [cashActionId, setCashActionId] = useState<string | null>(null)
+
+  const setOrderCashFields = (id: string, fields: Partial<Pick<Order, 'cash_order' | 'cash_collected'>>) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...fields } : o)))
+  }
+
+  const toggleCashOrder = async (o: Order) => {
+    const next = !o.cash_order
+    setCashActionId(o.id)
+    setOrderCashFields(o.id, { cash_order: next, cash_collected: next ? o.cash_collected : false })
+    try {
+      await fetch('/api/admin/order-detail', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: o.id, action: 'set_cash_order', payload: { value: next } }),
+      })
+      loadOrders()
+    } catch {
+      setOrderCashFields(o.id, { cash_order: o.cash_order, cash_collected: o.cash_collected })
+    }
+    setCashActionId(null)
+  }
+
+  const toggleCashCollected = async (o: Order) => {
+    const next = !o.cash_collected
+    setCashActionId(o.id)
+    setOrderCashFields(o.id, { cash_collected: next })
+    try {
+      await fetch('/api/admin/order-detail', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: o.id, action: 'set_cash_collected', payload: { value: next } }),
+      })
+      loadOrders()
+    } catch {
+      setOrderCashFields(o.id, { cash_collected: o.cash_collected })
+    }
+    setCashActionId(null)
   }
 
   const moveOrderToWindow = async () => {
@@ -4012,6 +4057,23 @@ Bukr / prepcuisines`
               ))}
             </div>
 
+            {(() => {
+              const cashOrders = locationScopedOrders.filter((o) => o.cash_order)
+              if (!cashOrders.length) return null
+              const total = cashOrders.reduce((s, o) => s + (o.total_amount || 0), 0)
+              const collected = cashOrders
+                .filter((o) => o.cash_collected)
+                .reduce((s, o) => s + (o.total_amount || 0), 0)
+              return (
+                <div className="pc-cash-summary">
+                  <span>💷 Cash orders: {cashOrders.length}</span>
+                  <span>Total {money(total)}</span>
+                  <span>Collected {money(collected)}</span>
+                  <span className="pc-cash-outstanding">Outstanding {money(total - collected)}</span>
+                </div>
+              )
+            })()}
+
             <div className="result-count">{locationScopedOrders.length} orders</div>
 
             {loading ? (
@@ -4040,6 +4102,7 @@ Bukr / prepcuisines`
                       </th>
                       <th>Customer</th>
                       <th>Type</th>
+                      <th>Cash</th>
                       <th>Items</th>
                       <th>Total</th>
                       <th>Delivery day</th>
@@ -4076,6 +4139,36 @@ Bukr / prepcuisines`
                               ? `Cancelled — was ${statusLabels[o.status] || o.status}`
                               : statusLabels[o.status] || o.status}
                           </span>
+                        </td>
+                        <td>
+                          {o.cash_order ? (
+                            <label className="pc-cash-row-label">
+                              <input
+                                type="checkbox"
+                                checked={!!o.cash_collected}
+                                disabled={cashActionId === o.id}
+                                onChange={() => toggleCashCollected(o)}
+                              />
+                              Collected
+                              <button
+                                type="button"
+                                className="pc-cash-row-unmark"
+                                title="Not a cash order"
+                                onClick={() => toggleCashOrder(o)}
+                              >
+                                ×
+                              </button>
+                            </label>
+                          ) : (
+                            <button
+                              type="button"
+                              className="segment-pill"
+                              disabled={cashActionId === o.id}
+                              onClick={() => toggleCashOrder(o)}
+                            >
+                              Mark cash
+                            </button>
+                          )}
                         </td>
                         <td className="items-cell">
                           <span title={(o.items || []).map((it) => `${it.qty}× ${it.name}`).join(', ')}>

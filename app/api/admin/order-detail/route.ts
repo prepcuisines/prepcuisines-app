@@ -107,6 +107,25 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Missing id or action' }, { status: 400 })
   }
 
+  if (action === 'set_cash_order') {
+    const update: Record<string, unknown> = { cash_order: !!payload.value }
+    // Turning cash off also clears "collected" — an order that's no longer
+    // a cash order can't be sitting there marked as cash collected.
+    if (!payload.value) update.cash_collected = false
+    const { error } = await supabase.from('customer_window_orders').update(update).eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (action === 'set_cash_collected') {
+    const { error } = await supabase
+      .from('customer_window_orders')
+      .update({ cash_collected: !!payload.value })
+      .eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
   if (action === 'set_fulfilled') {
     const { error } = await supabase
       .from('customer_window_orders')

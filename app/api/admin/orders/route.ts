@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const { data: orders, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, order_number, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, dpd_shipment_id, dpd_consignment_number, label_printed_at, menu_windows(week_start_date)'
+      'id, order_number, customer_id, status, items, total_amount, delivery_day, created_at, delivery_instructions, fulfilled, cancelled, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, dpd_shipment_id, dpd_consignment_number, label_printed_at, cash_order, cash_collected, menu_windows(week_start_date)'
     )
     .gte('created_at', LAUNCH_CUTOFF)
     .order('created_at', { ascending: false })
