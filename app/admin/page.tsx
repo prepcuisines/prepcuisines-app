@@ -311,6 +311,10 @@ export default function AdminDashboard() {
     'idle' | 'saving' | 'done' | 'error'
   >('idle')
   const [editDeliveryError, setEditDeliveryError] = useState<string | null>(null)
+  const [cancelNextOrderStatus, setCancelNextOrderStatus] = useState<
+    'idle' | 'cancelling' | 'done' | 'error'
+  >('idle')
+  const [cancelNextOrderResult, setCancelNextOrderResult] = useState<string | null>(null)
   const [orderDetail, setOrderDetail] = useState<any>(null)
   const [orderDetailLoading, setOrderDetailLoading] = useState(false)
   const [editingItems, setEditingItems] = useState<{ name: string; price: number; qty: number }[]>(
@@ -1096,6 +1100,36 @@ export default function AdminDashboard() {
     setEditDeliverySecondSize(customer.second_plan_size || customer.standing_plan_size || 4)
     setEditDeliveryStatus('idle')
     setEditDeliveryError(null)
+    setCancelNextOrderStatus('idle')
+    setCancelNextOrderResult(null)
+  }
+
+  const cancelNextOrder = async () => {
+    if (!editDeliveryCustomer) return
+    setCancelNextOrderStatus('cancelling')
+    setCancelNextOrderResult(null)
+    try {
+      const res = await fetch('/api/admin/cancel-next-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: editDeliveryCustomer.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCancelNextOrderResult(data.error || 'Something went wrong')
+        setCancelNextOrderStatus('error')
+        return
+      }
+      const dateLabel = data.weekStartDate
+        ? new Date(data.weekStartDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+        : ''
+      setCancelNextOrderResult(`Cancelled their ${data.deliveryDay || 'next'} order${dateLabel ? ` (${dateLabel})` : ''}.`)
+      setCancelNextOrderStatus('done')
+      loadCustomers()
+    } catch {
+      setCancelNextOrderResult('Network error — please try again')
+      setCancelNextOrderStatus('error')
+    }
   }
 
   const submitDeliveryEdit = async () => {
@@ -4141,7 +4175,11 @@ Bukr / prepcuisines`
                           </span>
                         </td>
                         <td>
-                          {o.cash_order ? (
+                          {o.status !== 'manually_ordered' ? (
+                            <span className="pill pill-muted" title="Only manually-added orders can be marked cash">
+                              —
+                            </span>
+                          ) : o.cash_order ? (
                             <label className="pc-cash-row-label">
                               <input
                                 type="checkbox"
@@ -6248,6 +6286,33 @@ Bukr / prepcuisines`
                 )}
                 {editDeliveryStatus === 'error' && editDeliveryError && (
                   <p className="error-text">{editDeliveryError}</p>
+                )}
+              </div>
+              <div className="pc-modal-section" style={{ borderTop: '1px solid #e5e1d8', paddingTop: 16 }}>
+                <label className="field-label">Their next order</label>
+                <div className="pc-modal-inline-row">
+                  <button
+                    className="segment-pill"
+                    disabled={cancelNextOrderStatus === 'cancelling'}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Cancel ${editDeliveryCustomer.name}'s next upcoming order? It stays on record but drops out of cook sheets and labels. Their delivery plan above is unaffected — they'll be ordered for as normal from the following week.`
+                        )
+                      )
+                        cancelNextOrder()
+                    }}
+                  >
+                    {cancelNextOrderStatus === 'cancelling' ? 'Cancelling…' : 'Cancel next order'}
+                  </button>
+                </div>
+                {cancelNextOrderStatus === 'done' && cancelNextOrderResult && (
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    {cancelNextOrderResult}
+                  </p>
+                )}
+                {cancelNextOrderStatus === 'error' && cancelNextOrderResult && (
+                  <p className="error-text">{cancelNextOrderResult}</p>
                 )}
               </div>
             </div>
