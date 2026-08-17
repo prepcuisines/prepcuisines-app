@@ -11,14 +11,20 @@ export default async function Page() {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  // For each day, get the NEXT UPCOMING window (cutoff hasn't passed yet),
-  // not just "the most recent one" — this way an expired window never shows.
+  // For each day, get the NEXT UPCOMING window by delivery date, not by
+  // cutoff — a window whose cutoff has passed (or was deliberately closed
+  // early to mark the day unavailable) should still show on the page, just
+  // disabled, rather than disappearing entirely. We only drop windows whose
+  // delivery date is already in the past.
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+
   const { data: allWindows, error: windowError } = await supabase
     .from('menu_windows')
-    .select('id, delivery_day, week_start_date, cutoff_datetime')
+    .select('id, delivery_day, week_start_date, cutoff_datetime, available')
     .in('delivery_day', ['Sunday', 'Wednesday'])
-    .gt('cutoff_datetime', new Date().toISOString())
-    .order('cutoff_datetime', { ascending: true })
+    .gte('week_start_date', startOfToday.toISOString().slice(0, 10))
+    .order('week_start_date', { ascending: true })
 
   if (windowError) {
     return <div style={{ padding: '2rem' }}>Error loading menu windows.</div>
@@ -29,9 +35,9 @@ export default async function Page() {
   for (const w of allWindows || []) {
     if (!nextByDay[w.delivery_day]) nextByDay[w.delivery_day] = w
   }
-  // Order the two days by whichever cutoff is soonest (left = soonest)
+  // Order the two days by whichever delivery date is soonest (left = soonest)
   const dedupedWindows = Object.values(nextByDay).sort(
-    (a, b) => new Date(a.cutoff_datetime).getTime() - new Date(b.cutoff_datetime).getTime()
+    (a, b) => new Date(a.week_start_date).getTime() - new Date(b.week_start_date).getTime()
   )
 
   if (dedupedWindows.length === 0) {

@@ -9,6 +9,7 @@ type MenuWindow = {
   delivery_day: string
   week_start_date: string
   cutoff_datetime: string
+  available?: boolean | null
 }
 
 type MenuItem = {
@@ -114,18 +115,22 @@ function DayCard({
 }) {
   const countdown = useCountdown(window.cutoff_datetime)
   const cutoffPassed = ignoreCutoff ? false : !countdown
+  const unavailable = window.available === false
+  const disabled = unavailable || cutoffPassed
   return (
     <div
-      className={`pc-day-card ${selected ? 'pc-day-selected' : ''} ${cutoffPassed ? 'pc-day-disabled' : ''}`}
-      onClick={cutoffPassed ? undefined : onSelect}
-      aria-disabled={cutoffPassed}
+      className={`pc-day-card ${selected ? 'pc-day-selected' : ''} ${disabled ? 'pc-day-disabled' : ''}`}
+      onClick={disabled ? undefined : onSelect}
+      aria-disabled={disabled}
     >
       <div className="pc-day-tick">{selected ? '✓' : ''}</div>
       <div className="pc-day-name">{window.delivery_day}</div>
       <div className="pc-day-date">
         {new Date(window.week_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}
       </div>
-      {ignoreCutoff ? null : countdown ? (
+      {unavailable ? (
+        <div className="pc-day-countdown">Unavailable this week</div>
+      ) : ignoreCutoff ? null : countdown ? (
         <div className="pc-day-countdown">
           <span className="pc-day-countdown-dot" />
           Cutoff in{' '}
