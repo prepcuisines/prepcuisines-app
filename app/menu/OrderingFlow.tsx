@@ -45,7 +45,13 @@ function useCountdown(target: string) {
     return () => clearInterval(interval)
   }, [])
   if (now === null) return null
-  const diff = new Date(target).getTime() - now
+  // cutoff_datetime comes back from Postgres as "YYYY-MM-DD HH:MM:SS" with no
+  // timezone marker, but it's stored as UTC. Handed straight to `new Date()`,
+  // that space-separated format gets parsed as LOCAL time instead — during
+  // BST that makes every cutoff look an hour earlier than it actually is.
+  // Normalise to an explicit UTC ISO string first.
+  const utcTarget = target.includes('Z') || target.includes('+') ? target : `${target.replace(' ', 'T')}Z`
+  const diff = new Date(utcTarget).getTime() - now
   if (diff <= 0) return null
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)

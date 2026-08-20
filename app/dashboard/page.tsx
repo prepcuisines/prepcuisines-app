@@ -12,7 +12,11 @@ function useCountdown(target: string) {
     return () => clearInterval(interval)
   }, [])
   if (now === null) return null
-  const diff = new Date(target).getTime() - now
+  // See app/menu/OrderingFlow.tsx useCountdown for why this normalisation
+  // is needed — naive "YYYY-MM-DD HH:MM:SS" from Postgres is UTC, but
+  // new Date() on that shape parses as local time without it.
+  const utcTarget = target.includes('Z') || target.includes('+') ? target : `${target.replace(' ', 'T')}Z`
+  const diff = new Date(utcTarget).getTime() - now
   if (diff <= 0) return null
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
