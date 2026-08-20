@@ -287,7 +287,7 @@ export default function DashboardPage() {
 
     const { error: updateError } = await supabase
       .from('customer_profiles')
-      .update({ subscription_status: 'cancelled' })
+      .update({ subscription_status: 'cancelled', subscription_cancelled_at: new Date().toISOString() })
       .eq('id', user.id)
 
     if (!updateError) {
@@ -307,7 +307,7 @@ export default function DashboardPage() {
 
     const { error: updateError } = await supabase
       .from('customer_profiles')
-      .update({ subscription_status: 'active' })
+      .update({ subscription_status: 'active', subscription_cancelled_at: null })
       .eq('id', user.id)
 
     if (!updateError) {

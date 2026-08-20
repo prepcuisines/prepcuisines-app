@@ -36,6 +36,7 @@ type Customer = {
   street: string | null
   postcode: string | null
   subscription_status: string | null
+  subscription_cancelled_at: string | null
   effectiveStatus?: string | null
   avgDaysBetweenOrders?: number | null
   orders_completed: number | null
@@ -3482,6 +3483,17 @@ Bukr / prepcuisines`
                         </td>
                         <td>
                           <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
+                          {(c.effectiveStatus ?? c.subscription_status) === 'cancelled' &&
+                            c.subscription_cancelled_at && (
+                              <div className="customer-email" style={{ marginTop: 2 }}>
+                                Cancelled{' '}
+                                {new Date(c.subscription_cancelled_at).toLocaleDateString('en-GB', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </div>
+                            )}
                           {c.skip_next_order &&
                             (c.effectiveStatus ?? c.subscription_status) === 'active' && (
                               <span
