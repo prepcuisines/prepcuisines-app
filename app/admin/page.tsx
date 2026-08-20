@@ -327,6 +327,7 @@ export default function AdminDashboard() {
   const [chargeAmountInput, setChargeAmountInput] = useState('')
   const [editEmailInput, setEditEmailInput] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
+  const [ordersView, setOrdersView] = useState<'orders' | 'skipped'>('orders')
   const [showOrdersDates, setShowOrdersDates] = useState(false)
   const [orderStateFilter, setOrderStateFilter] = useState<'all' | 'live' | 'skipped' | 'cancelled'>('all')
   const [loading, setLoading] = useState(false)
@@ -2010,21 +2011,25 @@ export default function AdminDashboard() {
     }
   }, [customers])
 
+  const skippedCount = useMemo(() => orders.filter((o) => o.status === 'skipped').length, [orders])
+
   const filteredOrders = useMemo(
     () =>
-      orders.filter((o) => {
-        if (!orderSearch) return true
-        const q = orderSearch.toLowerCase()
-        return (
-          o.customer_name.toLowerCase().includes(q) ||
-          (o.customer_email || '').toLowerCase().includes(q) ||
-          (o.ship_postcode || '').toLowerCase().includes(q) ||
-          (o.order_number != null &&
-            (`pc-${o.order_number}`.includes(q) || String(o.order_number).includes(q.replace(/^#?pc-?/, '')))) ||
-          (statusLabels[o.status] || o.status).toLowerCase().includes(q)
-        )
-      }),
-    [orders, orderSearch]
+      orders
+        .filter((o) => (ordersView === 'skipped' ? o.status === 'skipped' : o.status !== 'skipped'))
+        .filter((o) => {
+          if (!orderSearch) return true
+          const q = orderSearch.toLowerCase()
+          return (
+            o.customer_name.toLowerCase().includes(q) ||
+            (o.customer_email || '').toLowerCase().includes(q) ||
+            (o.ship_postcode || '').toLowerCase().includes(q) ||
+            (o.order_number != null &&
+              (`pc-${o.order_number}`.includes(q) || String(o.order_number).includes(q.replace(/^#?pc-?/, '')))) ||
+            (statusLabels[o.status] || o.status).toLowerCase().includes(q)
+          )
+        }),
+    [orders, orderSearch, ordersView]
   )
 
   // Manual/bulk orders store richer day labels like "Sunday — 09/08/2026";
@@ -4011,6 +4016,21 @@ Bukr / prepcuisines`
                 )}
               </div>
             )}
+
+            <div className="toolbar">
+              <button
+                className={`segment-pill ${ordersView === 'orders' ? 'segment-pill-active' : ''}`}
+                onClick={() => setOrdersView('orders')}
+              >
+                Orders
+              </button>
+              <button
+                className={`segment-pill ${ordersView === 'skipped' ? 'segment-pill-active' : ''}`}
+                onClick={() => setOrdersView('skipped')}
+              >
+                Skipped{skippedCount ? ` (${skippedCount})` : ''}
+              </button>
+            </div>
 
             <div className="toolbar" style={{ position: 'relative' }}>
               <input
