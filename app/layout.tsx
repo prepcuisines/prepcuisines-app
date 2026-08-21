@@ -25,6 +25,9 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "prepcuisines",
   description: "Your weekly meal plan, made by prepcuisines",
+  other: {
+    "facebook-domain-verification": "74ov7ki8ktwgvl9y9sve6actqrtmxp",
+  },
 };
 
 export default function RootLayout({
