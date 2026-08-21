@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
+import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -166,6 +167,15 @@ export async function GET(req: NextRequest) {
               },
               (session.amount_total || 0) / 100
             )
+            await sendMetaConversionEvent({
+              eventName: 'Subscribe',
+              eventId: sessionId,
+              email: shipProfile.email,
+              phone: shipProfile.phone,
+              value: (session.amount_total || 0) / 100,
+              currency: (session.currency || 'gbp').toUpperCase(),
+              orderId: sessionId,
+            })
           }
         }
       } catch (historyErr) {
@@ -261,6 +271,15 @@ export async function GET(req: NextRequest) {
             },
             (session.amount_total || 0) / 100
           )
+          await sendMetaConversionEvent({
+            eventName: 'Purchase',
+            eventId: sessionId,
+            email,
+            phone,
+            value: (session.amount_total || 0) / 100,
+            currency: (session.currency || 'gbp').toUpperCase(),
+            orderId: sessionId,
+          })
         }
       } catch (paygErr) {
         // Same principle as above — don't let logging/email failures
