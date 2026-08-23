@@ -298,6 +298,7 @@ export default function AdminDashboard() {
     'idle' | 'saving' | 'done' | 'error'
   >('idle')
   const [editCustomerEmailError, setEditCustomerEmailError] = useState<string | null>(null)
+  const [viewCustomerDetail, setViewCustomerDetail] = useState<Customer | null>(null)
   const [editDeliveryCustomer, setEditDeliveryCustomer] = useState<{
     id: string
     name: string
@@ -3481,7 +3482,13 @@ Bukr / prepcuisines`
                           <div className="customer-cell">
                             <span className="avatar">{initials(c.full_name)}</span>
                             <div>
-                              <div className="customer-name">{c.full_name || '—'}</div>
+                              <button
+                                className="link-button customer-name"
+                                style={{ textAlign: 'left' }}
+                                onClick={() => setViewCustomerDetail(c)}
+                              >
+                                {c.full_name || '—'}
+                              </button>
                               <div className="customer-email">{c.email || '—'}</div>
                             </div>
                           </div>
@@ -6211,6 +6218,49 @@ Bukr / prepcuisines`
         </div>
       )}
 
+      {viewCustomerDetail && (
+        <div className="pc-modal-overlay" onClick={() => setViewCustomerDetail(null)}>
+          <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-modal-header">
+              <h2 className="pc-modal-title">{viewCustomerDetail.full_name || 'Customer'}</h2>
+              <button
+                className="pc-modal-close"
+                onClick={() => setViewCustomerDetail(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="pc-modal-body">
+              <div className="pc-modal-section">
+                <label className="field-label">Email</label>
+                <p className="map-intro">{viewCustomerDetail.email || '—'}</p>
+              </div>
+              <div className="pc-modal-section">
+                <label className="field-label">Phone</label>
+                <p className="map-intro">{viewCustomerDetail.phone || '—'}</p>
+              </div>
+              <div className="pc-modal-section">
+                <label className="field-label">Address</label>
+                <p className="map-intro">
+                  {viewCustomerDetail.house_number || viewCustomerDetail.street ? (
+                    <>
+                      {[viewCustomerDetail.house_number, viewCustomerDetail.street]
+                        .filter(Boolean)
+                        .join(' ')}
+                      <br />
+                      {viewCustomerDetail.postcode || ''}
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editDeliveryCustomer && (
         <div
           className="pc-modal-overlay"
@@ -8455,6 +8505,18 @@ function Styles() {
       .customer-name {
         font-weight: 600;
         color: var(--pc-green, #2d3510);
+      }
+      button.customer-name.link-button {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: inherit;
+        display: block;
+      }
+      button.customer-name.link-button:hover {
+        text-decoration: underline;
       }
       .customer-email {
         font-size: 12px;
