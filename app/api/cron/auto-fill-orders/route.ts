@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
 
     const { data: windows, error: windowsError } = await supabase
       .from('menu_windows')
-      .select('id, delivery_day')
+      .select('id, delivery_day, available')
       .gt('cutoff_datetime', twoHoursAgo)
       .lt('cutoff_datetime', now)
+      .eq('available', true)
 
     if (windowsError) {
       // A failed query is NOT "no windows" — alert and fail loudly.
