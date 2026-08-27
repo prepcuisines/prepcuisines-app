@@ -317,6 +317,10 @@ export default function AdminDashboard() {
     'idle' | 'cancelling' | 'done' | 'error'
   >('idle')
   const [cancelNextOrderResult, setCancelNextOrderResult] = useState<string | null>(null)
+  const [cancelSubscriptionStatus, setCancelSubscriptionStatus] = useState<
+    'idle' | 'cancelling' | 'done' | 'error'
+  >('idle')
+  const [cancelSubscriptionResult, setCancelSubscriptionResult] = useState<string | null>(null)
   const [orderDetail, setOrderDetail] = useState<any>(null)
   const [orderDetailLoading, setOrderDetailLoading] = useState(false)
   const [editingItems, setEditingItems] = useState<{ name: string; price: number; qty: number }[]>(
@@ -1105,6 +1109,8 @@ export default function AdminDashboard() {
     setEditDeliveryError(null)
     setCancelNextOrderStatus('idle')
     setCancelNextOrderResult(null)
+    setCancelSubscriptionStatus('idle')
+    setCancelSubscriptionResult(null)
   }
 
   const cancelNextOrder = async () => {
@@ -1132,6 +1138,31 @@ export default function AdminDashboard() {
     } catch {
       setCancelNextOrderResult('Network error — please try again')
       setCancelNextOrderStatus('error')
+    }
+  }
+
+  const cancelSubscription = async () => {
+    if (!editDeliveryCustomer) return
+    setCancelSubscriptionStatus('cancelling')
+    setCancelSubscriptionResult(null)
+    try {
+      const res = await fetch('/api/admin/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: editDeliveryCustomer.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCancelSubscriptionResult(data.error || 'Something went wrong')
+        setCancelSubscriptionStatus('error')
+        return
+      }
+      setCancelSubscriptionResult('Subscription cancelled — no further orders will be created until they reactivate.')
+      setCancelSubscriptionStatus('done')
+      loadCustomers()
+    } catch {
+      setCancelSubscriptionResult('Network error — please try again')
+      setCancelSubscriptionStatus('error')
     }
   }
 
@@ -6395,6 +6426,34 @@ Bukr / prepcuisines`
                 )}
                 {cancelNextOrderStatus === 'error' && cancelNextOrderResult && (
                   <p className="error-text">{cancelNextOrderResult}</p>
+                )}
+              </div>
+              <div className="pc-modal-section" style={{ borderTop: '1px solid #e5e1d8', paddingTop: 16 }}>
+                <label className="field-label">Whole subscription</label>
+                <div className="pc-modal-inline-row">
+                  <button
+                    className="segment-pill"
+                    style={{ borderColor: '#c0392b', color: '#c0392b' }}
+                    disabled={cancelSubscriptionStatus === 'cancelling'}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Cancel ${editDeliveryCustomer.name}'s whole subscription? This stops all future orders and auto-fill for them — it stays cancelled until they reactivate it themselves from their dashboard.`
+                        )
+                      )
+                        cancelSubscription()
+                    }}
+                  >
+                    {cancelSubscriptionStatus === 'cancelling' ? 'Cancelling…' : 'Cancel subscription'}
+                  </button>
+                </div>
+                {cancelSubscriptionStatus === 'done' && cancelSubscriptionResult && (
+                  <p className="map-intro" style={{ marginTop: 8 }}>
+                    {cancelSubscriptionResult}
+                  </p>
+                )}
+                {cancelSubscriptionStatus === 'error' && cancelSubscriptionResult && (
+                  <p className="error-text">{cancelSubscriptionResult}</p>
                 )}
               </div>
             </div>
