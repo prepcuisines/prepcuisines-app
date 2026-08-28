@@ -369,6 +369,8 @@ export default function AdminDashboard() {
   const [repeatDeliveryDay, setRepeatDeliveryDay] = useState<'Wednesday' | 'Sunday'>('Wednesday')
   const [repeatStatus, setRepeatStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle')
   const [repeatError, setRepeatError] = useState<string | null>(null)
+  const [editingRecurringOrderId, setEditingRecurringOrderId] = useState<string | null>(null)
+  const [lastRecurringSaveWasEdit, setLastRecurringSaveWasEdit] = useState(false)
   const [recurringOrdersList, setRecurringOrdersList] = useState<any[]>([])
   const [showRecurringOrdersList, setShowRecurringOrdersList] = useState(false)
   const [fillManualStatus, setFillManualStatus] = useState<string | null>(null)
@@ -774,6 +776,63 @@ export default function AdminDashboard() {
     }
   }
 
+  const startEditRecurringOrder = async (r: any) => {
+    setShowAddOrder(true)
+    setRepeatWeekly(true)
+    setEditingRecurringOrderId(r.id)
+    setRepeatStatus('idle')
+    setRepeatError(null)
+    setAddOrderForm((f) => ({
+      ...f,
+      customerName: r.customer_name || '',
+      customerEmail: r.email || '',
+      phone: r.phone || '',
+      postcode: r.postcode || '',
+      totalAmount: r.total_amount != null ? String(r.total_amount) : '',
+    }))
+    setRepeatDeliveryDay(r.delivery_day)
+    setRepeatMode(r.repeat_mode)
+
+    let windows = emailWindowOptions
+    if (windows.length === 0) {
+      try {
+        const res = await fetch('/api/admin/emails-by-window', { cache: 'no-store' })
+        const data = await res.json()
+        windows = data.windows || []
+        setEmailWindowOptions(windows)
+      } catch {
+        windows = []
+      }
+    }
+    const nearestWindow = windows.find((w) => w.delivery_day === r.delivery_day)
+    if (nearestWindow) {
+      setAddOrderForm((f) => ({ ...f, windowId: nearestWindow.id }))
+      await loadAddOrderMenuItems(nearestWindow.id)
+      // loadAddOrderMenuItems clears quantities and only knows this week's
+      // real menu — carry the saved items over regardless, and add any of
+      // them that have since rotated off the menu so they still show up
+      // to edit or remove instead of silently vanishing from the picker.
+      setAddOrderMenuItems((prev) => {
+        const existingNames = new Set(prev.map((m) => m.name))
+        const missing = (r.items || [])
+          .filter((it: any) => !existingNames.has(it.name))
+          .map((it: any) => ({ name: it.name, price: it.price || 0 }))
+        return [...prev, ...missing]
+      })
+    }
+    setAddOrderQuantities(
+      Object.fromEntries((r.items || []).map((it: any) => [it.name, it.qty]))
+    )
+  }
+
+  const cancelEditRecurringOrder = () => {
+    setEditingRecurringOrderId(null)
+    setRepeatWeekly(false)
+    setAddOrderQuantities({})
+    setRepeatStatus('idle')
+    setRepeatError(null)
+  }
+
   const toggleRecurringOrderActive = async (id: string, active: boolean) => {
     await fetch('/api/admin/recurring-manual-orders', {
       method: 'PATCH',
@@ -796,11 +855,13 @@ export default function AdminDashboard() {
 
     try {
       const res = await fetch('/api/admin/recurring-manual-orders', {
-        method: 'POST',
+        method: editingRecurringOrderId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(editingRecurringOrderId ? { id: editingRecurringOrderId } : {}),
           customerName: addOrderForm.customerName,
           email: addOrderForm.customerEmail,
+          phone: addOrderForm.phone,
           postcode: addOrderForm.postcode,
           deliveryDay: repeatDeliveryDay,
           items,
@@ -815,6 +876,8 @@ export default function AdminDashboard() {
         return
       }
       setRepeatStatus('done')
+      setLastRecurringSaveWasEdit(!!editingRecurringOrderId)
+      setEditingRecurringOrderId(null)
       loadRecurringOrders()
     } catch {
       setRepeatError('Network error — please try again')
@@ -3883,12 +3946,27 @@ Bukr / prepcuisines`
                         onClick={setupRecurringOrder}
                         disabled={repeatStatus === 'saving'}
                       >
-                        {repeatStatus === 'saving' ? 'Setting up…' : 'Set up recurring order'}
+                        {repeatStatus === 'saving'
+                          ? 'Saving…'
+                          : editingRecurringOrderId
+                            ? 'Save changes'
+                            : 'Set up recurring order'}
                       </button>
+                      {editingRecurringOrderId && (
+                        <button
+                          type="button"
+                          className="segment-pill"
+                          style={{ marginLeft: 8 }}
+                          onClick={cancelEditRecurringOrder}
+                        >
+                          Cancel edit
+                        </button>
+                      )}
                       {repeatStatus === 'done' && (
                         <p className="map-intro">
-                          Set up — this'll kick in from the next weekly run onward. Use "Save
-                          order" above too if you need this week's order placed right now.
+                          {lastRecurringSaveWasEdit
+                            ? "Saved — this'll show up on their next weekly run."
+                            : 'Set up — this\'ll kick in from the next weekly run onward. Use "Save order" above too if you need this week\'s order placed right now.'}
                         </p>
                       )}
                       {repeatStatus === 'error' && repeatError && (
@@ -4037,6 +4115,12 @@ Bukr / prepcuisines`
                                   onClick={() => fillManualOrder(r.id, redoWindowId)}
                                 >
                                   {fillManualBusyId === r.id ? 'Adding…' : 'Add order'}
+                                </button>
+                                <button
+                                  className="segment-pill"
+                                  onClick={() => startEditRecurringOrder(r)}
+                                >
+                                  Edit
                                 </button>
                                 <button
                                   className="segment-pill"
