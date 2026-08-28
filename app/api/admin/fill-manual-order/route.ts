@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { selectAnyMeals } from '../../../../lib/recurringManualOrderFill'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -87,36 +88,51 @@ export async function POST(req: NextRequest) {
     if (mi?.name) menuByName.set(mi.name.trim().toLowerCase(), mi.price)
   }
 
-  const usual: any[] = Array.isArray(ro.items) ? ro.items : []
-  const matched: { name: string; qty: number; price: number }[] = []
-  const unavailable: string[] = []
-  for (const line of usual) {
-    if (!line?.name || line.name === 'Delivery') continue
-    const key = String(line.name).trim().toLowerCase()
-    if (!menuByName.has(key)) {
-      unavailable.push(line.name)
-      continue
-    }
-    matched.push({
-      name: line.name,
-      qty: line.qty || 1,
-      price: Number(line.price) > 0 ? Number(line.price) : menuByName.get(key)!,
-    })
-  }
+  let matched: { name: string; qty: number; price: number }[] = []
+  let unavailable: string[] = []
 
-  if (!matched.length) {
-    return NextResponse.json(
-      {
-        error: `None of their usual meals are on that date's menu (${unavailable.join(', ')}) — build this one by hand.`,
-      },
-      { status: 400 }
-    )
+  if (ro.any_meals) {
+    // No fixed dish preference — pull whatever's on this week's live menu.
+    matched = await selectAnyMeals(supabase, window.id, ro.meal_count || 0, ro.breakfast_count || 0)
+    if (!matched.length) {
+      return NextResponse.json(
+        { error: 'No menu items are set for that delivery date yet — add the menu before filling this order.' },
+        { status: 400 }
+      )
+    }
+  } else {
+    const usual: any[] = Array.isArray(ro.items) ? ro.items : []
+    for (const line of usual) {
+      if (!line?.name || line.name === 'Delivery') continue
+      const key = String(line.name).trim().toLowerCase()
+      if (!menuByName.has(key)) {
+        unavailable.push(line.name)
+        continue
+      }
+      matched.push({
+        name: line.name,
+        qty: line.qty || 1,
+        price: Number(line.price) > 0 ? Number(line.price) : menuByName.get(key)!,
+      })
+    }
+
+    if (!matched.length) {
+      return NextResponse.json(
+        {
+          error: `None of their usual meals are on that date's menu (${unavailable.join(', ')}) — build this one by hand.`,
+        },
+        { status: 400 }
+      )
+    }
   }
 
   const isStoke = (ro.postcode || '').trim().toUpperCase().replace(/\s/g, '').startsWith('ST')
   const deliveryFee = isStoke ? 2.99 : 7.95
-  const food = matched.reduce((s, it) => s + it.price * it.qty, 0)
   const items = [...matched, { name: 'Delivery', price: deliveryFee, qty: 1 }]
+  // These are hand-priced deals Bukr charges directly (cash/invoice) — the
+  // recurring row's total_amount is the real, authoritative charge, not
+  // whatever the matched item prices happen to sum to.
+  const totalAmount = ro.total_amount
 
   const { data: created, error: insertError } = await supabase
     .from('customer_window_orders')
@@ -125,7 +141,7 @@ export async function POST(req: NextRequest) {
       menu_window_id: window.id,
       status: 'manually_ordered',
       items,
-      total_amount: Math.round((food + deliveryFee) * 100) / 100,
+      total_amount: totalAmount,
       delivery_day: window.delivery_day,
       ship_full_name: ro.customer_name,
       ship_email: ro.email,

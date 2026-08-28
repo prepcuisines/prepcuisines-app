@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { selectAnyMeals } from '../../../../lib/recurringManualOrderFill'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -60,11 +61,20 @@ export async function POST(req: NextRequest) {
       // too late for the customer to actually act on it.
 
       if (ro.repeat_mode === 'manual') {
+        const orderItems = ro.any_meals
+          ? await selectAnyMeals(supabase, window.id, ro.meal_count || 0, ro.breakfast_count || 0)
+          : ro.items
+
+        if (ro.any_meals && !orderItems.length) {
+          results.push({ id: ro.id, skipped: 'no menu items set for that window yet' })
+          continue
+        }
+
         await supabase.from('customer_window_orders').insert({
           customer_id: ro.matched_customer_id,
           menu_window_id: window.id,
           status: 'manually_ordered',
-          items: ro.items,
+          items: orderItems,
           total_amount: ro.total_amount,
           delivery_day: ro.delivery_day,
           ship_full_name: ro.customer_name,
@@ -81,6 +91,15 @@ export async function POST(req: NextRequest) {
       }
 
       if (ro.repeat_mode === 'auto_charge') {
+        const orderItems = ro.any_meals
+          ? await selectAnyMeals(supabase, window.id, ro.meal_count || 0, ro.breakfast_count || 0)
+          : ro.items
+
+        if (ro.any_meals && !orderItems.length) {
+          results.push({ id: ro.id, skipped: 'no menu items set for that window yet' })
+          continue
+        }
+
         const { data: profile } = await supabase
           .from('customer_profiles')
           .select('stripe_customer_id, stripe_payment_method_id')
@@ -107,7 +126,7 @@ export async function POST(req: NextRequest) {
             customer_id: ro.matched_customer_id,
             menu_window_id: window.id,
             status: 'manually_ordered',
-            items: ro.items,
+            items: orderItems,
             total_amount: ro.total_amount,
             delivery_day: ro.delivery_day,
             ship_full_name: ro.customer_name,
