@@ -75,6 +75,45 @@ export async function GET(req: NextRequest) {
           .eq('id', userId)
           .single()
 
+        // Once someone completes a Subscribe & Save order, they've had their
+        // one shot at the 40% intro rate — record it so any future checkout
+        // session never offers it to this email or address again. Without
+        // this, welcome40_used_emails/addresses only ever held the original
+        // Shopify-migration import, and every new signup on this site could
+        // get 40% off indefinitely, no matter how many times they ordered.
+        // Best-effort: a failure here shouldn't stop order confirmation.
+        if (shipProfile?.email) {
+          try {
+            await supabase
+              .from('welcome40_used_emails')
+              .upsert(
+                { email: shipProfile.email.trim().toLowerCase(), imported_at: new Date().toISOString() },
+                { onConflict: 'email', ignoreDuplicates: true }
+              )
+            if (shipProfile.house_number && shipProfile.postcode) {
+              const normalizedZip = shipProfile.postcode.trim().toUpperCase().replace(/\s/g, '').toLowerCase()
+              const normalizedAddress = `${shipProfile.street || ''} ${shipProfile.house_number}`
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ')
+              await supabase
+                .from('welcome40_used_addresses')
+                .upsert(
+                  {
+                    house_number: shipProfile.house_number.trim(),
+                    normalized_zip: normalizedZip,
+                    normalized_address: normalizedAddress,
+                    zip: shipProfile.postcode,
+                    address1: shipProfile.street || null,
+                  },
+                  { onConflict: 'normalized_address,normalized_zip', ignoreDuplicates: true }
+                )
+            }
+          } catch (e) {
+            console.error('Failed to record welcome40 usage', e)
+          }
+        }
+
         const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 100 })
         const orderItemsSnapshot = lineItems.data.map((li) => ({
           name: li.description || 'Item',
