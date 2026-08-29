@@ -62,6 +62,11 @@ export async function POST(req: NextRequest) {
   // targeted, not the day-of-week the cron happens to run on, since those
   // two are opposite (the reminder for Wednesday delivery actually goes
   // out on Friday, and vice versa) - a source of real confusion before.
+  //
+  // `only: 'leads'` is separate and deliberately has nothing to do with
+  // delivery days or cutoffs at all — it sends ONLY the imported-leads
+  // invite (group 4), regardless of what day it is or which cutoff has
+  // passed. Use this for a one-off "clear the backlog" push.
   let body: any = {}
   try {
     body = await req.json()
@@ -69,14 +74,23 @@ export async function POST(req: NextRequest) {
     // no body — normal for the real cron invocation
   }
   const forceDeliveryDay = body?.forceDeliveryDay as 'wednesday' | 'sunday' | undefined
+  const onlyLeads = body?.only === 'leads'
 
   const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
   // effectiveDay is the day-of-week the SEND logic below runs as — 5 means
   // "today's send targets Wednesday delivery", 3 means "targets Sunday
   // delivery". forceDeliveryDay maps directly from the delivery day a
   // human actually means, so there's no room to get the direction backwards.
-  const effectiveDay =
-    forceDeliveryDay === 'wednesday' ? 5 : forceDeliveryDay === 'sunday' ? 3 : todayIndex
+  // When onlyLeads is set this is forced to 3 purely as internal plumbing
+  // (group 4's code path lives behind that check) — it carries no meaning
+  // about any delivery day or cutoff in this mode.
+  const effectiveDay = onlyLeads
+    ? 3
+    : forceDeliveryDay === 'wednesday'
+      ? 5
+      : forceDeliveryDay === 'sunday'
+        ? 3
+        : todayIndex
 
   // Group 1 (active subscribers) is day-specific, same as before:
   // - Friday reminds about the upcoming Wednesday delivery (cutoff Sunday 8pm).
@@ -119,12 +133,14 @@ export async function POST(req: NextRequest) {
     .not('standing_plan_size', 'is', null)
     .or(`standing_delivery_day.eq.${targetDeliveryDay},second_delivery_day.eq.${targetDeliveryDay}`)
 
-  const subscriberQueue = (subscribers || [])
-    .filter(
-      (sub) =>
-        !alreadyOrderedForWindowIds.has(sub.id) && !alreadySentIds.has(sub.id) && sub.email
-    )
-    .map((sub) => ({ ...sub, kind: 'subscriber' as const }))
+  const subscriberQueue = onlyLeads
+    ? []
+    : (subscribers || [])
+        .filter(
+          (sub) =>
+            !alreadyOrderedForWindowIds.has(sub.id) && !alreadySentIds.has(sub.id) && sub.email
+        )
+        .map((sub) => ({ ...sub, kind: 'subscriber' as const }))
 
   // Group 2 (never-ordered/PAYG/lapsed, marketing-consented) has no
   // assigned delivery day, so this only runs on the Wednesday run — by
@@ -135,7 +151,7 @@ export async function POST(req: NextRequest) {
   let inviteQueue: any[] = []
   let wednesdayWindowForInvite: { id: string; sampleDishNames: string[] } | null = null
 
-  if (effectiveDay === 3) {
+  if (effectiveDay === 3 && !onlyLeads) {
     // On the Wednesday run, subscriberWindow is already the upcoming
     // Sunday window — we only need to separately fetch the upcoming
     // Wednesday window's dish samples for the invite email's other line.
@@ -186,21 +202,24 @@ export async function POST(req: NextRequest) {
   // and charge-existing-order routes) — separate from WELCOME40, and only
   // ever granted because they specifically cancelled.
   const threeWeeksAgo = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
-  const { data: cancelledCandidates } = await supabase
-    .from('customer_profiles')
-    .select('id, email, full_name, subscription_cancelled_at, winback_last_sent_at')
-    .eq('subscription_status', 'cancelled')
-    .eq('marketing_consent', true)
-    .not('subscription_cancelled_at', 'is', null)
-    .lte('subscription_cancelled_at', threeWeeksAgo)
+  let winbackQueue: any[] = []
+  if (!onlyLeads) {
+    const { data: cancelledCandidates } = await supabase
+      .from('customer_profiles')
+      .select('id, email, full_name, subscription_cancelled_at, winback_last_sent_at')
+      .eq('subscription_status', 'cancelled')
+      .eq('marketing_consent', true)
+      .not('subscription_cancelled_at', 'is', null)
+      .lte('subscription_cancelled_at', threeWeeksAgo)
 
-  const winbackQueue = (cancelledCandidates || [])
-    .filter((c) => {
-      if (!c.email) return false
-      if (c.winback_last_sent_at && c.winback_last_sent_at > threeWeeksAgo) return false
-      return true
-    })
-    .map((c) => ({ ...c, kind: 'winback' as const }))
+    winbackQueue = (cancelledCandidates || [])
+      .filter((c) => {
+        if (!c.email) return false
+        if (c.winback_last_sent_at && c.winback_last_sent_at > threeWeeksAgo) return false
+        return true
+      })
+      .map((c) => ({ ...c, kind: 'winback' as const }))
+  }
 
   const combinedQueue = [...subscriberQueue, ...inviteQueue, ...leadQueue, ...winbackQueue]
   const batch = combinedQueue.slice(0, MAX_PER_RUN)
