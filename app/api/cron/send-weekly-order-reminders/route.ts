@@ -56,18 +56,27 @@ export async function POST(req: NextRequest) {
 
   // Vercel Cron never sends a body, so this stays empty for real scheduled
   // runs. The admin catch-up trigger (run-weekly-reminders) can pass
-  // forceDay to replay a day's run that was missed — e.g. after a bug
-  // meant a scheduled run never actually fired.
+  // forceDeliveryDay to replay a specific delivery day's reminder run that
+  // was missed — e.g. after a bug meant a scheduled run never actually
+  // fired. This is deliberately named after the DELIVERY day being
+  // targeted, not the day-of-week the cron happens to run on, since those
+  // two are opposite (the reminder for Wednesday delivery actually goes
+  // out on Friday, and vice versa) - a source of real confusion before.
   let body: any = {}
   try {
     body = await req.json()
   } catch {
     // no body — normal for the real cron invocation
   }
-  const forceDay = body?.forceDay as 'wednesday' | 'friday' | undefined
+  const forceDeliveryDay = body?.forceDeliveryDay as 'wednesday' | 'sunday' | undefined
 
   const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
-  const effectiveDay = forceDay === 'friday' ? 5 : forceDay === 'wednesday' ? 3 : todayIndex
+  // effectiveDay is the day-of-week the SEND logic below runs as — 5 means
+  // "today's send targets Wednesday delivery", 3 means "targets Sunday
+  // delivery". forceDeliveryDay maps directly from the delivery day a
+  // human actually means, so there's no room to get the direction backwards.
+  const effectiveDay =
+    forceDeliveryDay === 'wednesday' ? 5 : forceDeliveryDay === 'sunday' ? 3 : todayIndex
 
   // Group 1 (active subscribers) is day-specific, same as before:
   // - Friday reminds about the upcoming Wednesday delivery (cutoff Sunday 8pm).
