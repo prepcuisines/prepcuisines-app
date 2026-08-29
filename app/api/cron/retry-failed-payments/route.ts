@@ -110,3 +110,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ processed: results.length, results })
 }
+
+// Vercel Cron always sends a GET request to invoke scheduled jobs (never
+// POST) - without this alias, every scheduled run 405s and silently does
+// nothing. POST is kept for manual/internal triggers.
+export const GET = POST
