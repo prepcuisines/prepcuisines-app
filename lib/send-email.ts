@@ -408,26 +408,92 @@ export async function sendWeeklyOrderLinkToCustomer(
   sampleDishNames: string[] = []
 ) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
-  const dishesLine =
-    sampleDishNames.length > 0
-      ? `<p style="font-size:14px;color:#333333;margin:0 0 20px;line-height:1.7;">
-          A few things on this week's menu: <strong>${sampleDishNames.join(', ')}</strong>, and more.
-        </p>`
-      : ''
 
-  await sendEmail(
+  const dishRows = sampleDishNames
+    .map(
+      (name) => `
+        <tr><td style="border-bottom:1px solid #e8e0d0;padding-bottom:14px;padding-top:14px;">
+          <p style="font-size:15px;font-weight:700;color:#1a2e1a;margin:0;">${name}</p>
+        </td></tr>`
+    )
+    .join('')
+
+  const menuBlock = sampleDishNames.length
+    ? `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f7f3eb;border-radius:8px;" width="100%">
+        <tr><td style="padding:20px 24px;">
+          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 4px;">
+            On this week's menu
+          </p>
+          <table border="0" cellpadding="0" cellspacing="0" width="100%">${dishRows}</table>
+        </td></tr>
+      </table>`
+    : ''
+
+  // Operational, not promotional — no unsubscribe link, matching the
+  // rule that only the genuinely marketing invite email gets one.
+  await sendEmailViaNeo(
     toEmail,
     `Don't forget to pick your meals for ${deliveryDay}`,
     `
-      <p>Hi ${firstName},</p>
-      <p>Don't forget to pick your meals for this week's ${deliveryDay} delivery.</p>
-      ${dishesLine}
-      <p><a href="${siteUrl}/menu">Choose your meals</a></p>
-      <p style="color:#888888;">Cutoff is ${cutoffText} — after that we'll go with your usual
-      favourites instead.</p>
-      <p>Haven't set your favourites yet? <a href="${siteUrl}/favourites">Pick them here</a> so
-      we always know what you love.</p>
-      <p>Thanks,<br/>prepcuisines</p>
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
+          <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+          </td></tr>
+          <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
+            <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">⏰ TIME TO PICK YOUR MEALS</span>
+          </td></tr>
+          <tr><td style="padding:40px 36px 36px;">
+            <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
+              ${deliveryDay} delivery
+            </p>
+            <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
+              Don't forget to pick<br/><em style="font-style:italic;">your meals this week.</em>
+            </p>
+            <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+              Hi ${firstName}, your ${deliveryDay} delivery is coming up — pick your meals before
+              the cutoff, or we'll go with your usual favourites instead.
+            </p>
+
+            ${menuBlock}
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
+              <tr><td style="padding:16px 24px;">
+                <p style="margin:0;font-size:14px;color:#1a2e1a;">
+                  <strong>Cutoff is ${cutoffText}</strong> — after that we'll fill your box
+                  from your favourites automatically.
+                </p>
+              </td></tr>
+            </table>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
+              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
+                <a href="${siteUrl}/menu" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Choose Your Meals &rarr;</a>
+              </td></tr>
+            </table>
+
+            <p style="font-size:13px;color:#888888;line-height:1.75;margin:20px 0 0;text-align:center;">
+              Haven't set your favourites yet? <a href="${siteUrl}/favourites" style="color:#1a2e1a;">Pick them here</a>
+              so we always know what you love.
+            </p>
+
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td style="border-top:1px solid #e8e0d0;padding-top:20px;margin-top:20px;">
+                <p style="font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
+                  Any questions, just reply here — I read every one.<br/><br/>
+                  <span style="font-style:normal;color:#1a2e1a;font-weight:600;">&mdash; Bukr</span>
+                </p>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
     `
   )
 }
