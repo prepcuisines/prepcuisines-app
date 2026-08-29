@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendCancelledRetentionEmailToCustomer } from '@/lib/send-email'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,6 +28,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing customerId' }, { status: 400 })
   }
 
+  const { data: profile } = await supabase
+    .from('customer_profiles')
+    .select('email, full_name, orders_completed')
+    .eq('id', customerId)
+    .maybeSingle()
+
   const { error } = await supabase
     .from('customer_profiles')
     .update({
@@ -36,6 +43,15 @@ export async function POST(req: NextRequest) {
     .eq('id', customerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (profile?.email) {
+    const discountedOrdersRemaining = Math.max(0, 6 - (profile.orders_completed || 0))
+    await sendCancelledRetentionEmailToCustomer(
+      profile.email,
+      (profile.full_name || 'there').split(' ')[0],
+      discountedOrdersRemaining
+    )
+  }
 
   return NextResponse.json({ success: true })
 }

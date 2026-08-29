@@ -285,12 +285,13 @@ export default function DashboardPage() {
     } = await supabase.auth.getUser()
     if (!user) return
 
-    const { error: updateError } = await supabase
-      .from('customer_profiles')
-      .update({ subscription_status: 'cancelled', subscription_cancelled_at: new Date().toISOString() })
-      .eq('id', user.id)
+    const res = await fetch('/api/cancel-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id }),
+    })
 
-    if (!updateError) {
+    if (res.ok) {
       setProfile({ ...profile, subscription_status: 'cancelled' })
     }
     setActionLoading(false)

@@ -543,6 +543,75 @@ export async function sendComeOrderInviteEmailToCustomer(
 // being invited back, not because they're a fresh signup. The actual
 // discount is applied automatically at their next charge once they
 // reactivate (see winback_discount_pending), not via a code they enter.
+// Sent immediately at the moment someone cancels — separate from the
+// 3-week win-back (sendWinBackEmailToCustomer). This one doesn't invent a
+// new discount: it just reminds them of the 20%-off tier they may still
+// genuinely have left (orders_completed doesn't reset on cancelling, so
+// reactivating picks up exactly where they left off). If they've already
+// used up all 6 discounted orders, this sends without any discount
+// mention rather than promising something that isn't true.
+export async function sendCancelledRetentionEmailToCustomer(
+  toEmail: string,
+  firstName: string,
+  discountedOrdersRemaining: number
+) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  const hasDiscountLeft = discountedOrdersRemaining > 0
+  const bannerText = hasDiscountLeft ? '🎁 YOUR 20% OFF IS STILL WAITING' : '👋 SORRY TO SEE YOU GO'
+  const bodyText = hasDiscountLeft
+    ? `Before you go — you've still got <strong>${discountedOrdersRemaining} order${
+        discountedOrdersRemaining === 1 ? '' : 's'
+      } left at 20% off</strong>. Reactivate any time and pick up right where you left off, no need to start over.`
+    : `Before you go — if you ever fancy coming back, just reactivate any time. We'll have a fresh menu waiting.`
+
+  await sendEmailViaNeo(
+    toEmail,
+    hasDiscountLeft ? `${firstName}, your 20% off is still here` : `${firstName}, sorry to see you go`,
+    `
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
+          <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+          </td></tr>
+          <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
+            <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">${bannerText}</span>
+          </td></tr>
+          <tr><td style="padding:40px 36px 36px;">
+            <p style="font-family:Georgia,serif;font-size:26px;color:#1a2e1a;margin:0 0 20px;line-height:1.3;">
+              Sorry to see you go, ${firstName}.
+            </p>
+            <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+              ${bodyText}
+            </p>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
+              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
+                <a href="${siteUrl}/login" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Reactivate My Subscription &rarr;</a>
+              </td></tr>
+            </table>
+
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td style="border-top:1px solid #e8e0d0;padding-top:20px;">
+                <p style="font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
+                  Any questions, just reply here — I read every one.<br/><br/>
+                  <span style="font-style:normal;color:#1a2e1a;font-weight:600;">&mdash; Bukr</span>
+                </p>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+    `
+  )
+}
+
 export async function sendWinBackEmailToCustomer(toEmail: string, firstName: string) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
 
