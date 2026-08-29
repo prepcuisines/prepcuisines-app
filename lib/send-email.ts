@@ -553,6 +553,9 @@ export async function sendComeOrderInviteEmailToCustomer(
             <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🍽️ FRESH MENU, READY WHEN YOU ARE</span>
           </td></tr>
           <tr><td style="padding:40px 36px 36px;">
+            <p style="font-size:13px;font-weight:700;color:#c9a84c;margin:0 0 16px;letter-spacing:0.02em;">
+              🚚 We're now delivering nationwide!
+            </p>
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
               Come try us
             </p>
