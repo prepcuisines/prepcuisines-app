@@ -221,21 +221,25 @@ export async function POST(req: NextRequest) {
               })
               .eq('id', sub.id)
 
-            await supabase.from('customer_window_orders').insert({
-              customer_id: sub.id,
-              menu_window_id: window.id,
-              status: 'auto_filled',
-              stripe_payment_intent_id: paymentIntent.id,
-              items: orderItemsSnapshot,
-              total_amount: totalAmount / 100,
-              delivery_day: window.delivery_day,
-              ship_full_name: sub.full_name || null,
-              ship_phone: sub.phone || null,
-              ship_house_number: sub.house_number || null,
-              ship_street: sub.street || null,
-              ship_postcode: sub.postcode || null,
-              delivery_instructions: sub.standing_delivery_instructions || null,
-            })
+            const { data: insertedOrder } = await supabase
+              .from('customer_window_orders')
+              .insert({
+                customer_id: sub.id,
+                menu_window_id: window.id,
+                status: 'auto_filled',
+                stripe_payment_intent_id: paymentIntent.id,
+                items: orderItemsSnapshot,
+                total_amount: totalAmount / 100,
+                delivery_day: window.delivery_day,
+                ship_full_name: sub.full_name || null,
+                ship_phone: sub.phone || null,
+                ship_house_number: sub.house_number || null,
+                ship_street: sub.street || null,
+                ship_postcode: sub.postcode || null,
+                delivery_instructions: sub.standing_delivery_instructions || null,
+              })
+              .select('order_number')
+              .single()
 
             if (sub.email) {
               await sendOrderConfirmationEmailToCustomer(
@@ -248,7 +252,7 @@ export async function POST(req: NextRequest) {
                 true,
                 false,
                 sub.postcode || '',
-                null,
+                insertedOrder?.order_number ?? null,
                 '9pm'
               )
               await klaviyoTrackEvent(

@@ -163,6 +163,10 @@ export async function sendOrderConfirmationEmailToCustomer(
   graceCancelUntil: string | null = null
 ) {
   const orderRef = orderNumber != null ? ` — #PC-${orderNumber}` : ''
+  const orderNumberLine =
+    orderNumber != null
+      ? `<p style="font-size:13px;color:#888888;margin:0 0 20px;">Order <strong style="color:#1a2e1a;">#PC-${orderNumber}</strong> — quote this if you ever need to get in touch about it.</p>`
+      : ''
   const graceNote = graceCancelUntil
     ? `<p style="font-size:14px;line-height:1.7;color:#2d3510;background:#f5f2ec;border-radius:10px;padding:12px 14px;margin:0 0 16px;">Plans changed this week? You can cancel this order free of charge until <strong>${graceCancelUntil} tonight</strong> — your card will be refunded in full. Open your <a href="https://prepcuisines.co.uk/order-history" style="color:#2d3510;">Order History</a> and tap "Cancel this order".</p>`
     : ''
@@ -273,6 +277,7 @@ export async function sendOrderConfirmationEmailToCustomer(
                   ${orderTypeLabel(orderType, isSubscribed)}
                 </p>
                 ${firstOrderIntro}
+                ${orderNumberLine}
 
                 <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
                   <tr>

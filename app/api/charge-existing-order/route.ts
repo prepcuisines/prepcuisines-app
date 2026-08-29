@@ -259,20 +259,24 @@ export async function POST(req: NextRequest) {
         .eq('id', userId)
 
       if (matchedWindowId) {
-        await supabase.from('customer_window_orders').insert({
-          customer_id: userId,
-          menu_window_id: matchedWindowId,
-          status: 'manually_ordered',
-          items: orderItemsSnapshot,
-          total_amount: totalAmount / 100,
-          delivery_day: deliveryDay || null,
-          ship_full_name: profile.full_name || null,
-          ship_phone: profile.phone || null,
-          ship_house_number: profile.house_number || null,
-          ship_street: profile.street || null,
-          ship_postcode: profile.postcode || null,
-          delivery_instructions: effectiveInstructions || null,
-        })
+        const { data: insertedOrder } = await supabase
+          .from('customer_window_orders')
+          .insert({
+            customer_id: userId,
+            menu_window_id: matchedWindowId,
+            status: 'manually_ordered',
+            items: orderItemsSnapshot,
+            total_amount: totalAmount / 100,
+            delivery_day: deliveryDay || null,
+            ship_full_name: profile.full_name || null,
+            ship_phone: profile.phone || null,
+            ship_house_number: profile.house_number || null,
+            ship_street: profile.street || null,
+            ship_postcode: profile.postcode || null,
+            delivery_instructions: effectiveInstructions || null,
+          })
+          .select('order_number')
+          .single()
 
         if (profile.email) {
           await sendOrderConfirmationEmailToCustomer(
@@ -284,7 +288,8 @@ export async function POST(req: NextRequest) {
             'manually_ordered',
             true,
             ordersCompleted === 0,
-            profile.postcode || ''
+            profile.postcode || '',
+            insertedOrder?.order_number ?? null
           )
           await klaviyoTrackEvent(
             profile.email,

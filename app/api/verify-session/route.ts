@@ -168,21 +168,25 @@ export async function GET(req: NextRequest) {
           : { data: null }
 
         if (!existing) {
-          await supabase.from('customer_window_orders').insert({
-            customer_id: userId,
-            menu_window_id: matchedWindowId,
-            status: isFirstOrder ? 'signup_order' : 'manually_ordered',
-            stripe_session_id: sessionId,
-            items: orderItemsSnapshot,
-            total_amount: (session.amount_total || 0) / 100,
-            delivery_day: deliveryDay,
-            ship_full_name: shipProfile?.full_name || null,
-            ship_phone: shipProfile?.phone || null,
-            ship_house_number: shipProfile?.house_number || null,
-            ship_street: shipProfile?.street || null,
-            ship_postcode: shipProfile?.postcode || null,
-            delivery_instructions: shipProfile?.standing_delivery_instructions || null,
-          })
+          const { data: insertedOrder } = await supabase
+            .from('customer_window_orders')
+            .insert({
+              customer_id: userId,
+              menu_window_id: matchedWindowId,
+              status: isFirstOrder ? 'signup_order' : 'manually_ordered',
+              stripe_session_id: sessionId,
+              items: orderItemsSnapshot,
+              total_amount: (session.amount_total || 0) / 100,
+              delivery_day: deliveryDay,
+              ship_full_name: shipProfile?.full_name || null,
+              ship_phone: shipProfile?.phone || null,
+              ship_house_number: shipProfile?.house_number || null,
+              ship_street: shipProfile?.street || null,
+              ship_postcode: shipProfile?.postcode || null,
+              delivery_instructions: shipProfile?.standing_delivery_instructions || null,
+            })
+            .select('order_number')
+            .single()
 
           if (shipProfile?.email) {
             await sendOrderConfirmationEmailToCustomer(
@@ -194,7 +198,8 @@ export async function GET(req: NextRequest) {
               'signup_order',
               true,
               true,
-              shipProfile.postcode || ''
+              shipProfile.postcode || '',
+              insertedOrder?.order_number ?? null
             )
             await klaviyoTrackEvent(
               shipProfile.email,
@@ -272,21 +277,25 @@ export async function GET(req: NextRequest) {
           matchedWindowId = window?.id || null
         }
 
-        await supabase.from('customer_window_orders').insert({
-          customer_id: null,
-          menu_window_id: matchedWindowId,
-          status: 'payg_order',
-          items: orderItemsSnapshot,
-          total_amount: (session.amount_total || 0) / 100,
-          delivery_day: deliveryDay,
-          ship_full_name: fullName,
-          ship_phone: phone,
-          ship_house_number: houseNumber,
-          ship_street: street,
-          ship_postcode: postcode,
-          ship_email: email,
-          stripe_session_id: sessionId,
-        })
+        const { data: insertedPaygOrder } = await supabase
+          .from('customer_window_orders')
+          .insert({
+            customer_id: null,
+            menu_window_id: matchedWindowId,
+            status: 'payg_order',
+            items: orderItemsSnapshot,
+            total_amount: (session.amount_total || 0) / 100,
+            delivery_day: deliveryDay,
+            ship_full_name: fullName,
+            ship_phone: phone,
+            ship_house_number: houseNumber,
+            ship_street: street,
+            ship_postcode: postcode,
+            ship_email: email,
+            stripe_session_id: sessionId,
+          })
+          .select('order_number')
+          .single()
 
         if (email) {
           await sendOrderConfirmationEmailToCustomer(
@@ -298,7 +307,8 @@ export async function GET(req: NextRequest) {
             'payg_order',
             false,
             false,
-            postcode || ''
+            postcode || '',
+            insertedPaygOrder?.order_number ?? null
           )
           await klaviyoTrackEvent(
             email,
