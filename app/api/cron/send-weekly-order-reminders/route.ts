@@ -157,6 +157,26 @@ export async function POST(req: NextRequest) {
       .map((c) => ({ ...c, kind: 'invite' as const }))
   }
 
+  // Group 4 (imported leads): people brought in from the Shopify export
+  // who never had a real account here (customer_profiles), so they live in
+  // marketing_leads instead - the group 2 query above never sees them at
+  // all, which is why the Shopify import (1,900+ contacts) wasn't
+  // reflected in past send counts. Same email as group 2, same
+  // Wednesday-only timing, own weekly cadence via last_invite_sent_at
+  // since there's no per-window log for a table with no customer_id.
+  let leadQueue: any[] = []
+  if (effectiveDay === 3) {
+    const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: leads } = await supabase
+      .from('marketing_leads')
+      .select('id, email, full_name, last_invite_sent_at')
+      .or(`last_invite_sent_at.is.null,last_invite_sent_at.lte.${sixDaysAgo}`)
+
+    leadQueue = (leads || [])
+      .filter((l) => !!l.email)
+      .map((l) => ({ ...l, kind: 'leadInvite' as const }))
+  }
+
   // Group 3 (win-back): cancelled subscribers, resent every ~3 weeks for
   // as long as they stay cancelled. Runs on both reminder days, not just
   // one, since this cadence is its own clock and not tied to a delivery
@@ -182,7 +202,7 @@ export async function POST(req: NextRequest) {
     })
     .map((c) => ({ ...c, kind: 'winback' as const }))
 
-  const combinedQueue = [...subscriberQueue, ...inviteQueue, ...winbackQueue]
+  const combinedQueue = [...subscriberQueue, ...inviteQueue, ...leadQueue, ...winbackQueue]
   const batch = combinedQueue.slice(0, MAX_PER_RUN)
   const results: any[] = []
 
@@ -214,6 +234,20 @@ export async function POST(req: NextRequest) {
       await supabase
         .from('weekly_reminder_log')
         .insert({ customer_id: person.id, menu_window_id: subscriberWindow.id })
+    } else if (person.kind === 'leadInvite') {
+      await sendComeOrderInviteEmailToCustomer(
+        person.email,
+        (person.full_name || 'there').split(' ')[0],
+        'Sunday at 8pm',
+        'Friday at 8pm',
+        wednesdayWindowForInvite?.sampleDishNames.length
+          ? wednesdayWindowForInvite.sampleDishNames
+          : subscriberWindow.sampleDishNames
+      )
+      await supabase
+        .from('marketing_leads')
+        .update({ last_invite_sent_at: new Date().toISOString() })
+        .eq('id', person.id)
     } else {
       await sendWinBackEmailToCustomer(person.email, (person.full_name || 'there').split(' ')[0])
       await supabase
@@ -226,20 +260,23 @@ export async function POST(req: NextRequest) {
 
   const subscribersSent = batch.filter((p) => p.kind === 'subscriber').length
   const invitesSent = batch.filter((p) => p.kind === 'invite').length
+  const leadInvitesSent = batch.filter((p) => p.kind === 'leadInvite').length
   const winbacksSent = batch.filter((p) => p.kind === 'winback').length
 
   if (batch.length > 0) {
     await sendBulkEmailSummaryToAdmin('Weekly order reminder', [
       { label: 'Subscriber reminders', count: subscribersSent },
       { label: 'Come-try-us invites', count: invitesSent },
+      { label: 'Come-try-us invites (imported leads)', count: leadInvitesSent },
       { label: 'Win-back (cancelled)', count: winbacksSent },
     ])
   }
 
   return NextResponse.json({
-    totalEligible: subscriberQueue.length + inviteQueue.length + winbackQueue.length,
+    totalEligible: subscriberQueue.length + inviteQueue.length + leadQueue.length + winbackQueue.length,
     sentThisRun: batch.length,
-    remainingAfterThisRun: subscriberQueue.length + inviteQueue.length + winbackQueue.length - batch.length,
+    remainingAfterThisRun:
+      subscriberQueue.length + inviteQueue.length + leadQueue.length + winbackQueue.length - batch.length,
     results,
   })
 }
