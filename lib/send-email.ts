@@ -357,8 +357,8 @@ export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstNa
                 </p>
                 <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 28px;" width="100%">
                   <tr>
-                    <td align="center" style="background:#c9a84c;border-radius:6px;padding:14px 28px;">
-                      <a href="https://g.page/r/CY1FkzyDX-KIEAE/review" style="font-size:14px;font-weight:700;color:#1a2e1a;text-decoration:none;letter-spacing:0.02em;">Leave us a review</a>
+                    <td align="center">
+                      <a href="https://g.page/r/CY1FkzyDX-KIEAE/review" style="display:inline-block;background:#c9a84c;border-radius:6px;padding:14px 28px;font-size:14px;font-weight:700;color:#1a2e1a;text-decoration:none;letter-spacing:0.02em;">Leave us a review</a>
                     </td>
                   </tr>
                 </table>
@@ -473,8 +473,8 @@ export async function sendWeeklyOrderLinkToCustomer(
             </table>
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
-              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
-                <a href="${siteUrl}/menu" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Choose Your Meals &rarr;</a>
+              <tr><td align="center">
+                <a href="${siteUrl}/menu" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Choose Your Meals &rarr;</a>
               </td></tr>
             </table>
 
@@ -581,8 +581,8 @@ export async function sendComeOrderInviteEmailToCustomer(
             </table>
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
-              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
-                <a href="${siteUrl}/menu" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Browse the Menu &rarr;</a>
+              <tr><td align="center">
+                <a href="${siteUrl}/menu" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Browse the Menu &rarr;</a>
               </td></tr>
             </table>
 
@@ -658,8 +658,8 @@ export async function sendCancelledRetentionEmailToCustomer(
             </p>
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
-              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
-                <a href="${siteUrl}/login" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Reactivate My Subscription &rarr;</a>
+              <tr><td align="center">
+                <a href="${siteUrl}/login" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Reactivate My Subscription &rarr;</a>
               </td></tr>
             </table>
 
@@ -712,8 +712,8 @@ export async function sendWinBackEmailToCustomer(toEmail: string, firstName: str
             </p>
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
-              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
-                <a href="${siteUrl}/login" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Reactivate My Subscription &rarr;</a>
+              <tr><td align="center">
+                <a href="${siteUrl}/login" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Reactivate My Subscription &rarr;</a>
               </td></tr>
             </table>
 
