@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const { data: profile, error: profileError } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, phone, house_number, street, stripe_customer_id, stripe_payment_method_id, orders_completed, subscription_status, postcode, skip_next_order, standing_delivery_instructions, second_delivery_day, deliveries_per_week'
+        'full_name, email, phone, house_number, street, stripe_customer_id, stripe_payment_method_id, orders_completed, subscription_status, postcode, skip_next_order, standing_delivery_instructions, second_delivery_day, deliveries_per_week, winback_discount_pending'
       )
       .eq('id', userId)
       .single()
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ordersCompleted = profile.orders_completed || 0
-    const discountRate = ordersCompleted <= 5 ? 0.8 : 1
+    const discountRate = profile.winback_discount_pending ? 0.6 : ordersCompleted <= 5 ? 0.8 : 1
 
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
@@ -230,6 +230,9 @@ export async function POST(req: NextRequest) {
       const updates: Record<string, any> = { orders_completed: ordersCompleted + 1 }
       if (reactivate) {
         updates.subscription_status = 'active'
+      }
+      if (profile.winback_discount_pending) {
+        updates.winback_discount_pending = false
       }
       // Never let a 2-delivery account's standing day end up matching their
       // second day — that would collapse two deliveries into one silently.

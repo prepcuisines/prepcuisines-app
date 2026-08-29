@@ -535,6 +535,68 @@ export async function sendComeOrderInviteEmailToCustomer(
   )
 }
 
+// For subscribers who cancelled a while ago. Sent on a recurring cadence
+// (every ~3 weeks) by the weekly reminder cron, independent of which
+// delivery day it's covering. Carries a genuine 40%-off reactivation
+// offer — this is separate from the WELCOME40 first-order tracking, and
+// only ever granted because the person specifically cancelled and is
+// being invited back, not because they're a fresh signup. The actual
+// discount is applied automatically at their next charge once they
+// reactivate (see winback_discount_pending), not via a code they enter.
+export async function sendWinBackEmailToCustomer(toEmail: string, firstName: string) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  await sendEmailViaNeo(
+    toEmail,
+    `${firstName}, come back to 40% off your next order`,
+    `
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
+          <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+          </td></tr>
+          <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
+            <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🎉 40% OFF YOUR NEXT ORDER</span>
+          </td></tr>
+          <tr><td style="padding:40px 36px 36px;">
+            <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
+              We miss you
+            </p>
+            <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
+              Come back, ${firstName}<br/><em style="font-style:italic;">on us — 40% off.</em>
+            </p>
+            <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+              It's been a little while since your last order. Reactivate your subscription and
+              your next box is 40% off, automatically — no code needed.
+            </p>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
+              <tr><td align="center" style="background:#1a2e1a;border-radius:6px;padding:18px 32px;">
+                <a href="${siteUrl}/login" style="font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Reactivate My Subscription &rarr;</a>
+              </td></tr>
+            </table>
+
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td style="border-top:1px solid #e8e0d0;padding-top:20px;">
+                <p style="font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
+                  Any questions, just reply here — I read every one.<br/><br/>
+                  <span style="font-style:normal;color:#1a2e1a;font-weight:600;">&mdash; Bukr</span>
+                </p>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+    `
+  )
+}
+
 export async function sendPaymentFailedEmailToAdmin(
   customerName: string,
   customerEmail: string,

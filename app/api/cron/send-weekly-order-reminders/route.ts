@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import {
   sendWeeklyOrderLinkToCustomer,
   sendComeOrderInviteEmailToCustomer,
+  sendWinBackEmailToCustomer,
   sendBulkEmailSummaryToAdmin,
 } from '@/lib/send-email'
 
@@ -53,17 +54,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
 
+  // Vercel Cron never sends a body, so this stays empty for real scheduled
+  // runs. The admin catch-up trigger (run-weekly-reminders) can pass
+  // forceDay to replay a day's run that was missed — e.g. after a bug
+  // meant a scheduled run never actually fired.
+  let body: any = {}
+  try {
+    body = await req.json()
+  } catch {
+    // no body — normal for the real cron invocation
+  }
+  const forceDay = body?.forceDay as 'wednesday' | 'friday' | undefined
+
   const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
+  const effectiveDay = forceDay === 'friday' ? 5 : forceDay === 'wednesday' ? 3 : todayIndex
 
   // Group 1 (active subscribers) is day-specific, same as before:
   // - Friday reminds about the upcoming Wednesday delivery (cutoff Sunday 8pm).
   // - Wednesday reminds about the upcoming Sunday delivery (cutoff Friday 8pm).
   let targetDeliveryDay: string | null = null
   let cutoffText = ''
-  if (todayIndex === 5) {
+  if (effectiveDay === 5) {
     targetDeliveryDay = 'Wednesday'
     cutoffText = 'Sunday at 8pm'
-  } else if (todayIndex === 3) {
+  } else if (effectiveDay === 3) {
     targetDeliveryDay = 'Sunday'
     cutoffText = 'Friday at 8pm'
   } else {
@@ -112,7 +126,7 @@ export async function POST(req: NextRequest) {
   let inviteQueue: any[] = []
   let wednesdayWindowForInvite: { id: string; sampleDishNames: string[] } | null = null
 
-  if (todayIndex === 3) {
+  if (effectiveDay === 3) {
     // On the Wednesday run, subscriberWindow is already the upcoming
     // Sunday window — we only need to separately fetch the upcoming
     // Wednesday window's dish samples for the invite email's other line.
@@ -134,7 +148,32 @@ export async function POST(req: NextRequest) {
       .map((c) => ({ ...c, kind: 'invite' as const }))
   }
 
-  const combinedQueue = [...subscriberQueue, ...inviteQueue]
+  // Group 3 (win-back): cancelled subscribers, resent every ~3 weeks for
+  // as long as they stay cancelled. Runs on both reminder days, not just
+  // one, since this cadence is its own clock and not tied to a delivery
+  // day. Sending this one carries a real 40%-off-next-order promise, so
+  // it also flags the account so that discount actually applies the
+  // moment they reactivate (see winback_discount_pending in the auto-fill
+  // and charge-existing-order routes) — separate from WELCOME40, and only
+  // ever granted because they specifically cancelled.
+  const threeWeeksAgo = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: cancelledCandidates } = await supabase
+    .from('customer_profiles')
+    .select('id, email, full_name, subscription_cancelled_at, winback_last_sent_at')
+    .eq('subscription_status', 'cancelled')
+    .eq('marketing_consent', true)
+    .not('subscription_cancelled_at', 'is', null)
+    .lte('subscription_cancelled_at', threeWeeksAgo)
+
+  const winbackQueue = (cancelledCandidates || [])
+    .filter((c) => {
+      if (!c.email) return false
+      if (c.winback_last_sent_at && c.winback_last_sent_at > threeWeeksAgo) return false
+      return true
+    })
+    .map((c) => ({ ...c, kind: 'winback' as const }))
+
+  const combinedQueue = [...subscriberQueue, ...inviteQueue, ...winbackQueue]
   const batch = combinedQueue.slice(0, MAX_PER_RUN)
   const results: any[] = []
 
@@ -147,7 +186,10 @@ export async function POST(req: NextRequest) {
         cutoffText,
         subscriberWindow.sampleDishNames
       )
-    } else {
+      await supabase
+        .from('weekly_reminder_log')
+        .insert({ customer_id: person.id, menu_window_id: subscriberWindow.id })
+    } else if (person.kind === 'invite') {
       await sendComeOrderInviteEmailToCustomer(
         person.email,
         (person.full_name || 'there').split(' ')[0],
@@ -157,30 +199,38 @@ export async function POST(req: NextRequest) {
           ? wednesdayWindowForInvite.sampleDishNames
           : subscriberWindow.sampleDishNames
       )
+      // Logged against subscriberWindow like group 1 — once this window's
+      // cutoff passes, they surface again the following week with the
+      // next pair.
+      await supabase
+        .from('weekly_reminder_log')
+        .insert({ customer_id: person.id, menu_window_id: subscriberWindow.id })
+    } else {
+      await sendWinBackEmailToCustomer(person.email, (person.full_name || 'there').split(' ')[0])
+      await supabase
+        .from('customer_profiles')
+        .update({ winback_last_sent_at: new Date().toISOString(), winback_discount_pending: true })
+        .eq('id', person.id)
     }
-    // Both groups logged against subscriberWindow — for group 2, once this
-    // window's cutoff passes, they surface again the following week with
-    // the next pair.
-    await supabase
-      .from('weekly_reminder_log')
-      .insert({ customer_id: person.id, menu_window_id: subscriberWindow.id })
     results.push({ id: person.id, kind: person.kind, sent: true })
   }
 
   const subscribersSent = batch.filter((p) => p.kind === 'subscriber').length
   const invitesSent = batch.filter((p) => p.kind === 'invite').length
+  const winbacksSent = batch.filter((p) => p.kind === 'winback').length
 
   if (batch.length > 0) {
     await sendBulkEmailSummaryToAdmin('Weekly order reminder', [
       { label: 'Subscriber reminders', count: subscribersSent },
       { label: 'Come-try-us invites', count: invitesSent },
+      { label: 'Win-back (cancelled)', count: winbacksSent },
     ])
   }
 
   return NextResponse.json({
-    totalEligible: subscriberQueue.length + inviteQueue.length,
+    totalEligible: subscriberQueue.length + inviteQueue.length + winbackQueue.length,
     sentThisRun: batch.length,
-    remainingAfterThisRun: subscriberQueue.length + inviteQueue.length - batch.length,
+    remainingAfterThisRun: subscriberQueue.length + inviteQueue.length + winbackQueue.length - batch.length,
     results,
   })
 }
