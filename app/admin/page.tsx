@@ -334,7 +334,7 @@ export default function AdminDashboard() {
   const [orderSearch, setOrderSearch] = useState('')
   const [ordersView, setOrdersView] = useState<'orders' | 'skipped'>('orders')
   const [showOrdersDates, setShowOrdersDates] = useState(false)
-  const [orderStateFilter, setOrderStateFilter] = useState<'all' | 'live' | 'skipped' | 'cancelled'>('all')
+  const [orderStateFilter, setOrderStateFilter] = useState<'all' | 'live' | 'skipped' | 'cancelled' | 'cash'>('all')
   const [loading, setLoading] = useState(false)
 
   const [showAddOrder, setShowAddOrder] = useState(false)
@@ -2742,14 +2742,16 @@ Bukr / prepcuisines`
     document.body.appendChild(script)
   }, [showStokeRoute, stokeRouteStatus, stokeRouteStops])
 
-  const matchesOrderState = (o: Order, state: 'all' | 'live' | 'skipped' | 'cancelled') =>
+  const matchesOrderState = (o: Order, state: 'all' | 'live' | 'skipped' | 'cancelled' | 'cash') =>
     state === 'all'
       ? true
       : state === 'cancelled'
         ? !!o.cancelled
-        : state === 'skipped'
-          ? !o.cancelled && o.status === 'skipped'
-          : !o.cancelled && o.status !== 'skipped'
+        : state === 'cash'
+          ? !!o.cash_order
+          : state === 'skipped'
+            ? !o.cancelled && o.status === 'skipped'
+            : !o.cancelled && o.status !== 'skipped'
 
   const locationScopedOrders = useMemo(() => {
     const byState = printLabelsOrders.filter((o) => matchesOrderState(o, orderStateFilter))
@@ -4231,6 +4233,7 @@ Bukr / prepcuisines`
                   ['live', 'Orders'],
                   ['skipped', 'Skipped'],
                   ['cancelled', 'Cancelled'],
+                  ['cash', 'Cash'],
                 ] as const
               ).map(([key, label]) => (
                 <button
