@@ -18,11 +18,27 @@
     },
     {
       "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "0 9 * * 3,5"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "0 10 * * 3,5"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
       "schedule": "0 11 * * 3,5"
     },
     {
       "path": "/api/cron/send-weekly-order-reminders",
-      "schedule": "5 12 * * 3,5"
+      "schedule": "0 12 * * 3,5"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "0 13 * * 3,5"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "0 14 * * 3,5"
     },
     {
       "path": "/api/cron/send-weekly-order-reminders",
@@ -46,7 +62,11 @@
     },
     {
       "path": "/api/cron/send-weekly-order-reminders",
-      "schedule": "30 19 * * 3,5"
+      "schedule": "0 20 * * 3,5"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "0 21 * * 3,5"
     }
   ]
 }
