@@ -2139,13 +2139,12 @@ export default function AdminDashboard() {
   const orderTally = useMemo(() => {
     const groups = new Map<
       string,
-      { key: string; day: string; week: string | null; count: number; total: number }
+      { key: string; day: string; week: string | null; weekRaw: string | null; count: number; total: number }
     >()
     for (const o of filteredOrders) {
       if (o.cancelled || o.status === 'skipped') continue
-      const week = o.menu_windows?.week_start_date
-        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
-        : null
+      const weekRaw = o.menu_windows?.week_start_date || null
+      const week = weekRaw ? new Date(weekRaw).toLocaleDateString('en-GB') : null
       const day = dayNameOf(o.delivery_day)
       const key = `${week}__${day}`
       const existing = groups.get(key)
@@ -2153,14 +2152,31 @@ export default function AdminDashboard() {
         existing.count += 1
         existing.total += o.total_amount || 0
       } else {
-        groups.set(key, { key, day, week, count: 1, total: o.total_amount || 0 })
+        groups.set(key, { key, day, week, weekRaw, count: 1, total: o.total_amount || 0 })
       }
     }
-    return Array.from(groups.values()).sort((a, b) => {
-      if (a.week === b.week) return a.day.localeCompare(b.day)
-      return (a.week || '').localeCompare(b.week || '')
-    })
+    // weekRaw is an ISO date, so it sorts correctly chronologically — the
+    // previous display-string sort ('02/09/2026' vs '09/08/2026') compared
+    // DD first and put September before August.
+    return Array.from(groups.values()).sort((a, b) => (a.weekRaw || '').localeCompare(b.weekRaw || ''))
   }, [filteredOrders])
+
+  // Kitchen only needs the window either side of today's prep, not the
+  // full history — find the split between past and upcoming, then keep
+  // one before it, the current one, and one after.
+  const visibleOrderTally = useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    let currentIdx = -1
+    for (let i = orderTally.length - 1; i >= 0; i--) {
+      const entryDate = (orderTally[i].weekRaw || '').slice(0, 10)
+      if (entryDate && entryDate <= todayIso) {
+        currentIdx = i
+        break
+      }
+    }
+    if (currentIdx === -1) return orderTally.slice(0, 3)
+    return orderTally.slice(Math.max(0, currentIdx - 1), currentIdx + 2)
+  }, [orderTally])
 
   const [expandedTallyKey, setExpandedTallyKey] = useState<string | null>(null)
 
@@ -4516,9 +4532,9 @@ Bukr / prepcuisines`
         {tab === 'cook-sheet' && (
           <section>
               <>
-                {orderTally.length > 0 && (
+                {visibleOrderTally.length > 0 && (
                   <div className="tally-row">
-                    {orderTally.map((t) => (
+                    {visibleOrderTally.map((t) => (
                       <button
                         key={t.key}
                         className={`tally-chip ${expandedTallyKey === t.key ? 'tally-chip-active' : ''}`}
