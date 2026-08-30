@@ -49,7 +49,22 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      if (ro.last_processed_window_id === window.id) {
+      // Atomically claim this window for this recurring order before doing
+      // any work - same fix as auto-fill-orders. A plain read-then-later-
+      // write here let two overlapping runs (e.g. the real scheduled cron
+      // and a manual catch-up click) both pass the check and both charge
+      // the same customer; this UPDATE only succeeds for whichever run
+      // gets there first, and returns nothing for the loser.
+      const previousProcessedWindowId = ro.last_processed_window_id
+      const { data: claimed } = await supabase
+        .from('recurring_manual_orders')
+        .update({ last_processed_window_id: window.id })
+        .eq('id', ro.id)
+        .or(`last_processed_window_id.is.null,last_processed_window_id.neq.${window.id}`)
+        .select('id')
+        .maybeSingle()
+
+      if (!claimed) {
         results.push({ id: ro.id, skipped: 'already processed for this window' })
         continue
       }
@@ -66,6 +81,10 @@ export async function POST(req: NextRequest) {
           : ro.items
 
         if (ro.any_meals && !orderItems.length) {
+          await supabase
+            .from('recurring_manual_orders')
+            .update({ last_processed_window_id: previousProcessedWindowId })
+            .eq('id', ro.id)
           results.push({ id: ro.id, skipped: 'no menu items set for that window yet' })
           continue
         }
@@ -82,10 +101,6 @@ export async function POST(req: NextRequest) {
           ship_phone: ro.phone,
           ship_postcode: ro.postcode,
         })
-        await supabase
-          .from('recurring_manual_orders')
-          .update({ last_processed_window_id: window.id })
-          .eq('id', ro.id)
         results.push({ id: ro.id, createdUnpaidOrder: true })
         continue
       }
@@ -96,6 +111,10 @@ export async function POST(req: NextRequest) {
           : ro.items
 
         if (ro.any_meals && !orderItems.length) {
+          await supabase
+            .from('recurring_manual_orders')
+            .update({ last_processed_window_id: previousProcessedWindowId })
+            .eq('id', ro.id)
           results.push({ id: ro.id, skipped: 'no menu items set for that window yet' })
           continue
         }
@@ -107,6 +126,10 @@ export async function POST(req: NextRequest) {
           .maybeSingle()
 
         if (!profile?.stripe_customer_id || !profile?.stripe_payment_method_id) {
+          await supabase
+            .from('recurring_manual_orders')
+            .update({ last_processed_window_id: previousProcessedWindowId })
+            .eq('id', ro.id)
           results.push({ id: ro.id, skipped: 'no saved card found at charge time' })
           continue
         }
@@ -134,12 +157,15 @@ export async function POST(req: NextRequest) {
             ship_phone: ro.phone,
             ship_postcode: ro.postcode,
           })
-          await supabase
-            .from('recurring_manual_orders')
-            .update({ last_processed_window_id: window.id })
-            .eq('id', ro.id)
           results.push({ id: ro.id, charged: true })
         } catch (chargeErr: any) {
+          // Charge failed — release the claim back to whatever it was
+          // before, so this doesn't get silently skipped forever; a later
+          // run (or next week's) will see it as unprocessed and retry.
+          await supabase
+            .from('recurring_manual_orders')
+            .update({ last_processed_window_id: previousProcessedWindowId })
+            .eq('id', ro.id)
           await supabase.from('payment_failures').insert({
             customer_id: ro.matched_customer_id,
             menu_window_id: window.id,

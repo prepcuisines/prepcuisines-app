@@ -55,6 +55,24 @@ export async function POST(req: NextRequest) {
       continue
     }
 
+    // Atomically claim this failure before charging anything — same fix as
+    // auto-fill-orders and process-recurring-manual-orders. This only
+    // succeeds for whichever run gets here first; a concurrent overlapping
+    // run (e.g. the real scheduled cron and a manual catch-up click) gets
+    // nothing back and skips, instead of both racing on to Stripe.
+    const { data: claimed } = await supabase
+      .from('payment_failures')
+      .update({ resolved: true })
+      .eq('id', failure.id)
+      .eq('resolved', false)
+      .select('id')
+      .maybeSingle()
+
+    if (!claimed) {
+      results.push({ id: failure.id, skipped: 'already claimed by concurrent run' })
+      continue
+    }
+
     try {
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round((failure.amount || 0) * 100),
@@ -67,6 +85,9 @@ export async function POST(req: NextRequest) {
       })
 
       if (paymentIntent.status !== 'succeeded') {
+        // Still failed — release the claim so it's picked up again (later
+        // this run's next candidate, or the next scheduled retry).
+        await supabase.from('payment_failures').update({ resolved: false }).eq('id', failure.id)
         results.push({ id: failure.id, retryFailed: `status ${paymentIntent.status}` })
         continue
       }
@@ -80,8 +101,6 @@ export async function POST(req: NextRequest) {
         delivery_day: failure.delivery_day,
         ship_full_name: profile.full_name || null,
       })
-
-      await supabase.from('payment_failures').update({ resolved: true }).eq('id', failure.id)
 
       if (profile.email) {
         await sendOrderConfirmationEmailToCustomer(
@@ -104,6 +123,7 @@ export async function POST(req: NextRequest) {
 
       results.push({ id: failure.id, retried: true, succeeded: true })
     } catch (err: any) {
+      await supabase.from('payment_failures').update({ resolved: false }).eq('id', failure.id)
       results.push({ id: failure.id, retried: true, succeeded: false, error: err.message })
     }
   }
