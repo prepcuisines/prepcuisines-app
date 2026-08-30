@@ -515,9 +515,24 @@ export async function sendComeOrderInviteEmailToCustomer(
   firstName: string,
   wednesdayCutoffText: string,
   sundayCutoffText: string,
-  sampleDishNames: string[] = []
+  sampleDishNames: string[] = [],
+  urgentDeadlineDay?: 'wednesday' | 'sunday'
 ) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  // One-off urgency push for a specific send — doesn't replace the actual
+  // cutoff info box below (still shown, still accurate), just adds a
+  // prominent nudge above it for whichever day this particular send wants
+  // to push. Not a permanent part of the template.
+  const urgentBanner = urgentDeadlineDay
+    ? `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;" width="100%">
+        <tr><td align="center" style="background:#c9a84c;border-radius:6px;padding:14px 20px;">
+          <span style="font-size:14px;font-weight:700;color:#1a2e1a;">⏰ Deadline is TODAY for ${
+            urgentDeadlineDay === 'wednesday' ? 'Wednesday' : 'Sunday'
+          } orders!</span>
+        </td></tr>
+      </table>`
+    : ''
 
   const dishRows = sampleDishNames
     .map(
@@ -569,6 +584,8 @@ export async function sendComeOrderInviteEmailToCustomer(
             </p>
 
             ${menuBlock}
+
+            ${urgentBanner}
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
               <tr><td style="padding:20px 24px;">

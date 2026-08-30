@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     // no body — normal for the real cron invocation
   }
   const forceDeliveryDay = body?.forceDeliveryDay as 'wednesday' | 'sunday' | undefined
+  const urgentDeadlineDay = body?.urgentDeadlineDay as 'wednesday' | 'sunday' | undefined
   const onlyLeads = body?.only === 'leads'
 
   const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
@@ -261,7 +262,8 @@ export async function POST(req: NextRequest) {
         'Friday at 8pm',
         wednesdayWindowForInvite?.sampleDishNames.length
           ? wednesdayWindowForInvite.sampleDishNames
-          : subscriberWindow.sampleDishNames
+          : subscriberWindow.sampleDishNames,
+        urgentDeadlineDay
       )
       await supabase
         .from('marketing_leads')
