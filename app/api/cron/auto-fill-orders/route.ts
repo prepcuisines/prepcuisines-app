@@ -73,26 +73,47 @@ export async function POST(req: NextRequest) {
       if (!subscribers) continue
 
       for (const sub of subscribers) {
-        const { data: existing } = await supabase
+        // Atomically claim this (customer, window) slot before doing
+        // anything else - including before touching Stripe. The unique
+        // index on (customer_id, menu_window_id) means a concurrent
+        // overlapping run (e.g. the real scheduled cron and a manual
+        // catch-up click landing seconds apart) gets a conflict here and
+        // stops immediately, rather than both racing past a plain
+        // check-then-insert and both successfully charging the same
+        // customer - which is exactly what happened before this fix.
+        const { data: reserved, error: reserveError } = await supabase
           .from('customer_window_orders')
+          .insert({
+            customer_id: sub.id,
+            menu_window_id: window.id,
+            status: 'reserved',
+            delivery_day: window.delivery_day,
+          })
           .select('id')
-          .eq('customer_id', sub.id)
-          .eq('menu_window_id', window.id)
-          .maybeSingle()
+          .single()
 
-        if (existing) continue
+        if (reserveError) {
+          if (reserveError.code === '23505') {
+            // Another run already claimed this customer for this window.
+            results.push({ customer: sub.id, status: 'already_claimed_by_concurrent_run' })
+            continue
+          }
+          // Any other error here is unexpected — don't silently skip a
+          // real subscriber over it, but don't charge them either.
+          results.push({ customer: sub.id, status: 'reserve_failed', message: reserveError.message })
+          continue
+        }
+        const reservedOrderId = reserved.id
 
         if (sub.skip_next_order) {
           await supabase
             .from('customer_profiles')
             .update({ skip_next_order: false })
             .eq('id', sub.id)
-          await supabase.from('customer_window_orders').insert({
-            customer_id: sub.id,
-            menu_window_id: window.id,
-            status: 'skipped',
-            delivery_day: window.delivery_day,
-          })
+          await supabase
+            .from('customer_window_orders')
+            .update({ status: 'skipped' })
+            .eq('id', reservedOrderId)
           results.push({ customer: sub.id, status: 'skipped' })
           continue
         }
@@ -106,6 +127,13 @@ export async function POST(req: NextRequest) {
             error_message: 'No saved card on file',
             delivery_day: window.delivery_day,
           })
+          // Not a real order — release the reservation (excluded from the
+          // uniqueness check) so a later successful retry can insert its
+          // own row for this same customer+window without conflicting.
+          await supabase
+            .from('customer_window_orders')
+            .update({ status: 'on_hold' })
+            .eq('id', reservedOrderId)
           if (sub.email) {
             await sendPaymentFailedEmailToCustomer(
               sub.email,
@@ -141,6 +169,10 @@ export async function POST(req: NextRequest) {
           .filter((item: any) => item && item.category === 'meal')
 
         if (availableMeals.length === 0) {
+          await supabase
+            .from('customer_window_orders')
+            .update({ status: 'on_hold' })
+            .eq('id', reservedOrderId)
           results.push({ customer: sub.id, status: 'no_menu_available' })
           continue
         }
@@ -175,6 +207,10 @@ export async function POST(req: NextRequest) {
         }
 
         if (chosen.length === 0) {
+          await supabase
+            .from('customer_window_orders')
+            .update({ status: 'on_hold' })
+            .eq('id', reservedOrderId)
           results.push({ customer: sub.id, status: 'nothing_eligible_to_fill' })
           continue
         }
@@ -223,14 +259,11 @@ export async function POST(req: NextRequest) {
 
             const { data: insertedOrder } = await supabase
               .from('customer_window_orders')
-              .insert({
-                customer_id: sub.id,
-                menu_window_id: window.id,
+              .update({
                 status: 'auto_filled',
                 stripe_payment_intent_id: paymentIntent.id,
                 items: orderItemsSnapshot,
                 total_amount: totalAmount / 100,
-                delivery_day: window.delivery_day,
                 ship_full_name: sub.full_name || null,
                 ship_phone: sub.phone || null,
                 ship_house_number: sub.house_number || null,
@@ -238,6 +271,7 @@ export async function POST(req: NextRequest) {
                 ship_postcode: sub.postcode || null,
                 delivery_instructions: sub.standing_delivery_instructions || null,
               })
+              .eq('id', reservedOrderId)
               .select('order_number')
               .single()
 
@@ -278,6 +312,10 @@ export async function POST(req: NextRequest) {
               delivery_day: window.delivery_day,
               items: orderItemsSnapshot,
             })
+            await supabase
+              .from('customer_window_orders')
+              .update({ status: 'on_hold' })
+              .eq('id', reservedOrderId)
             if (sub.email) {
               await sendPaymentFailedEmailToCustomer(
                 sub.email,
@@ -298,6 +336,10 @@ export async function POST(req: NextRequest) {
             delivery_day: window.delivery_day,
             items: orderItemsSnapshot,
           })
+          await supabase
+            .from('customer_window_orders')
+            .update({ status: 'on_hold' })
+            .eq('id', reservedOrderId)
           if (sub.email) {
             await sendPaymentFailedEmailToCustomer(
               sub.email,
