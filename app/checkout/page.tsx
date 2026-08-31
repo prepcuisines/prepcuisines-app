@@ -180,7 +180,12 @@ export default function CheckoutPage() {
       })
       const data = await res.json()
       if (!res.ok || !data.success) {
-        if ((data.error || '').toLowerCase().includes('no saved card')) {
+        // Covers "no saved card on file" AND a genuine decline ("card was
+        // declined", "insufficient funds", "does not support this type of
+        // purchase", etc.) - any of these mean the fix is the same: get a
+        // working card on file. Previously only the missing-card case sent
+        // them anywhere; a declined card just showed a dead-end error.
+        if ((data.error || '').toLowerCase().includes('card')) {
           // Send them to Stripe's own standard hosted page to save a card,
           // rather than our own embedded form. Their order details are still
           // in sessionStorage, so nothing's lost by sending them there and back.
