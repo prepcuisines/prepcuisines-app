@@ -2111,7 +2111,17 @@ export default function AdminDashboard() {
   const filteredOrders = useMemo(
     () =>
       orders
-        .filter((o) => (ordersView === 'skipped' ? o.status === 'skipped' : o.status !== 'skipped'))
+        .filter((o) => {
+          // on_hold/reserved are internal bookkeeping from the
+          // reserve-before-charge concurrency fix (a failed/no-card/still-
+          // pending charge attempt, or a slot claimed but not yet resolved)
+          // - never a real order, skip, or cancellation, and never meant to
+          // be visible here. Left in, they were quietly inflating every
+          // downstream count that reads from this list (shipping labels,
+          // packing slips, cook sheet, nationwide/Stoke tallies).
+          if (o.status === 'on_hold' || o.status === 'reserved') return false
+          return ordersView === 'skipped' ? o.status === 'skipped' : o.status !== 'skipped'
+        })
         .filter((o) => {
           if (!orderSearch) return true
           const q = orderSearch.toLowerCase()
