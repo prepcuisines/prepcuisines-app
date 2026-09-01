@@ -227,11 +227,15 @@ export async function POST(req: NextRequest) {
       .map((c) => ({ ...c, kind: 'winback' as const }))
   }
 
-  // Group 5 (payday deal): a one-off promotional push to imported leads,
-  // distinct from the recurring group 4 invite - tracked with its own
-  // timestamp so it never interferes with that weekly cadence, and never
-  // resent once sent (no recurring cadence here at all, unlike group 4).
+  // Group 5 (payday deal): a one-off promotional push to people who've
+  // never had a real meal-plan subscription here - imported leads AND
+  // accounts that exist on the site (PAYG/signed up) but never actually
+  // subscribed. Explicitly excludes anyone 'cancelled' - those stay on
+  // the separate win-back track only, never this campaign. Both halves
+  // tracked with their own timestamp so this never interferes with any
+  // other cadence, and is never resent once sent.
   let leadsPaydayQueue: any[] = []
+  let accountPaydayQueue: any[] = []
   if (onlyLeadsPayday) {
     const { data: leads } = await supabase
       .from('marketing_leads')
@@ -241,6 +245,18 @@ export async function POST(req: NextRequest) {
     leadsPaydayQueue = (leads || [])
       .filter((l) => !!l.email)
       .map((l) => ({ ...l, kind: 'leadsPayday' as const }))
+
+    const { data: neverSubscribedAccounts } = await supabase
+      .from('customer_profiles')
+      .select('id, email, full_name')
+      .eq('marketing_consent', true)
+      .eq('subscription_status', 'active')
+      .is('standing_plan_size', null)
+      .is('last_payday_promo_sent_at', null)
+
+    accountPaydayQueue = (neverSubscribedAccounts || [])
+      .filter((c) => !!c.email)
+      .map((c) => ({ ...c, kind: 'accountPayday' as const }))
   }
 
   // Group 6 (new dish alert): a one-off promotional push to EXISTING
@@ -268,6 +284,7 @@ export async function POST(req: NextRequest) {
     ...leadQueue,
     ...winbackQueue,
     ...leadsPaydayQueue,
+    ...accountPaydayQueue,
     ...subscribersNewDishQueue,
   ]
   const batch = combinedQueue.slice(0, MAX_PER_RUN)
@@ -328,6 +345,12 @@ export async function POST(req: NextRequest) {
         .from('marketing_leads')
         .update({ last_payday_promo_sent_at: new Date().toISOString() })
         .eq('id', person.id)
+    } else if (person.kind === 'accountPayday') {
+      await sendPaydayDealEmailToLead(person.email, (person.full_name || 'there').split(' ')[0])
+      await supabase
+        .from('customer_profiles')
+        .update({ last_payday_promo_sent_at: new Date().toISOString() })
+        .eq('id', person.id)
     } else {
       await sendNewDishAlertEmailToCustomer(person.email, (person.full_name || 'there').split(' ')[0])
       await supabase
@@ -343,6 +366,7 @@ export async function POST(req: NextRequest) {
   const leadInvitesSent = batch.filter((p) => p.kind === 'leadInvite').length
   const winbacksSent = batch.filter((p) => p.kind === 'winback').length
   const leadsPaydaySent = batch.filter((p) => p.kind === 'leadsPayday').length
+  const accountPaydaySent = batch.filter((p) => p.kind === 'accountPayday').length
   const subscribersNewDishSent = batch.filter((p) => p.kind === 'subscriberNewDish').length
 
   if (batch.length > 0) {
@@ -352,6 +376,7 @@ export async function POST(req: NextRequest) {
       { label: 'Come-try-us invites (imported leads)', count: leadInvitesSent },
       { label: 'Win-back (cancelled)', count: winbacksSent },
       { label: 'Payday deal (imported leads)', count: leadsPaydaySent },
+      { label: 'Payday deal (never-subscribed accounts)', count: accountPaydaySent },
       { label: 'New dish alert (subscribers)', count: subscribersNewDishSent },
     ])
   }
@@ -363,6 +388,7 @@ export async function POST(req: NextRequest) {
       leadQueue.length +
       winbackQueue.length +
       leadsPaydayQueue.length +
+      accountPaydayQueue.length +
       subscribersNewDishQueue.length,
     sentThisRun: batch.length,
     remainingAfterThisRun:
@@ -371,6 +397,7 @@ export async function POST(req: NextRequest) {
       leadQueue.length +
       winbackQueue.length +
       leadsPaydayQueue.length +
+      accountPaydayQueue.length +
       subscribersNewDishQueue.length -
       batch.length,
     results,
