@@ -703,6 +703,30 @@ export async function sendCancelledRetentionEmailToCustomer(
   )
 }
 
+// One-off promotional push for EXISTING subscribers about a new dish -
+// separate audience and separate one-time tracking from the leads payday
+// email above. No discount here (they're already subscribers, not eligible
+// for a first-order price) - just "it's on the menu now, go order it".
+export async function sendNewDishAlertEmailToCustomer(toEmail: string, firstName: string) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  await sendEmailViaNeo(
+    toEmail,
+    `${firstName}, new dish just dropped — 50g+ protein`,
+    `
+    <div style="font-family:-apple-system,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a;max-width:480px;margin:0 auto;padding:24px 16px;">
+      <p style="margin:0 0 16px;"><strong>prepcuisines: NEW DISH ALERT!</strong></p>
+      <p style="margin:0 0 16px;">Hey ${firstName}, just added to the menu: <strong>Turkish Beef Pasta With Garlic Yoghurt</strong> — 50g+ protein, garlic mint yoghurt, chilli butter, cherry tomato.</p>
+      <p style="margin:0 0 16px;">Order it for your next delivery, or add it to your favourites so it's ready to go automatically.</p>
+      <p style="margin:0 0 16px;">ORDER: <a href="${siteUrl}/menu">${siteUrl.replace(/^https?:\/\//, '')}/menu</a></p>
+      <p style="margin:0 0 16px;">Wed delivery — order by Sun 8pm<br/>
+      Sun delivery — order by Fri 8pm</p>
+      <p style="margin:0;color:#666666;">STOP: <a href="${buildUnsubscribeUrl(toEmail)}" style="color:#666666;">${buildUnsubscribeUrl(toEmail).replace(/^https?:\/\//, '')}</a></p>
+    </div>
+    `
+  )
+}
+
 // One-off promotional push for imported leads only (never subscribed here
 // before) - separate from the recurring weekly invite and tracked with its
 // own timestamp so it doesn't interfere with that cadence. Plain-text
@@ -727,6 +751,27 @@ export async function sendPaydayDealEmailToLead(toEmail: string, firstName: stri
       <p style="margin:0 0 16px;">Wed delivery — order by Sun 8pm<br/>
       Sun delivery — order by Fri 8pm</p>
       <p style="margin:0;color:#666666;">STOP: <a href="${buildUnsubscribeUrl(toEmail)}" style="color:#666666;">${buildUnsubscribeUrl(toEmail).replace(/^https?:\/\//, '')}</a></p>
+    </div>
+    `
+  )
+}
+
+// One-off announcement to CURRENT active subscribers only, about the new
+// dish — no discount (they're already subscribed, this isn't a win-back or
+// a first-order push), just a heads up with a link to order. Same
+// plain-text style as the payday email. One-time only, own tracking
+// column so it never repeats and never touches any other email's cadence.
+export async function sendNewDishAnnouncementToSubscriber(toEmail: string, firstName: string) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  await sendEmailViaNeo(
+    toEmail,
+    `${firstName}, new on the menu — 50g+ protein`,
+    `
+    <div style="font-family:-apple-system,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a;max-width:480px;margin:0 auto;padding:24px 16px;">
+      <p style="margin:0 0 16px;">Hey ${firstName}, new on the menu: <strong>Turkish Beef Pasta With Garlic Yoghurt</strong> — 50g+ protein, garlic mint yoghurt, chilli butter, cherry tomato.</p>
+      <p style="margin:0 0 16px;">Order now: <a href="${siteUrl}/menu">${siteUrl.replace(/^https?:\/\//, '')}/menu</a></p>
+      <p style="margin:0;font-style:italic;color:#666666;">— Bukr</p>
     </div>
     `
   )

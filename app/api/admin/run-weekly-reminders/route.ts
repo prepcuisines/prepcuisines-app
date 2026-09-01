@@ -28,7 +28,10 @@ export async function GET(req: NextRequest) {
   const deliveryDay = req.nextUrl.searchParams.get('deliveryDay')
   const forceDeliveryDay = deliveryDay === 'wednesday' || deliveryDay === 'sunday' ? deliveryDay : undefined
   const onlyParam = req.nextUrl.searchParams.get('only')
-  const only = onlyParam === 'leads' || onlyParam === 'leads_payday' ? onlyParam : undefined
+  const only =
+    onlyParam === 'leads' || onlyParam === 'leads_payday' || onlyParam === 'subscribers_new_dish'
+      ? onlyParam
+      : undefined
   const urgentParam = req.nextUrl.searchParams.get('urgentToday')
   const urgentDeadlineDay = urgentParam === 'wednesday' || urgentParam === 'sunday' ? urgentParam : undefined
 
