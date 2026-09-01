@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
 
   const deliveryDay = req.nextUrl.searchParams.get('deliveryDay')
   const forceDeliveryDay = deliveryDay === 'wednesday' || deliveryDay === 'sunday' ? deliveryDay : undefined
-  const onlyLeads = req.nextUrl.searchParams.get('only') === 'leads'
+  const onlyParam = req.nextUrl.searchParams.get('only')
+  const only = onlyParam === 'leads' || onlyParam === 'leads_payday' ? onlyParam : undefined
   const urgentParam = req.nextUrl.searchParams.get('urgentToday')
   const urgentDeadlineDay = urgentParam === 'wednesday' || urgentParam === 'sunday' ? urgentParam : undefined
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      ...(onlyLeads ? { only: 'leads' } : forceDeliveryDay ? { forceDeliveryDay } : {}),
+      ...(only ? { only } : forceDeliveryDay ? { forceDeliveryDay } : {}),
       ...(urgentDeadlineDay ? { urgentDeadlineDay } : {}),
     }),
     cache: 'no-store',
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
   const body = await res.json().catch(() => ({}))
   return NextResponse.json({
     triggered: true,
-    mode: onlyLeads ? 'leads-only' : forceDeliveryDay || 'today',
+    mode: only || forceDeliveryDay || 'today',
     urgentDeadlineDay: urgentDeadlineDay || null,
     cronStatus: res.status,
     result: body,

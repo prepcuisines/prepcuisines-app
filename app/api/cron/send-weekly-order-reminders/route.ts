@@ -4,6 +4,7 @@ import {
   sendWeeklyOrderLinkToCustomer,
   sendComeOrderInviteEmailToCustomer,
   sendWinBackEmailToCustomer,
+  sendPaydayDealEmailToLead,
   sendBulkEmailSummaryToAdmin,
 } from '@/lib/send-email'
 
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
   const forceDeliveryDay = body?.forceDeliveryDay as 'wednesday' | 'sunday' | undefined
   const urgentDeadlineDay = body?.urgentDeadlineDay as 'wednesday' | 'sunday' | undefined
   const onlyLeads = body?.only === 'leads'
+  const onlyLeadsPayday = body?.only === 'leads_payday'
 
   const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
   // effectiveDay is the day-of-week the SEND logic below runs as — 5 means
@@ -85,7 +87,7 @@ export async function POST(req: NextRequest) {
   // When onlyLeads is set this is forced to 3 purely as internal plumbing
   // (group 4's code path lives behind that check) — it carries no meaning
   // about any delivery day or cutoff in this mode.
-  const effectiveDay = onlyLeads
+  const effectiveDay = onlyLeads || onlyLeadsPayday
     ? 3
     : forceDeliveryDay === 'wednesday'
       ? 5
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
     .not('standing_plan_size', 'is', null)
     .or(`standing_delivery_day.eq.${targetDeliveryDay},second_delivery_day.eq.${targetDeliveryDay}`)
 
-  const subscriberQueue = onlyLeads
+  const subscriberQueue = onlyLeads || onlyLeadsPayday
     ? []
     : (subscribers || [])
         .filter(
@@ -152,7 +154,7 @@ export async function POST(req: NextRequest) {
   let inviteQueue: any[] = []
   let wednesdayWindowForInvite: { id: string; sampleDishNames: string[] } | null = null
 
-  if (effectiveDay === 3 && !onlyLeads) {
+  if (effectiveDay === 3 && !onlyLeads && !onlyLeadsPayday) {
     // On the Wednesday run, subscriberWindow is already the upcoming
     // Sunday window — we only need to separately fetch the upcoming
     // Wednesday window's dish samples for the invite email's other line.
@@ -182,7 +184,7 @@ export async function POST(req: NextRequest) {
   // Wednesday-only timing, own weekly cadence via last_invite_sent_at
   // since there's no per-window log for a table with no customer_id.
   let leadQueue: any[] = []
-  if (effectiveDay === 3) {
+  if (effectiveDay === 3 && !onlyLeadsPayday) {
     const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
     const { data: leads } = await supabase
       .from('marketing_leads')
@@ -204,7 +206,7 @@ export async function POST(req: NextRequest) {
   // ever granted because they specifically cancelled.
   const threeWeeksAgo = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
   let winbackQueue: any[] = []
-  if (!onlyLeads) {
+  if (!onlyLeads && !onlyLeadsPayday) {
     const { data: cancelledCandidates } = await supabase
       .from('customer_profiles')
       .select('id, email, full_name, subscription_cancelled_at, winback_last_sent_at')
@@ -222,7 +224,23 @@ export async function POST(req: NextRequest) {
       .map((c) => ({ ...c, kind: 'winback' as const }))
   }
 
-  const combinedQueue = [...subscriberQueue, ...inviteQueue, ...leadQueue, ...winbackQueue]
+  // Group 5 (payday deal): a one-off promotional push to imported leads,
+  // distinct from the recurring group 4 invite - tracked with its own
+  // timestamp so it never interferes with that weekly cadence, and never
+  // resent once sent (no recurring cadence here at all, unlike group 4).
+  let leadsPaydayQueue: any[] = []
+  if (onlyLeadsPayday) {
+    const { data: leads } = await supabase
+      .from('marketing_leads')
+      .select('id, email, full_name')
+      .is('last_payday_promo_sent_at', null)
+
+    leadsPaydayQueue = (leads || [])
+      .filter((l) => !!l.email)
+      .map((l) => ({ ...l, kind: 'leadsPayday' as const }))
+  }
+
+  const combinedQueue = [...subscriberQueue, ...inviteQueue, ...leadQueue, ...winbackQueue, ...leadsPaydayQueue]
   const batch = combinedQueue.slice(0, MAX_PER_RUN)
   const results: any[] = []
 
@@ -269,11 +287,17 @@ export async function POST(req: NextRequest) {
         .from('marketing_leads')
         .update({ last_invite_sent_at: new Date().toISOString() })
         .eq('id', person.id)
-    } else {
+    } else if (person.kind === 'winback') {
       await sendWinBackEmailToCustomer(person.email, (person.full_name || 'there').split(' ')[0])
       await supabase
         .from('customer_profiles')
         .update({ winback_last_sent_at: new Date().toISOString(), winback_discount_pending: true })
+        .eq('id', person.id)
+    } else {
+      await sendPaydayDealEmailToLead(person.email, (person.full_name || 'there').split(' ')[0])
+      await supabase
+        .from('marketing_leads')
+        .update({ last_payday_promo_sent_at: new Date().toISOString() })
         .eq('id', person.id)
     }
     results.push({ id: person.id, kind: person.kind, sent: true })
@@ -283,6 +307,7 @@ export async function POST(req: NextRequest) {
   const invitesSent = batch.filter((p) => p.kind === 'invite').length
   const leadInvitesSent = batch.filter((p) => p.kind === 'leadInvite').length
   const winbacksSent = batch.filter((p) => p.kind === 'winback').length
+  const leadsPaydaySent = batch.filter((p) => p.kind === 'leadsPayday').length
 
   if (batch.length > 0) {
     await sendBulkEmailSummaryToAdmin('Weekly order reminder', [
@@ -290,14 +315,21 @@ export async function POST(req: NextRequest) {
       { label: 'Come-try-us invites', count: invitesSent },
       { label: 'Come-try-us invites (imported leads)', count: leadInvitesSent },
       { label: 'Win-back (cancelled)', count: winbacksSent },
+      { label: 'Payday deal (imported leads)', count: leadsPaydaySent },
     ])
   }
 
   return NextResponse.json({
-    totalEligible: subscriberQueue.length + inviteQueue.length + leadQueue.length + winbackQueue.length,
+    totalEligible:
+      subscriberQueue.length + inviteQueue.length + leadQueue.length + winbackQueue.length + leadsPaydayQueue.length,
     sentThisRun: batch.length,
     remainingAfterThisRun:
-      subscriberQueue.length + inviteQueue.length + leadQueue.length + winbackQueue.length - batch.length,
+      subscriberQueue.length +
+      inviteQueue.length +
+      leadQueue.length +
+      winbackQueue.length +
+      leadsPaydayQueue.length -
+      batch.length,
     results,
   })
 }

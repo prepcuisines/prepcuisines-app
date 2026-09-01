@@ -703,6 +703,81 @@ export async function sendCancelledRetentionEmailToCustomer(
   )
 }
 
+// One-off promotional push for imported leads only (never subscribed here
+// before) - separate from the recurring weekly invite and tracked with its
+// own timestamp so it doesn't interfere with that cadence. Deliberately
+// doesn't borrow the competitor's "delivered in 48 hours" framing since
+// that's not how this business works (pre-order only, fixed Wed/Sun
+// delivery) - keeps the payday urgency and price hook, but the real
+// cutoff/delivery model underneath.
+export async function sendPaydayDealEmailToLead(toEmail: string, firstName: string) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  await sendEmailViaNeo(
+    toEmail,
+    `${firstName}, payday deal — £4.80 a meal`,
+    `
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
+          <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+          </td></tr>
+          <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
+            <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">💷 PAYDAY DEAL</span>
+          </td></tr>
+          <tr><td style="padding:40px 36px 36px;">
+            <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
+              High protein. Low effort.
+            </p>
+            <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
+              Chef-made meals from<br/><em style="font-style:italic;">£4.80 a meal.</em>
+            </p>
+            <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+              Hey ${firstName}, it's payday week — 40% off your first box, no code needed, just
+              order and it's applied automatically.
+            </p>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f7f3eb;border-radius:8px;" width="100%">
+              <tr><td style="padding:20px 24px;">
+                <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 4px;">
+                  New on the menu
+                </p>
+                <p style="font-size:15px;font-weight:700;color:#1a2e1a;margin:0 0 4px;">Turkish Beef Pasta With Garlic Yoghurt</p>
+                <p style="font-size:13px;color:#666666;margin:0;">50g+ protein — garlic mint yoghurt, chilli butter, cherry tomato</p>
+              </td></tr>
+            </table>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
+              <tr><td style="padding:20px 24px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr><td style="padding:8px 0;font-size:14px;color:#1a2e1a;">
+                    <strong>Wednesday delivery</strong> — order by Sunday at 8pm
+                  </td></tr>
+                  <tr><td style="padding:8px 0;font-size:14px;color:#1a2e1a;border-top:1px solid #e8e0d0;">
+                    <strong>Sunday delivery</strong> — order by Friday at 8pm
+                  </td></tr>
+                </table>
+              </td></tr>
+            </table>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
+              <tr><td align="center">
+                <a href="${siteUrl}/menu" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Claim 40% Off &rarr;</a>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+    `
+  )
+}
+
 export async function sendWinBackEmailToCustomer(toEmail: string, firstName: string) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
 
