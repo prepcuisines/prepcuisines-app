@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
+import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -301,6 +302,18 @@ export async function POST(req: NextRequest) {
             },
             totalAmount / 100
           )
+          // Same gap as auto-fill: without this, Meta only ever learns
+          // about the discounted first order, never the real recurring
+          // revenue from someone actually placing their own repeat order.
+          await sendMetaConversionEvent({
+            eventName: 'Purchase',
+            eventId: paymentIntent.id,
+            email: profile.email,
+            phone: profile.phone,
+            value: totalAmount / 100,
+            currency: 'GBP',
+            orderId: paymentIntent.id,
+          })
         }
       }
 
