@@ -6578,7 +6578,9 @@ Bukr / prepcuisines`
         <div className="pc-modal-overlay" onClick={closeOrderDetail}>
           <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
             <div className="pc-modal-header">
-              <h2 className="pc-modal-title">Order detail</h2>
+              <h2 className="pc-modal-title">
+                {orderDetail?.order?.order_number ? `Order #PC-${orderDetail.order.order_number}` : 'Order detail'}
+              </h2>
               <button className="pc-modal-close" onClick={closeOrderDetail} aria-label="Close">
                 ×
               </button>
@@ -6588,12 +6590,8 @@ Bukr / prepcuisines`
               <div className="empty-panel">Loading…</div>
             ) : (
               <div className="pc-modal-body">
-                <div className="pc-modal-section">
-                  <div className="pc-modal-customer-name">{orderDetail.customerName}</div>
-                  {orderDetail.customerEmail && (
-                    <div className="pc-modal-customer-email">{orderDetail.customerEmail}</div>
-                  )}
-                  <div className="pc-modal-status-row">
+                <div className="pc-modal-card">
+                  <div className="pc-modal-status-row" style={{ marginTop: 0, marginBottom: 10 }}>
                     {orderDetail.order.cancelled ? (
                       <span className="pill pill-warn">Cancelled</span>
                     ) : orderDetail.order.fulfilled ? (
@@ -6602,6 +6600,94 @@ Bukr / prepcuisines`
                       <span className="pill pill-muted">Unfulfilled</span>
                     )}
                   </div>
+                  <div className="pc-modal-customer-name">{orderDetail.customerName}</div>
+                  {orderDetail.customerEmail && (
+                    <div className="pc-modal-customer-email">{orderDetail.customerEmail}</div>
+                  )}
+                  {orderDetail.order.ship_phone && (
+                    <div className="pc-modal-customer-email">{orderDetail.order.ship_phone}</div>
+                  )}
+                </div>
+
+                {(orderDetail.order.ship_house_number || orderDetail.order.ship_street || orderDetail.order.ship_postcode) && (
+                  <div className="pc-modal-card">
+                    <div className="pc-modal-card-label">Shipping address</div>
+                    <div className="pc-modal-address">
+                      {[orderDetail.order.ship_house_number, orderDetail.order.ship_street]
+                        .filter(Boolean)
+                        .join(' ')}
+                      {orderDetail.order.ship_postcode && (
+                        <>
+                          <br />
+                          {orderDetail.order.ship_postcode}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="pc-modal-card">
+                  <div className="pc-modal-card-label">
+                    {orderDetail.order.delivery_day || 'Delivery'} delivery
+                    {orderDetail.order.menu_windows?.week_start_date && (
+                      <span className="cook-sheet-collapse-meta" style={{ marginLeft: 8 }}>
+                        {new Date(orderDetail.order.menu_windows.week_start_date).toLocaleDateString('en-GB')}
+                      </span>
+                    )}
+                  </div>
+                  {(orderDetail.order.items || [])
+                    .filter((it: any) => it.name && it.name !== 'Delivery')
+                    .map((it: any, idx: number) => {
+                      const menuItem = orderDetail.windowMenuItems?.find((m: any) => m.name === it.name)
+                      return (
+                        <div key={idx} className="pc-modal-summary-item-row">
+                          {menuItem?.image_url ? (
+                            <img src={menuItem.image_url} alt={it.name} className="pc-modal-item-thumb" />
+                          ) : (
+                            <div className="pc-modal-item-thumb pc-modal-item-thumb-placeholder" />
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div className="pc-modal-summary-item-name">{it.name}</div>
+                            <div className="pc-modal-summary-item-meta">
+                              {it.qty} × £{Number(it.price || 0).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="pc-modal-summary-item-total">
+                            £{(Number(it.price || 0) * Number(it.qty || 1)).toFixed(2)}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  {(() => {
+                    const items = orderDetail.order.items || []
+                    const deliveryLine = items.find((it: any) => it.name === 'Delivery')
+                    const subtotal = items
+                      .filter((it: any) => it.name && it.name !== 'Delivery')
+                      .reduce((s: number, it: any) => s + Number(it.price || 0) * Number(it.qty || 1), 0)
+                    const deliveryFee = deliveryLine ? Number(deliveryLine.price || 0) : 0
+                    return (
+                      <div className="pc-modal-payment-summary">
+                        <div className="pc-modal-payment-row">
+                          <span>Subtotal</span>
+                          <span>£{subtotal.toFixed(2)}</span>
+                        </div>
+                        {deliveryLine && (
+                          <div className="pc-modal-payment-row">
+                            <span>Delivery</span>
+                            <span>£{deliveryFee.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="pc-modal-payment-row pc-modal-payment-total">
+                          <span>Total</span>
+                          <span>£{Number(orderDetail.order.total_amount || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                <div className="pc-modal-section" style={{ borderTop: '1px solid #e3e3e3', paddingTop: 18 }}>
+                  <label className="field-label">Manage this order</label>
                 </div>
 
                 <div className="pc-modal-section">
@@ -6626,7 +6712,7 @@ Bukr / prepcuisines`
                 </div>
 
                 <div className="pc-modal-section">
-                  <label className="field-label">Items</label>
+                  <label className="field-label">Edit items</label>
                   {(orderDetail?.windowMenuItems?.length ?? 0) === 0 && (
                     <p className="map-intro">
                       No menu on file for that delivery date — type item names by hand.
@@ -7121,7 +7207,7 @@ function Styles() {
         padding: 20px 22px 24px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 14px;
       }
       .pc-modal-section {
         border-bottom: 1px solid #f1f1f1;
@@ -7155,6 +7241,80 @@ function Styles() {
         gap: 8px;
         align-items: center;
         margin-bottom: 8px;
+      }
+      .pc-modal-card {
+        background: #fafbfb;
+        border: 1px solid #e3e3e3;
+        border-radius: 8px;
+        padding: 14px 16px;
+      }
+      .pc-modal-card-label {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #6d7175;
+        margin-bottom: 10px;
+      }
+      .pc-modal-address {
+        font-size: 14px;
+        color: #202223;
+        line-height: 1.6;
+      }
+      .pc-modal-summary-item-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid #eeeeee;
+      }
+      .pc-modal-summary-item-row:last-of-type {
+        border-bottom: none;
+      }
+      .pc-modal-item-thumb {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: #e3e3e3;
+      }
+      .pc-modal-item-thumb-placeholder {
+        display: block;
+      }
+      .pc-modal-summary-item-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #202223;
+      }
+      .pc-modal-summary-item-meta {
+        font-size: 12px;
+        color: #6d7175;
+        margin-top: 2px;
+      }
+      .pc-modal-summary-item-total {
+        font-size: 14px;
+        font-weight: 600;
+        color: #202223;
+        white-space: nowrap;
+      }
+      .pc-modal-payment-summary {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #e3e3e3;
+      }
+      .pc-modal-payment-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #6d7175;
+        padding: 3px 0;
+      }
+      .pc-modal-payment-total {
+        font-size: 15px;
+        font-weight: 700;
+        color: #202223;
+        margin-top: 4px;
       }
 
       .pc-admin-root {
