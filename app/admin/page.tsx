@@ -6591,24 +6591,66 @@ Bukr / prepcuisines`
                 </div>
 
                 <div className="pc-modal-section">
-                  <label className="field-label">Delivery day</label>
                   <div className="pc-modal-inline-row">
-                    <input
-                      className="text-input"
-                      value={editingDeliveryDay}
-                      onChange={(e) => setEditingDeliveryDay(e.target.value)}
-                      placeholder="Wednesday or Sunday"
-                    />
                     <button
                       className="btn-primary"
                       onClick={() =>
-                        orderDetailAction('set_delivery_day', { deliveryDay: editingDeliveryDay })
+                        orderDetailAction('set_fulfilled', { value: !orderDetail.order.fulfilled })
                       }
                       disabled={orderActionStatus === 'saving'}
                     >
-                      Save
+                      {orderDetail.order.fulfilled ? 'Mark unfulfilled' : 'Mark fulfilled'}
+                    </button>
+                    <button
+                      className="segment-pill"
+                      onClick={() =>
+                        orderDetailAction('set_cancelled', { value: !orderDetail.order.cancelled })
+                      }
+                      disabled={orderActionStatus === 'saving'}
+                    >
+                      {orderDetail.order.cancelled ? 'Reinstate order' : 'Cancel order'}
                     </button>
                   </div>
+                </div>
+
+                <div className="pc-modal-section">
+                  <label className="field-label">
+                    Move to another delivery date
+                    {orderDetail.order.menu_windows?.week_start_date && (
+                      <span className="cook-sheet-collapse-meta" style={{ marginLeft: 8 }}>
+                        currently {orderDetail.order.delivery_day}{' '}
+                        {new Date(orderDetail.order.menu_windows.week_start_date).toLocaleDateString('en-GB')}
+                      </span>
+                    )}
+                  </label>
+                  <div className="pc-modal-inline-row">
+                    <select
+                      className="text-input"
+                      style={{ minWidth: 220 }}
+                      value={moveWindowId}
+                      onChange={(e) => {
+                        setMoveWindowId(e.target.value)
+                        setMoveResult(null)
+                        setMoveError(null)
+                      }}
+                    >
+                      <option value="">Choose delivery date…</option>
+                      {redoWindows.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="segment-pill"
+                      disabled={!moveWindowId || moveStatus === 'saving'}
+                      onClick={moveOrderToWindow}
+                    >
+                      {moveStatus === 'saving' ? 'Moving…' : 'Move order'}
+                    </button>
+                  </div>
+                  {moveError && <p className="pc-error-text">{moveError}</p>}
+                  {moveResult && <p className="map-intro">{moveResult}</p>}
                 </div>
 
                 <div className="pc-modal-section">
@@ -6731,69 +6773,6 @@ Bukr / prepcuisines`
                 </div>
 
                 <div className="pc-modal-section">
-                  <div className="pc-modal-inline-row">
-                    <button
-                      className="btn-primary"
-                      onClick={() =>
-                        orderDetailAction('set_fulfilled', { value: !orderDetail.order.fulfilled })
-                      }
-                      disabled={orderActionStatus === 'saving'}
-                    >
-                      {orderDetail.order.fulfilled ? 'Mark unfulfilled' : 'Mark fulfilled'}
-                    </button>
-                    <button
-                      className="segment-pill"
-                      onClick={() =>
-                        orderDetailAction('set_cancelled', { value: !orderDetail.order.cancelled })
-                      }
-                      disabled={orderActionStatus === 'saving'}
-                    >
-                      {orderDetail.order.cancelled ? 'Reinstate order' : 'Cancel order'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pc-modal-section">
-                  <label className="field-label">
-                    Move to another delivery date
-                    {orderDetail.order.menu_windows?.week_start_date && (
-                      <span className="cook-sheet-collapse-meta" style={{ marginLeft: 8 }}>
-                        currently {orderDetail.order.delivery_day}{' '}
-                        {new Date(orderDetail.order.menu_windows.week_start_date).toLocaleDateString('en-GB')}
-                      </span>
-                    )}
-                  </label>
-                  <div className="pc-modal-inline-row">
-                    <select
-                      className="text-input"
-                      style={{ minWidth: 220 }}
-                      value={moveWindowId}
-                      onChange={(e) => {
-                        setMoveWindowId(e.target.value)
-                        setMoveResult(null)
-                        setMoveError(null)
-                      }}
-                    >
-                      <option value="">Choose delivery date…</option>
-                      {redoWindows.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="segment-pill"
-                      disabled={!moveWindowId || moveStatus === 'saving'}
-                      onClick={moveOrderToWindow}
-                    >
-                      {moveStatus === 'saving' ? 'Moving…' : 'Move order'}
-                    </button>
-                  </div>
-                  {moveError && <p className="pc-error-text">{moveError}</p>}
-                  {moveResult && <p className="map-intro">{moveResult}</p>}
-                </div>
-
-                <div className="pc-modal-section">
                   <label className="field-label">Redo / resend this order</label>
                   <p className="map-intro">£0 copy into the date you pick — no charge, no account link.</p>
                   <div className="pc-modal-inline-row" style={{ flexWrap: 'wrap' }}>
@@ -6859,30 +6838,6 @@ Bukr / prepcuisines`
                       ✅ {redoResult}
                     </p>
                   )}
-                </div>
-
-                <div className="pc-modal-section">
-                  <label className="field-label">Danger zone</label>
-                  <p className="map-intro">
-                    Permanently deletes this order record — use this for test/junk data only.
-                    This cannot be undone. For a real customer's order, use "Cancel order"
-                    above instead, which keeps the record but excludes it from cook sheets.
-                  </p>
-                  <button
-                    className="pc-delete-btn"
-                    disabled={orderActionStatus === 'saving'}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          'Permanently delete this order? This cannot be undone.'
-                        )
-                      ) {
-                        deleteOrder(selectedOrderId!)
-                      }
-                    }}
-                  >
-                    Delete this order permanently
-                  </button>
                 </div>
 
                 <div className="pc-modal-section">
@@ -7027,6 +6982,30 @@ Bukr / prepcuisines`
                       further from here.
                     </div>
                   )}
+                </div>
+
+                <div className="pc-modal-section" style={{ borderTop: '1px solid #e3e3e3', paddingTop: 18 }}>
+                  <label className="field-label">Danger zone</label>
+                  <p className="map-intro">
+                    Permanently deletes this order record — use this for test/junk data only.
+                    This cannot be undone. For a real customer's order, use "Cancel order"
+                    above instead, which keeps the record but excludes it from cook sheets.
+                  </p>
+                  <button
+                    className="pc-delete-btn"
+                    disabled={orderActionStatus === 'saving'}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          'Permanently delete this order? This cannot be undone.'
+                        )
+                      ) {
+                        deleteOrder(selectedOrderId!)
+                      }
+                    }}
+                  >
+                    Delete this order permanently
+                  </button>
                 </div>
 
                 {orderActionError && <p className="error-text">{orderActionError}</p>}
