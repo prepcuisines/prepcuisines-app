@@ -3599,118 +3599,46 @@ Bukr / prepcuisines`
               <div className="empty-panel">No customers match this filter.</div>
             ) : (
               <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Customer</th>
-                      <th>Status</th>
-                      <th>Delivery</th>
-                      <th>Marketing emails</th>
-                      <th>Orders</th>
-                      <th>Total spend</th>
-                      <th>Last order</th>
-                      <th>Postcode</th>
-                      <th>Signed up</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCustomers.map((c) => (
-                      <tr key={c.id}>
-                        <td>
-                          <div className="customer-cell">
-                            <span className="avatar">{initials(c.full_name)}</span>
-                            <div>
-                              <button
-                                className="link-button customer-name"
-                                style={{ textAlign: 'left' }}
-                                onClick={() => setViewCustomerDetail(c)}
-                              >
-                                {c.full_name || '—'}
-                              </button>
-                              <div className="customer-email">{c.email || '—'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
-                          {(c.effectiveStatus ?? c.subscription_status) === 'cancelled' &&
-                            c.subscription_cancelled_at && (
-                              <div className="customer-email" style={{ marginTop: 2 }}>
-                                Cancelled{' '}
-                                {new Date(c.subscription_cancelled_at).toLocaleDateString('en-GB', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })}
-                              </div>
-                            )}
-                          {c.skip_next_order &&
-                            (c.effectiveStatus ?? c.subscription_status) === 'active' && (
-                              <span
-                                className="pill pill-warn"
-                                style={{ marginLeft: 6 }}
-                                title="They've skipped their next order — no auto-fill at this week's cutoff"
-                              >
-                                Skipping next
-                              </span>
-                            )}
-                        </td>
-                        <td>
-                          {c.second_delivery_day ? (
-                            <span title="Twice a week">
-                              2x/week: {c.standing_delivery_day || '—'} ×{c.standing_plan_size || '?'}, {c.second_delivery_day} ×{c.second_plan_size || c.standing_plan_size || '?'}
+                <div className="pc-order-list">
+                  {filteredCustomers.map((c) => (
+                    <div
+                      key={c.id}
+                      className="pc-order-card"
+                      onClick={() => setViewCustomerDetail(c)}
+                    >
+                      <div className="pc-order-card-top">
+                        <span className="avatar">{initials(c.full_name)}</span>
+                        <div style={{ flex: 1 }}>
+                          <div className="pc-order-card-name">{c.full_name || '—'}</div>
+                          <div className="pc-modal-summary-item-meta">{c.email || '—'}</div>
+                        </div>
+                      </div>
+                      <div className="pc-order-card-meta">
+                        <StatusBadge status={c.effectiveStatus ?? c.subscription_status} />
+                        {(c.effectiveStatus ?? c.subscription_status) === 'cancelled' &&
+                          c.subscription_cancelled_at && (
+                            <span>
+                              Cancelled{' '}
+                              {new Date(c.subscription_cancelled_at).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
                             </span>
-                          ) : c.standing_delivery_day ? (
-                            <span title="Once a week">1x/week: {c.standing_delivery_day}</span>
-                          ) : (
-                            '—'
                           )}
-                          <button
-                            className="segment-pill"
-                            style={{ marginLeft: 6 }}
-                            onClick={() => openEditDelivery(c)}
-                          >
-                            Edit
-                          </button>
-                        </td>
-                        <td>
-                          {c.marketing_consent === true ? (
-                            <span className="pill pill-active">Opted in</span>
-                          ) : c.marketing_consent === false ? (
-                            <span className="pill pill-muted">Opted out</span>
-                          ) : (
-                            <span className="pill pill-warn">Unknown</span>
+                        {c.skip_next_order &&
+                          (c.effectiveStatus ?? c.subscription_status) === 'active' && (
+                            <span
+                              className="pill pill-warn"
+                              title="They've skipped their next order — no auto-fill at this week's cutoff"
+                            >
+                              Skipping next
+                            </span>
                           )}
-                        </td>
-                        <td>{c.orderCount}</td>
-                        <td className="num">{money(c.totalSpend)}</td>
-                        <td>
-                          {c.lastOrderAt
-                            ? new Date(c.lastOrderAt).toLocaleDateString('en-GB')
-                            : 'Never'}
-                        </td>
-                        <td>{c.postcode || '—'}</td>
-                        <td>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
-                        <td>
-                          <button
-                            className="segment-pill"
-                            onClick={() => openResetPassword(c.id, c.full_name || c.email || 'this customer')}
-                          >
-                            Reset password
-                          </button>
-                          <button
-                            className="segment-pill"
-                            style={{ marginLeft: 6 }}
-                            onClick={() => openEditCustomerEmail(c.id, c.full_name || 'this customer', c.email || '')}
-                          >
-                            Edit email
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -6256,17 +6184,42 @@ Bukr / prepcuisines`
               </button>
             </div>
             <div className="pc-modal-body">
-              <div className="pc-modal-section">
-                <label className="field-label">Email</label>
-                <p className="map-intro">{viewCustomerDetail.email || '—'}</p>
+              <div className="pc-modal-card">
+                <div className="pc-modal-status-row" style={{ marginTop: 0, marginBottom: 10 }}>
+                  <StatusBadge
+                    status={viewCustomerDetail.effectiveStatus ?? viewCustomerDetail.subscription_status}
+                  />
+                  {(viewCustomerDetail.effectiveStatus ?? viewCustomerDetail.subscription_status) ===
+                    'cancelled' &&
+                    viewCustomerDetail.subscription_cancelled_at && (
+                      <span className="cook-sheet-collapse-meta" style={{ marginLeft: 8 }}>
+                        Cancelled{' '}
+                        {new Date(viewCustomerDetail.subscription_cancelled_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    )}
+                  {viewCustomerDetail.skip_next_order &&
+                    (viewCustomerDetail.effectiveStatus ?? viewCustomerDetail.subscription_status) ===
+                      'active' && (
+                      <span
+                        className="pill pill-warn"
+                        style={{ marginLeft: 8 }}
+                        title="They've skipped their next order — no auto-fill at this week's cutoff"
+                      >
+                        Skipping next
+                      </span>
+                    )}
+                </div>
+                <div className="pc-modal-customer-email">{viewCustomerDetail.email || '—'}</div>
+                <div className="pc-modal-customer-email">{viewCustomerDetail.phone || '—'}</div>
               </div>
-              <div className="pc-modal-section">
-                <label className="field-label">Phone</label>
-                <p className="map-intro">{viewCustomerDetail.phone || '—'}</p>
-              </div>
-              <div className="pc-modal-section">
-                <label className="field-label">Address</label>
-                <p className="map-intro">
+
+              <div className="pc-modal-card">
+                <div className="pc-modal-card-label">Shipping address</div>
+                <div className="pc-modal-address">
                   {viewCustomerDetail.house_number || viewCustomerDetail.street ? (
                     <>
                       {[viewCustomerDetail.house_number, viewCustomerDetail.street]
@@ -6278,7 +6231,97 @@ Bukr / prepcuisines`
                   ) : (
                     '—'
                   )}
-                </p>
+                </div>
+              </div>
+
+              <div className="pc-modal-card">
+                <div className="pc-modal-card-label">Delivery plan</div>
+                <div className="pc-modal-address">
+                  {viewCustomerDetail.second_delivery_day ? (
+                    <>
+                      2x/week: {viewCustomerDetail.standing_delivery_day || '—'} ×
+                      {viewCustomerDetail.standing_plan_size || '?'}, {viewCustomerDetail.second_delivery_day} ×
+                      {viewCustomerDetail.second_plan_size || viewCustomerDetail.standing_plan_size || '?'}
+                    </>
+                  ) : viewCustomerDetail.standing_delivery_day ? (
+                    <>1x/week: {viewCustomerDetail.standing_delivery_day}</>
+                  ) : (
+                    '—'
+                  )}
+                </div>
+                <div className="pc-modal-inline-row" style={{ marginTop: 10 }}>
+                  <button
+                    className="segment-pill"
+                    onClick={() => {
+                      openEditDelivery(viewCustomerDetail)
+                      setViewCustomerDetail(null)
+                    }}
+                  >
+                    Edit delivery plan
+                  </button>
+                </div>
+              </div>
+
+              <div className="pc-modal-card">
+                <div className="pc-modal-payment-row">
+                  <span>Marketing emails</span>
+                  <span>
+                    {viewCustomerDetail.marketing_consent === true
+                      ? 'Opted in'
+                      : viewCustomerDetail.marketing_consent === false
+                        ? 'Opted out'
+                        : 'Unknown'}
+                  </span>
+                </div>
+                <div className="pc-modal-payment-row">
+                  <span>Orders</span>
+                  <span>{viewCustomerDetail.orderCount}</span>
+                </div>
+                <div className="pc-modal-payment-row">
+                  <span>Total spend</span>
+                  <span>{money(viewCustomerDetail.totalSpend)}</span>
+                </div>
+                <div className="pc-modal-payment-row">
+                  <span>Last order</span>
+                  <span>
+                    {viewCustomerDetail.lastOrderAt
+                      ? new Date(viewCustomerDetail.lastOrderAt).toLocaleDateString('en-GB')
+                      : 'Never'}
+                  </span>
+                </div>
+                <div className="pc-modal-payment-row">
+                  <span>Signed up</span>
+                  <span>{new Date(viewCustomerDetail.created_at).toLocaleDateString('en-GB')}</span>
+                </div>
+              </div>
+
+              <div className="pc-modal-section">
+                <label className="field-label">Manage this customer</label>
+                <div className="pc-modal-inline-row">
+                  <button
+                    className="segment-pill"
+                    onClick={() =>
+                      openResetPassword(
+                        viewCustomerDetail.id,
+                        viewCustomerDetail.full_name || viewCustomerDetail.email || 'this customer'
+                      )
+                    }
+                  >
+                    Reset password
+                  </button>
+                  <button
+                    className="segment-pill"
+                    onClick={() =>
+                      openEditCustomerEmail(
+                        viewCustomerDetail.id,
+                        viewCustomerDetail.full_name || 'this customer',
+                        viewCustomerDetail.email || ''
+                      )
+                    }
+                  >
+                    Edit email
+                  </button>
+                </div>
               </div>
             </div>
           </div>
