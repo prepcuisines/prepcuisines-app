@@ -118,6 +118,18 @@ const statusLabels: Record<string, string> = {
   payg_order: 'Pay As You Go',
 }
 
+// New customers (their very first order) get the brand's own logo
+// green; subscribers placing/getting auto-filled a repeat order get a
+// softer sage green; PAYG (one-off, no account) gets a pastel pink -
+// distinct at a glance without reading the label itself.
+function orderTypePillStyle(status: string): React.CSSProperties {
+  if (status === 'signup_order') return { background: '#1a2e1a', color: '#f5f0e8' }
+  if (status === 'manually_ordered' || status === 'auto_filled')
+    return { background: '#B2C2A3', color: '#2d3510' }
+  if (status === 'payg_order') return { background: '#F7CAD0', color: '#7a2e42' }
+  return {}
+}
+
 const segmentFilters = [
   { key: 'skipped_week', label: 'Skipped this week' },
   { key: 'lapsed_30', label: 'Lapsed 30+' },
@@ -4347,7 +4359,10 @@ Bukr / prepcuisines`
                         </button>
                       </div>
                       <div className="pc-order-card-meta">
-                        <span className={`pill ${o.cancelled ? 'pill-warn' : 'pill-muted'}`}>
+                        <span
+                          className={`pill ${o.cancelled ? 'pill-warn' : 'pill-muted'}`}
+                          style={o.cancelled ? undefined : orderTypePillStyle(o.status)}
+                        >
                           {o.cancelled
                             ? `Cancelled — was ${statusLabels[o.status] || o.status}`
                             : statusLabels[o.status] || o.status}
