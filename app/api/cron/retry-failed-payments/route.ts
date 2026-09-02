@@ -6,6 +6,10 @@ import { klaviyoTrackEvent } from '@/lib/klaviyo'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
+// Same reasoning as auto-fill-orders — sequential charges in a loop can
+// exceed Vercel's default function timeout with more than a few retries.
+export const maxDuration = 300
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!

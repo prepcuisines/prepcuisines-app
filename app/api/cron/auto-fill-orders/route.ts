@@ -7,6 +7,14 @@ import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
+// Charges and emails are sent one at a time in a loop below - with more
+// than a handful of subscribers this can genuinely take a couple of
+// minutes. Vercel's default function timeout is far shorter than that,
+// which silently cuts the run off partway through with no error - this
+// override gives it real headroom (300s = Vercel Pro's max without
+// Fluid Compute).
+export const maxDuration = 300
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!

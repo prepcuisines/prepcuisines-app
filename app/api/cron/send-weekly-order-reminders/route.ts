@@ -15,6 +15,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Emails are sent one at a time in a loop below - with a genuine backlog
+// this can take a couple of minutes, well past Vercel's default function
+// timeout, which was silently cutting runs off partway through with no
+// error (only a handful of the ~400-per-run cap actually completing each
+// hour). 300s = Vercel Pro's max without Fluid Compute.
+export const maxDuration = 300
+
 // Neo's SMTP allows at most 450 sends per hour. This cron runs several
 // times across the day (see vercel.json) so a large recipient list gets
 // spread out safely instead of blasting everyone in one go. Each run only
