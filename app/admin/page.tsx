@@ -338,6 +338,7 @@ export default function AdminDashboard() {
   const [editingItems, setEditingItems] = useState<{ name: string; price: number; qty: number }[]>(
     []
   )
+  const [itemsEditMode, setItemsEditMode] = useState(false)
   const [editingDeliveryDay, setEditingDeliveryDay] = useState('')
   const [orderActionStatus, setOrderActionStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [orderActionError, setOrderActionError] = useState<string | null>(null)
@@ -1303,6 +1304,7 @@ export default function AdminDashboard() {
     setOrderDetailLoading(true)
     setOrderActionStatus('idle')
     setOrderActionError(null)
+    setItemsEditMode(false)
     setChargeAmountInput('')
     setResendEmailStatus('idle')
     setResendEmailError(null)
@@ -1571,6 +1573,7 @@ export default function AdminDashboard() {
   const saveEditedItems = () => {
     const totalAmount = editingItems.reduce((sum, i) => sum + i.price * i.qty, 0)
     orderDetailAction('update_items', { items: editingItems, totalAmount })
+    setItemsEditMode(false)
   }
 
   const printKitchenSheet = () => {
@@ -6542,63 +6545,190 @@ Bukr / prepcuisines`
                 )}
 
                 <div className="pc-modal-card">
-                  <div className="pc-modal-card-label">
-                    {orderDetail.order.delivery_day || 'Delivery'} delivery
-                    {orderDetail.order.menu_windows?.week_start_date && (
-                      <span className="cook-sheet-collapse-meta" style={{ marginLeft: 8 }}>
-                        {new Date(orderDetail.order.menu_windows.week_start_date).toLocaleDateString('en-GB')}
-                      </span>
-                    )}
+                  <div className="pc-modal-inline-row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div className="pc-modal-card-label" style={{ marginBottom: 0 }}>
+                      {orderDetail.order.delivery_day || 'Delivery'} delivery
+                      {orderDetail.order.menu_windows?.week_start_date && (
+                        <span className="cook-sheet-collapse-meta" style={{ marginLeft: 8 }}>
+                          {new Date(orderDetail.order.menu_windows.week_start_date).toLocaleDateString('en-GB')}
+                        </span>
+                      )}
+                    </div>
+                    <button className="segment-pill" onClick={() => setItemsEditMode((v) => !v)}>
+                      {itemsEditMode ? 'Cancel' : 'Edit'}
+                    </button>
                   </div>
-                  {(orderDetail.order.items || [])
-                    .filter((it: any) => it.name && it.name !== 'Delivery')
-                    .map((it: any, idx: number) => {
-                      const menuItem = orderDetail.windowMenuItems?.find((m: any) => m.name === it.name)
-                      return (
-                        <div key={idx} className="pc-modal-summary-item-row">
-                          {menuItem?.image_url ? (
-                            <img src={menuItem.image_url} alt={it.name} className="pc-modal-item-thumb" />
-                          ) : (
-                            <div className="pc-modal-item-thumb pc-modal-item-thumb-placeholder" />
+                  {itemsEditMode ? (
+                    <>
+                      {(orderDetail?.windowMenuItems?.length ?? 0) === 0 && (
+                        <p className="map-intro">
+                          No menu on file for that delivery date — type item names by hand.
+                        </p>
+                      )}
+                      {editingItems.map((item, idx) => (
+                        <div key={idx} className="pc-modal-item-row">
+                          {orderDetail?.windowMenuItems?.length ? (
+                            <select
+                              className="text-input"
+                              style={{ flex: 1 }}
+                              value={
+                                orderDetail.windowMenuItems.some((m: any) => m.name === item.name)
+                                  ? item.name
+                                  : item.name === 'Delivery'
+                                    ? 'Delivery'
+                                    : '__custom__'
+                              }
+                              onChange={(e) => {
+                                const next = [...editingItems]
+                                if (e.target.value === '__custom__') {
+                                  next[idx] = { ...next[idx], name: '' }
+                                } else if (e.target.value === 'Delivery') {
+                                  next[idx] = { ...next[idx], name: 'Delivery' }
+                                } else {
+                                  const menuItem = orderDetail.windowMenuItems.find(
+                                    (m: any) => m.name === e.target.value
+                                  )
+                                  next[idx] = {
+                                    ...next[idx],
+                                    name: e.target.value,
+                                    price: menuItem?.price ?? next[idx].price,
+                                  }
+                                }
+                                setEditingItems(next)
+                              }}
+                            >
+                              <option value="__custom__">Type manually…</option>
+                              <option value="Delivery">Delivery</option>
+                              {orderDetail.windowMenuItems.map((m: any) => (
+                                <option key={m.name} value={m.name}>
+                                  {m.name} — £{m.price.toFixed(2)}
+                                </option>
+                              ))}
+                            </select>
+                          ) : null}
+                          {(!orderDetail?.windowMenuItems?.length ||
+                            !(
+                              orderDetail.windowMenuItems.some((m: any) => m.name === item.name) ||
+                              item.name === 'Delivery'
+                            )) && (
+                            <input
+                              className="text-input"
+                              style={{ flex: 1 }}
+                              placeholder="Item name"
+                              value={item.name}
+                              onChange={(e) => {
+                                const next = [...editingItems]
+                                next[idx] = { ...next[idx], name: e.target.value }
+                                setEditingItems(next)
+                              }}
+                            />
                           )}
-                          <div style={{ flex: 1 }}>
-                            <div className="pc-modal-summary-item-name">{it.name}</div>
-                            <div className="pc-modal-summary-item-meta">
-                              {it.qty} × £{Number(it.price || 0).toFixed(2)}
+                          <input
+                            type="number"
+                            className="text-input"
+                            style={{ width: 70 }}
+                            value={item.qty}
+                            onChange={(e) => {
+                              const next = [...editingItems]
+                              next[idx] = { ...next[idx], qty: Number(e.target.value) }
+                              setEditingItems(next)
+                            }}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="text-input"
+                            style={{ width: 90 }}
+                            value={item.price}
+                            onChange={(e) => {
+                              const next = [...editingItems]
+                              next[idx] = { ...next[idx], price: Number(e.target.value) }
+                              setEditingItems(next)
+                            }}
+                          />
+                          <button
+                            className="segment-pill"
+                            onClick={() => setEditingItems(editingItems.filter((_, i) => i !== idx))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
+                        <button
+                          className="segment-pill"
+                          onClick={() =>
+                            setEditingItems([...editingItems, { name: '', price: 0, qty: 1 }])
+                          }
+                        >
+                          + Add item
+                        </button>
+                        <button
+                          className="btn-primary"
+                          onClick={saveEditedItems}
+                          disabled={orderActionStatus === 'saving'}
+                        >
+                          Save items
+                        </button>
+                      </div>
+                      <p className="map-intro" style={{ marginTop: 8 }}>
+                        Editing items updates your records only — it does not automatically
+                        charge or refund the difference in Stripe.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      {(orderDetail.order.items || [])
+                        .filter((it: any) => it.name && it.name !== 'Delivery')
+                        .map((it: any, idx: number) => {
+                          const menuItem = orderDetail.windowMenuItems?.find((m: any) => m.name === it.name)
+                          return (
+                            <div key={idx} className="pc-modal-summary-item-row">
+                              {menuItem?.image_url ? (
+                                <img src={menuItem.image_url} alt={it.name} className="pc-modal-item-thumb" />
+                              ) : (
+                                <div className="pc-modal-item-thumb pc-modal-item-thumb-placeholder" />
+                              )}
+                              <div style={{ flex: 1 }}>
+                                <div className="pc-modal-summary-item-name">{it.name}</div>
+                                <div className="pc-modal-summary-item-meta">
+                                  {it.qty} × £{Number(it.price || 0).toFixed(2)}
+                                </div>
+                              </div>
+                              <div className="pc-modal-summary-item-total">
+                                £{(Number(it.price || 0) * Number(it.qty || 1)).toFixed(2)}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      {(() => {
+                        const items = orderDetail.order.items || []
+                        const deliveryLine = items.find((it: any) => it.name === 'Delivery')
+                        const subtotal = items
+                          .filter((it: any) => it.name && it.name !== 'Delivery')
+                          .reduce((s: number, it: any) => s + Number(it.price || 0) * Number(it.qty || 1), 0)
+                        const deliveryFee = deliveryLine ? Number(deliveryLine.price || 0) : 0
+                        return (
+                          <div className="pc-modal-payment-summary">
+                            <div className="pc-modal-payment-row">
+                              <span>Subtotal</span>
+                              <span>£{subtotal.toFixed(2)}</span>
+                            </div>
+                            {deliveryLine && (
+                              <div className="pc-modal-payment-row">
+                                <span>Delivery</span>
+                                <span>£{deliveryFee.toFixed(2)}</span>
+                              </div>
+                            )}
+                            <div className="pc-modal-payment-row pc-modal-payment-total">
+                              <span>Total</span>
+                              <span>£{Number(orderDetail.order.total_amount || 0).toFixed(2)}</span>
                             </div>
                           </div>
-                          <div className="pc-modal-summary-item-total">
-                            £{(Number(it.price || 0) * Number(it.qty || 1)).toFixed(2)}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  {(() => {
-                    const items = orderDetail.order.items || []
-                    const deliveryLine = items.find((it: any) => it.name === 'Delivery')
-                    const subtotal = items
-                      .filter((it: any) => it.name && it.name !== 'Delivery')
-                      .reduce((s: number, it: any) => s + Number(it.price || 0) * Number(it.qty || 1), 0)
-                    const deliveryFee = deliveryLine ? Number(deliveryLine.price || 0) : 0
-                    return (
-                      <div className="pc-modal-payment-summary">
-                        <div className="pc-modal-payment-row">
-                          <span>Subtotal</span>
-                          <span>£{subtotal.toFixed(2)}</span>
-                        </div>
-                        {deliveryLine && (
-                          <div className="pc-modal-payment-row">
-                            <span>Delivery</span>
-                            <span>£{deliveryFee.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="pc-modal-payment-row pc-modal-payment-total">
-                          <span>Total</span>
-                          <span>£{Number(orderDetail.order.total_amount || 0).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    )
-                  })()}
+                        )
+                      })()}
+                    </>
+                  )}
                 </div>
 
                 <div className="pc-modal-section" style={{ borderTop: '1px solid #e3e3e3', paddingTop: 18 }}>
@@ -6667,126 +6797,6 @@ Bukr / prepcuisines`
                   {moveError && <p className="pc-error-text">{moveError}</p>}
                   {moveResult && <p className="map-intro">{moveResult}</p>}
                 </div>
-
-                <div className="pc-modal-section">
-                  <label className="field-label">Edit items</label>
-                  {(orderDetail?.windowMenuItems?.length ?? 0) === 0 && (
-                    <p className="map-intro">
-                      No menu on file for that delivery date — type item names by hand.
-                    </p>
-                  )}
-                  {editingItems.map((item, idx) => (
-                    <div key={idx} className="pc-modal-item-row">
-                      {orderDetail?.windowMenuItems?.length ? (
-                        <select
-                          className="text-input"
-                          style={{ flex: 1 }}
-                          value={
-                            orderDetail.windowMenuItems.some((m: any) => m.name === item.name)
-                              ? item.name
-                              : item.name === 'Delivery'
-                                ? 'Delivery'
-                                : '__custom__'
-                          }
-                          onChange={(e) => {
-                            const next = [...editingItems]
-                            if (e.target.value === '__custom__') {
-                              next[idx] = { ...next[idx], name: '' }
-                            } else if (e.target.value === 'Delivery') {
-                              next[idx] = { ...next[idx], name: 'Delivery' }
-                            } else {
-                              const menuItem = orderDetail.windowMenuItems.find(
-                                (m: any) => m.name === e.target.value
-                              )
-                              next[idx] = {
-                                ...next[idx],
-                                name: e.target.value,
-                                price: menuItem?.price ?? next[idx].price,
-                              }
-                            }
-                            setEditingItems(next)
-                          }}
-                        >
-                          <option value="__custom__">Type manually…</option>
-                          <option value="Delivery">Delivery</option>
-                          {orderDetail.windowMenuItems.map((m: any) => (
-                            <option key={m.name} value={m.name}>
-                              {m.name} — £{m.price.toFixed(2)}
-                            </option>
-                          ))}
-                        </select>
-                      ) : null}
-                      {(!orderDetail?.windowMenuItems?.length ||
-                        !(
-                          orderDetail.windowMenuItems.some((m: any) => m.name === item.name) ||
-                          item.name === 'Delivery'
-                        )) && (
-                        <input
-                          className="text-input"
-                          style={{ flex: 1 }}
-                          placeholder="Item name"
-                          value={item.name}
-                          onChange={(e) => {
-                            const next = [...editingItems]
-                            next[idx] = { ...next[idx], name: e.target.value }
-                            setEditingItems(next)
-                          }}
-                        />
-                      )}
-                      <input
-                        type="number"
-                        className="text-input"
-                        style={{ width: 70 }}
-                        value={item.qty}
-                        onChange={(e) => {
-                          const next = [...editingItems]
-                          next[idx] = { ...next[idx], qty: Number(e.target.value) }
-                          setEditingItems(next)
-                        }}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="text-input"
-                        style={{ width: 90 }}
-                        value={item.price}
-                        onChange={(e) => {
-                          const next = [...editingItems]
-                          next[idx] = { ...next[idx], price: Number(e.target.value) }
-                          setEditingItems(next)
-                        }}
-                      />
-                      <button
-                        className="segment-pill"
-                        onClick={() => setEditingItems(editingItems.filter((_, i) => i !== idx))}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                  <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
-                    <button
-                      className="segment-pill"
-                      onClick={() =>
-                        setEditingItems([...editingItems, { name: '', price: 0, qty: 1 }])
-                      }
-                    >
-                      + Add item
-                    </button>
-                    <button
-                      className="btn-primary"
-                      onClick={saveEditedItems}
-                      disabled={orderActionStatus === 'saving'}
-                    >
-                      Save items
-                    </button>
-                  </div>
-                  <p className="map-intro" style={{ marginTop: 8 }}>
-                    Editing items updates your records only — it does not automatically charge
-                    or refund the difference in Stripe.
-                  </p>
-                </div>
-
                 <div className="pc-modal-section">
                   <label className="field-label">Redo / resend this order</label>
                   <p className="map-intro">£0 copy into the date you pick — no charge, no account link.</p>
