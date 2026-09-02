@@ -51,6 +51,28 @@ export const CATEGORY_LABEL: Record<RecipeCategory, string> = {
 
 export const RECIPES: Recipe[] = [
   {
+    // Meat weight confirmed directly (150g raw / 130g cooked per portion).
+    // Everything else here is an ESTIMATE, scaled proportionally from the
+    // original batch recipe (assumed ~4 portions per batch) rather than a
+    // confirmed per-portion weight - adjust these if the real quantities
+    // used in the kitchen differ.
+    name: 'Turkish Beef Pasta With Garlic Yoghurt',
+    cat: 'low',
+    stickerColour: 'dark green',
+    meat: { name: 'Lean Ground Beef', raw: 150, cookedWeight: 130 },
+    ingredients: [
+      { name: 'Lean Ground Beef', raw: 150, isMeat: true },
+      { name: 'Bowtie Pasta (dry)', raw: 75 },
+      { name: 'White Onion', raw: 63 },
+      { name: 'Garlic (minced)', raw: 5 },
+      { name: 'Tomato Paste', raw: 19 },
+      { name: 'Skyr Fat Free Yoghurt', raw: 115 },
+      { name: 'Light Butter', raw: 11 },
+      { name: 'Feta', raw: 20 },
+      { name: 'Cherry Tomatoes', raw: 30 },
+    ],
+  },
+  {
     name: 'Garlic Herb Cajun Chicken (THIGH)  With Mash And Green Beans',
     cat: 'low',
     stickerColour: 'dark green',
