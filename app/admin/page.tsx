@@ -4317,23 +4317,20 @@ Bukr / prepcuisines`
                           }
                         />
                       </th>
-                      <th>Customer</th>
                       <th>Type</th>
-                      <th>Cash</th>
-                      <th>Items</th>
-                      <th>Total</th>
                       <th>Delivery day</th>
                       <th>Delivery week</th>
-                      <th>Postcode</th>
-                      <th>Placed</th>
-                      <th>Status</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {locationScopedOrders.map((o) => (
-                      <tr key={o.id} className={selectedOrderIds.includes(o.id) ? 'row-selected' : ''}>
-                        <td>
+                      <tr
+                        key={o.id}
+                        className={selectedOrderIds.includes(o.id) ? 'row-selected' : 'row-clickable'}
+                        onClick={() => openOrderDetail(o.id)}
+                      >
+                        <td onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             aria-label={`Select order for ${o.customer_name || 'customer'}`}
@@ -4342,76 +4339,12 @@ Bukr / prepcuisines`
                           />
                         </td>
                         <td>
-                          <div className="customer-name">{o.customer_name}</div>
-                          {o.order_number != null && (
-                            <div className="customer-email">#PC-{o.order_number}</div>
-                          )}
-                          {o.customer_email && (
-                            <div className="customer-email">{o.customer_email}</div>
-                          )}
-                        </td>
-                        <td>
                           <span className={`pill ${o.cancelled ? 'pill-warn' : 'pill-muted'}`}>
                             {o.cancelled
                               ? `Cancelled — was ${statusLabels[o.status] || o.status}`
                               : statusLabels[o.status] || o.status}
                           </span>
                         </td>
-                        <td>
-                          {o.status !== 'manually_ordered' ? (
-                            <span className="pill pill-muted" title="Only manually-added orders can be marked cash">
-                              —
-                            </span>
-                          ) : o.cash_order ? (
-                            <label className="pc-cash-row-label">
-                              <input
-                                type="checkbox"
-                                checked={!!o.cash_collected}
-                                disabled={cashActionId === o.id}
-                                onChange={() => toggleCashCollected(o)}
-                              />
-                              Collected
-                              <button
-                                type="button"
-                                className="pc-cash-row-unmark"
-                                title="Not a cash order"
-                                onClick={() => toggleCashOrder(o)}
-                              >
-                                ×
-                              </button>
-                            </label>
-                          ) : (
-                            <button
-                              type="button"
-                              className="segment-pill"
-                              disabled={cashActionId === o.id}
-                              onClick={() => toggleCashOrder(o)}
-                            >
-                              Mark cash
-                            </button>
-                          )}
-                        </td>
-                        <td className="items-cell">
-                          <span title={(o.items || []).map((it) => `${it.qty}× ${it.name}`).join(', ')}>
-                            {(() => {
-                              const list = o.items || []
-                              const totalQty = list.reduce((sum, it) => sum + (it.qty || 0), 0)
-                              const preview = list
-                                .slice(0, 2)
-                                .map((it) => `${it.qty}× ${it.name}`)
-                                .join(', ')
-                              const remaining = list.length - 2
-                              return (
-                                <>
-                                  {preview}
-                                  {remaining > 0 ? `, +${remaining} more` : ''}
-                                  <div className="items-count">{totalQty} items total</div>
-                                </>
-                              )
-                            })()}
-                          </span>
-                        </td>
-                        <td className="num">{money(o.total_amount)}</td>
                         <td>{o.delivery_day ? dayNameOf(o.delivery_day) : '—'}</td>
                         <td>
                           {o.menu_windows?.week_start_date
@@ -4420,30 +4353,9 @@ Bukr / prepcuisines`
                               )}`
                             : '—'}
                         </td>
-                        <td>{o.ship_postcode || '—'}</td>
-                        <td className="nowrap">
-                          {new Date(o.created_at).toLocaleDateString('en-GB')}{' '}
-                          {new Date(o.created_at).toLocaleTimeString('en-GB', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </td>
-                        <td>
-                          {o.cancelled ? (
-                            <span className="pill pill-warn">Cancelled</span>
-                          ) : o.fulfilled ? (
-                            <span className="pill pill-active">Fulfilled</span>
-                          ) : (
-                            <span className="pill pill-muted">Unfulfilled</span>
-                          )}
-                        </td>
-                        <td>
-                          <button className="segment-pill" onClick={() => openOrderDetail(o.id)}>
-                            View
-                          </button>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <button
                             className="segment-pill"
-                            style={{ marginLeft: 6 }}
                             onClick={() =>
                               isStokeOrder(o)
                                 ? printSingleStokePackingLabel(o)
@@ -8785,6 +8697,12 @@ function Styles() {
         border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
         vertical-align: top;
         color: var(--pc-green, #2d3510);
+      }
+      .row-clickable {
+        cursor: pointer;
+      }
+      .row-clickable:hover {
+        background: var(--pc-cream, #f5f2ec);
       }
       .data-table tbody tr:last-child td {
         border-bottom: none;
