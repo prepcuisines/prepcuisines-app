@@ -2204,6 +2204,8 @@ export default function AdminDashboard() {
   }, [orderTally])
 
   const [expandedTallyKey, setExpandedTallyKey] = useState<string | null>(null)
+  const [showCookSheetDatePicker, setShowCookSheetDatePicker] = useState(false)
+  const [cookSheetPickedDate, setCookSheetPickedDate] = useState('')
 
   const cookSheetForKey = useMemo(() => {
     if (!expandedTallyKey) return []
@@ -4389,6 +4391,37 @@ Bukr / prepcuisines`
         {tab === 'cook-sheet' && (
           <section>
               <>
+                <div className="toolbar" style={{ position: 'relative', marginBottom: 12 }}>
+                  <button
+                    className={`segment-pill ${cookSheetPickedDate ? 'segment-pill-active' : ''}`}
+                    aria-label="Choose a specific cook sheet date"
+                    onClick={() => setShowCookSheetDatePicker((v) => !v)}
+                  >
+                    {cookSheetPickedDate
+                      ? `📅 ${new Date(cookSheetPickedDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}`
+                      : '📅'}
+                  </button>
+                  {showCookSheetDatePicker && (
+                    <div className="pc-date-popover">
+                      <input
+                        type="date"
+                        className="text-input"
+                        value={cookSheetPickedDate}
+                        onChange={(e) => {
+                          const picked = e.target.value
+                          setCookSheetPickedDate(picked)
+                          const match = orderTally.find((t) => (t.weekRaw || '').slice(0, 10) === picked)
+                          if (match) {
+                            setExpandedTallyKey(match.key)
+                          }
+                          setShowCookSheetDatePicker(false)
+                        }}
+                        aria-label="Cook sheet delivery date"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 {visibleOrderTally.length > 0 && (
                   <div className="tally-row">
                     {visibleOrderTally.map((t) => (
