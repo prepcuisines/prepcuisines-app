@@ -4299,81 +4299,69 @@ Bukr / prepcuisines`
               <div className="empty-panel">No orders match this search.</div>
             ) : (
               <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>
+                <div className="pc-order-list">
+                  <div className="pc-order-list-header">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all orders shown"
+                      checked={
+                        locationScopedOrders.length > 0 &&
+                        locationScopedOrders.every((o) => selectedOrderIds.includes(o.id))
+                      }
+                      onChange={(e) =>
+                        setSelectedOrderIds(
+                          e.target.checked ? locationScopedOrders.map((o) => o.id) : []
+                        )
+                      }
+                    />
+                    <span>Select all</span>
+                  </div>
+                  {locationScopedOrders.map((o) => (
+                    <div
+                      key={o.id}
+                      className={`pc-order-card ${selectedOrderIds.includes(o.id) ? 'pc-order-card-selected' : ''}`}
+                      onClick={() => openOrderDetail(o.id)}
+                    >
+                      <div className="pc-order-card-top">
                         <input
                           type="checkbox"
-                          aria-label="Select all orders shown"
-                          checked={
-                            locationScopedOrders.length > 0 &&
-                            locationScopedOrders.every((o) => selectedOrderIds.includes(o.id))
-                          }
-                          onChange={(e) =>
-                            setSelectedOrderIds(
-                              e.target.checked ? locationScopedOrders.map((o) => o.id) : []
-                            )
-                          }
+                          aria-label={`Select order for ${o.customer_name || 'customer'}`}
+                          checked={selectedOrderIds.includes(o.id)}
+                          onChange={() => toggleOrderSelected(o.id)}
+                          onClick={(e) => e.stopPropagation()}
                         />
-                      </th>
-                      <th>Type</th>
-                      <th>Delivery day</th>
-                      <th>Delivery week</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {locationScopedOrders.map((o) => (
-                      <tr
-                        key={o.id}
-                        className={selectedOrderIds.includes(o.id) ? 'row-selected' : 'row-clickable'}
-                        onClick={() => openOrderDetail(o.id)}
-                      >
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            aria-label={`Select order for ${o.customer_name || 'customer'}`}
-                            checked={selectedOrderIds.includes(o.id)}
-                            onChange={() => toggleOrderSelected(o.id)}
-                          />
-                        </td>
-                        <td>
-                          <span className={`pill ${o.cancelled ? 'pill-warn' : 'pill-muted'}`}>
-                            {o.cancelled
-                              ? `Cancelled — was ${statusLabels[o.status] || o.status}`
-                              : statusLabels[o.status] || o.status}
-                          </span>
-                        </td>
-                        <td>{o.delivery_day ? dayNameOf(o.delivery_day) : '—'}</td>
-                        <td>
+                        <div className="pc-order-card-name">{o.customer_name || 'Guest'}</div>
+                        <button
+                          className="segment-pill"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            isStokeOrder(o) ? printSingleStokePackingLabel(o) : printSingleShippingLabel(o)
+                          }}
+                          title={
+                            o.label_printed_at
+                              ? `Already printed ${new Date(o.label_printed_at).toLocaleString('en-GB')}`
+                              : undefined
+                          }
+                        >
+                          {o.label_printed_at ? '✓ Reprint' : 'Print'}
+                        </button>
+                      </div>
+                      <div className="pc-order-card-meta">
+                        <span className={`pill ${o.cancelled ? 'pill-warn' : 'pill-muted'}`}>
+                          {o.cancelled
+                            ? `Cancelled — was ${statusLabels[o.status] || o.status}`
+                            : statusLabels[o.status] || o.status}
+                        </span>
+                        <span>{o.delivery_day ? dayNameOf(o.delivery_day) : '—'}</span>
+                        <span>
                           {o.menu_windows?.week_start_date
-                            ? `w/c ${new Date(o.menu_windows.week_start_date).toLocaleDateString(
-                                'en-GB'
-                              )}`
+                            ? `w/c ${new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')}`
                             : '—'}
-                        </td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <button
-                            className="segment-pill"
-                            onClick={() =>
-                              isStokeOrder(o)
-                                ? printSingleStokePackingLabel(o)
-                                : printSingleShippingLabel(o)
-                            }
-                            title={
-                              o.label_printed_at
-                                ? `Already printed ${new Date(o.label_printed_at).toLocaleString('en-GB')}`
-                                : undefined
-                            }
-                          >
-                            {o.label_printed_at ? '✓ Reprint' : 'Print'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 {selectedOrderIds.length > 0 && (
                   <div className="pc-bulk-bar">
@@ -8698,11 +8686,52 @@ function Styles() {
         vertical-align: top;
         color: var(--pc-green, #2d3510);
       }
-      .row-clickable {
+      .pc-order-list {
+        display: flex;
+        flex-direction: column;
+      }
+      .pc-order-list-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: var(--pc-green-mid, #3a4516);
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
+      }
+      .pc-order-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--pc-cream-dark, #ede8de);
         cursor: pointer;
       }
-      .row-clickable:hover {
+      .pc-order-card:hover {
         background: var(--pc-cream, #f5f2ec);
+      }
+      .pc-order-card-selected {
+        background: var(--pc-gold-light, #f0e6c8);
+      }
+      .pc-order-card-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pc-order-card-name {
+        flex: 1;
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--pc-green, #2d3510);
+      }
+      .pc-order-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 13px;
+        color: var(--pc-green-mid, #3a4516);
+        padding-left: 26px;
       }
       .data-table tbody tr:last-child td {
         border-bottom: none;
