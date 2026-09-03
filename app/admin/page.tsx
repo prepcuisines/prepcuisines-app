@@ -1827,6 +1827,11 @@ export default function AdminDashboard() {
         })()
 
         return matchesSegment && matchesSearch && matchesDate
+      }).sort((a, b) => {
+        if (segment !== 'cancelled') return 0
+        const aTime = a.subscription_cancelled_at ? new Date(a.subscription_cancelled_at).getTime() : 0
+        const bTime = b.subscription_cancelled_at ? new Date(b.subscription_cancelled_at).getTime() : 0
+        return bTime - aTime
       }),
     [
       customers,
