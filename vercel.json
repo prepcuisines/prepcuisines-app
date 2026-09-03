@@ -90,19 +90,19 @@
     },
     {
       "path": "/api/cron/send-weekly-order-reminders?only=leads",
-      "schedule": "0 8 4 9 *"
+      "schedule": "0 8 3 9 *"
     },
     {
       "path": "/api/cron/send-weekly-order-reminders?only=leads",
-      "schedule": "0 10 4 9 *"
+      "schedule": "0 10 3 9 *"
     },
     {
       "path": "/api/cron/send-weekly-order-reminders?only=leads",
-      "schedule": "10 11 4 9 *"
+      "schedule": "10 11 3 9 *"
     },
     {
       "path": "/api/cron/send-weekly-order-reminders?only=leads",
-      "schedule": "15 12 4 9 *"
+      "schedule": "15 12 3 9 *"
     }
   ]
 }
