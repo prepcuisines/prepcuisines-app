@@ -4227,7 +4227,7 @@ Bukr / prepcuisines`
                       </div>
                       <div className="pc-order-card-meta">
                         <span
-                          className={`pill ${o.cancelled ? 'pill-warn' : 'pill-muted'}`}
+                          className={`pill ${o.cancelled ? 'pill-danger' : 'pill-muted'}`}
                           style={o.cancelled ? undefined : orderTypePillStyle(o.status)}
                         >
                           {o.cancelled
@@ -6521,7 +6521,7 @@ Bukr / prepcuisines`
                 <div className="pc-modal-card">
                   <div className="pc-modal-status-row" style={{ marginTop: 0, marginBottom: 10 }}>
                     {orderDetail.order.cancelled ? (
-                      <span className="pill pill-warn">Cancelled</span>
+                      <span className="pill pill-danger">Cancelled</span>
                     ) : orderDetail.order.fulfilled ? (
                       <span className="pill pill-active">Fulfilled</span>
                     ) : (
@@ -8837,6 +8837,10 @@ function Styles() {
       .pill-warn {
         background: var(--pc-gold-light, #e8d5b0);
         color: var(--pc-gold-dark, #9a7c45);
+      }
+      .pill-danger {
+        background: #f5d5d0;
+        color: #9a2e1e;
       }
 
       .empty-panel {
