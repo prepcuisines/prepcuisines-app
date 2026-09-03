@@ -410,9 +410,20 @@ export async function sendWeeklyOrderLinkToCustomer(
   firstName: string,
   deliveryDay: string,
   cutoffText: string,
-  sampleDishNames: string[] = []
+  sampleDishNames: string[] = [],
+  featuredDish?: { name: string; imageUrl: string }
 ) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  const featuredDishBlock = featuredDish
+    ? `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;" width="100%">
+        <tr><td>
+          <img alt="${featuredDish.name}" src="${featuredDish.imageUrl}" style="display:block;width:100%;max-width:488px;height:auto;border-radius:8px;margin:0 0 10px;" />
+          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#c9a84c;font-weight:600;margin:0 0 2px;">New on the menu</p>
+          <p style="font-size:16px;font-weight:700;color:#1a2e1a;margin:0;">${featuredDish.name}</p>
+        </td></tr>
+      </table>`
+    : ''
 
   const dishRows = sampleDishNames
     .map(
@@ -461,6 +472,7 @@ export async function sendWeeklyOrderLinkToCustomer(
               the cutoff, or we'll go with your usual favourites instead.
             </p>
 
+            ${featuredDishBlock}
             ${menuBlock}
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
@@ -516,9 +528,20 @@ export async function sendComeOrderInviteEmailToCustomer(
   wednesdayCutoffText: string,
   sundayCutoffText: string,
   sampleDishNames: string[] = [],
-  urgentDeadlineDay?: 'wednesday' | 'sunday'
+  urgentDeadlineDay?: 'wednesday' | 'sunday',
+  featuredDish?: { name: string; imageUrl: string }
 ) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+
+  const featuredDishBlock = featuredDish
+    ? `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;" width="100%">
+        <tr><td>
+          <img alt="${featuredDish.name}" src="${featuredDish.imageUrl}" style="display:block;width:100%;max-width:488px;height:auto;border-radius:8px;margin:0 0 10px;" />
+          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#c9a84c;font-weight:600;margin:0 0 2px;">New on the menu — try it this week</p>
+          <p style="font-size:16px;font-weight:700;color:#1a2e1a;margin:0;">${featuredDish.name}</p>
+        </td></tr>
+      </table>`
+    : ''
 
   // One-off urgency push for a specific send — doesn't replace the actual
   // cutoff info box below (still shown, still accurate), just adds a
@@ -583,6 +606,7 @@ export async function sendComeOrderInviteEmailToCustomer(
               week, so pick whichever day suits you.
             </p>
 
+            ${featuredDishBlock}
             ${menuBlock}
 
             ${urgentBanner}

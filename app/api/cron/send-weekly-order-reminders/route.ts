@@ -34,7 +34,7 @@ const MAX_PER_RUN = 400
 async function getUpcomingWindowInfo(deliveryDay: string) {
   const { data: window } = await supabase
     .from('menu_windows')
-    .select('id')
+    .select('id, cutoff_datetime')
     .eq('delivery_day', deliveryDay)
     .gt('cutoff_datetime', new Date().toISOString())
     .order('cutoff_datetime', { ascending: true })
@@ -55,7 +55,13 @@ async function getUpcomingWindowInfo(deliveryDay: string) {
     .slice(0, 3)
     .map((item: any) => item.name)
 
-  return { id: window.id as string, sampleDishNames }
+  // Real cutoff, not assumed — cutoff day-of-week isn't actually fixed
+  // per delivery day (confirmed: every Sunday-delivery window's cutoff
+  // has been Thursday, not Friday as the old hardcoded text claimed).
+  const cutoffDate = new Date(window.cutoff_datetime)
+  const cutoffText = `${cutoffDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/London' })} at ${cutoffDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: cutoffDate.getMinutes() === 0 ? undefined : '2-digit', hour12: true, timeZone: 'Europe/London' }).replace(' ', '').toLowerCase()}`
+
+  return { id: window.id as string, sampleDishNames, cutoffText }
 }
 
 export async function POST(req: NextRequest) {
@@ -83,11 +89,32 @@ export async function POST(req: NextRequest) {
   } catch {
     // no body — normal for the real cron invocation
   }
+  // A direct Vercel Cron GET hit can't carry a JSON body, only a query
+  // string — used for genuine one-off scheduled sends (e.g. a specific
+  // day's extra reminder push) that need forceDeliveryDay/featureDish
+  // without going through the admin-session-gated proxy route.
+  const qp = req.nextUrl.searchParams
+  body = {
+    forceDeliveryDay: body?.forceDeliveryDay ?? qp.get('forceDeliveryDay') ?? undefined,
+    urgentDeadlineDay: body?.urgentDeadlineDay ?? qp.get('urgentDeadlineDay') ?? undefined,
+    only: body?.only ?? qp.get('only') ?? undefined,
+    featureDish: body?.featureDish || qp.get('featureDish') === '1',
+  }
   const forceDeliveryDay = body?.forceDeliveryDay as 'wednesday' | 'sunday' | undefined
   const urgentDeadlineDay = body?.urgentDeadlineDay as 'wednesday' | 'sunday' | undefined
   const onlyLeads = body?.only === 'leads'
   const onlyLeadsPayday = body?.only === 'leads_payday'
   const onlySubscribersNewDish = body?.only === 'subscribers_new_dish'
+  // One-off: adds a real photo of a specific dish to today's cutoff
+  // reminder / invite emails, on top of the normal template - not a
+  // permanent template change, just this send.
+  const featuredDish = body?.featureDish
+    ? {
+        name: 'Turkish Beef Pasta With Garlic Yoghurt',
+        imageUrl:
+          'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%201,%202026,%2006_09_24%20PM.png',
+      }
+    : undefined
 
   const todayIndex = new Date().getDay() // 0 = Sunday, 3 = Wednesday, 5 = Friday
   // effectiveDay is the day-of-week the SEND logic below runs as — 5 means
@@ -106,16 +133,17 @@ export async function POST(req: NextRequest) {
         : todayIndex
 
   // Group 1 (active subscribers) is day-specific, same as before:
-  // - Friday reminds about the upcoming Wednesday delivery (cutoff Sunday 8pm).
-  // - Wednesday reminds about the upcoming Sunday delivery (cutoff Friday 8pm).
+  // - Friday reminds about the upcoming Wednesday delivery.
+  // - Wednesday reminds about the upcoming Sunday delivery.
+  // The actual cutoff text is now pulled from the real window below
+  // (getUpcomingWindowInfo) rather than assumed here — confirmed the
+  // assumed pattern was wrong (Sunday-delivery cutoff is actually
+  // Thursday, not Friday).
   let targetDeliveryDay: string | null = null
-  let cutoffText = ''
   if (effectiveDay === 5) {
     targetDeliveryDay = 'Wednesday'
-    cutoffText = 'Sunday at 8pm'
   } else if (effectiveDay === 3) {
     targetDeliveryDay = 'Sunday'
-    cutoffText = 'Friday at 8pm'
   } else {
     return NextResponse.json({ skipped: 'not a reminder day' })
   }
@@ -124,6 +152,7 @@ export async function POST(req: NextRequest) {
   if (!subscriberWindow) {
     return NextResponse.json({ skipped: 'no upcoming window found' })
   }
+  const cutoffText = subscriberWindow.cutoffText
 
   const { data: existingOrders } = await supabase
     .from('customer_window_orders')
@@ -162,7 +191,7 @@ export async function POST(req: NextRequest) {
   // combined email covering both makes sense. Skipped on the Friday run
   // entirely to avoid sending this twice in the same week.
   let inviteQueue: any[] = []
-  let wednesdayWindowForInvite: { id: string; sampleDishNames: string[] } | null = null
+  let wednesdayWindowForInvite: { id: string; sampleDishNames: string[]; cutoffText: string } | null = null
 
   if (effectiveDay === 3 && !onlyLeads && !onlyLeadsPayday && !onlySubscribersNewDish) {
     // On the Wednesday run, subscriberWindow is already the upcoming
@@ -304,7 +333,8 @@ export async function POST(req: NextRequest) {
         (person.full_name || 'there').split(' ')[0],
         targetDeliveryDay,
         cutoffText,
-        subscriberWindow.sampleDishNames
+        subscriberWindow.sampleDishNames,
+        featuredDish
       )
       await supabase
         .from('weekly_reminder_log')
@@ -313,11 +343,13 @@ export async function POST(req: NextRequest) {
       await sendComeOrderInviteEmailToCustomer(
         person.email,
         (person.full_name || 'there').split(' ')[0],
-        'Sunday at 8pm',
-        'Friday at 8pm',
+        wednesdayWindowForInvite?.cutoffText || subscriberWindow.cutoffText,
+        subscriberWindow.cutoffText,
         wednesdayWindowForInvite?.sampleDishNames.length
           ? wednesdayWindowForInvite.sampleDishNames
-          : subscriberWindow.sampleDishNames
+          : subscriberWindow.sampleDishNames,
+        urgentDeadlineDay,
+        featuredDish
       )
       // Logged against subscriberWindow like group 1 — once this window's
       // cutoff passes, they surface again the following week with the
@@ -329,12 +361,13 @@ export async function POST(req: NextRequest) {
       await sendComeOrderInviteEmailToCustomer(
         person.email,
         (person.full_name || 'there').split(' ')[0],
-        'Sunday at 8pm',
-        'Friday at 8pm',
+        wednesdayWindowForInvite?.cutoffText || subscriberWindow.cutoffText,
+        subscriberWindow.cutoffText,
         wednesdayWindowForInvite?.sampleDishNames.length
           ? wednesdayWindowForInvite.sampleDishNames
           : subscriberWindow.sampleDishNames,
-        urgentDeadlineDay
+        urgentDeadlineDay,
+        featuredDish
       )
       await supabase
         .from('marketing_leads')

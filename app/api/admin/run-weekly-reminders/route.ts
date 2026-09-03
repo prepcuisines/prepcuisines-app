@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       : undefined
   const urgentParam = req.nextUrl.searchParams.get('urgentToday')
   const urgentDeadlineDay = urgentParam === 'wednesday' || urgentParam === 'sunday' ? urgentParam : undefined
+  const featureDish = req.nextUrl.searchParams.get('featureDish') === '1'
 
   const base = `https://${req.headers.get('host') || 'www.prepcuisines.co.uk'}`
   const res = await fetch(`${base}/api/cron/send-weekly-order-reminders`, {
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
     body: JSON.stringify({
       ...(only ? { only } : forceDeliveryDay ? { forceDeliveryDay } : {}),
       ...(urgentDeadlineDay ? { urgentDeadlineDay } : {}),
+      ...(featureDish ? { featureDish: true } : {}),
     }),
     cache: 'no-store',
   })
