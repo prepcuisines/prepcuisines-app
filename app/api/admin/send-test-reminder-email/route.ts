@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       await sendFlattenedHeroEmailToCustomer(
         to,
         'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/full_draft12_email.png',
-        'Chef-made meals, zero cooking required — 40% off your first order'
+        'Chef-made meals — 40% off'
       )
       return NextResponse.json({ success: true, sentTo: to, kind })
     } catch (err: any) {
