@@ -237,17 +237,100 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (action === 'update_items') {
-    // Items and total are updated together so the record always reflects
-    // what's actually being cooked/packed — this does NOT itself charge
-    // or refund anything in Stripe. Any price difference needs a manual
-    // charge (see charge_additional) or a manual refund in Stripe directly.
+    // Previously this just overwrote items/total_amount with no connection
+    // to Stripe at all - relying on whoever's using the admin panel to
+    // separately remember to charge or refund the difference by hand.
+    // Any mismatch between that manual step and this update silently
+    // detached total_amount from what was actually charged, and every
+    // future edit (including the customer's own self-service edit page,
+    // which trusts total_amount as ground truth) would then settle
+    // against a wrong baseline. Now the difference is always settled
+    // here, automatically, so total_amount can never drift from reality.
     const { items, totalAmount } = payload
+
+    const { data: currentOrder } = await supabase
+      .from('customer_window_orders')
+      .select('total_amount, stripe_payment_intent_id, customer_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!currentOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    const oldTotal = Math.round((currentOrder.total_amount || 0) * 100) / 100
+    const newTotal = Math.round(totalAmount * 100) / 100
+    const deltaPence = Math.round((newTotal - oldTotal) * 100)
+
+    let settlement = 'no_change'
+
+    if (deltaPence > 0) {
+      const { data: profile } = await supabase
+        .from('customer_profiles')
+        .select('stripe_customer_id, stripe_payment_method_id')
+        .eq('id', currentOrder.customer_id)
+        .maybeSingle()
+
+      if (!profile?.stripe_customer_id || !profile?.stripe_payment_method_id) {
+        return NextResponse.json(
+          { error: `Items imply an increase of £${(deltaPence / 100).toFixed(2)} but there's no saved card on file to charge it — use "charge additional" separately once they've added one, or adjust items to match the current total.` },
+          { status: 400 }
+        )
+      }
+
+      try {
+        await stripe.paymentIntents.create({
+          amount: deltaPence,
+          currency: 'gbp',
+          customer: profile.stripe_customer_id,
+          payment_method: profile.stripe_payment_method_id,
+          off_session: true,
+          confirm: true,
+          description: `prepcuisines admin order edit — additional ${(deltaPence / 100).toFixed(2)} GBP`,
+          metadata: { order_id: id, kind: 'admin_order_edit_extra' },
+        })
+        settlement = 'charged'
+      } catch (err: any) {
+        return NextResponse.json(
+          { error: `The extra £${(deltaPence / 100).toFixed(2)} charge failed (${err.message || 'card declined'}) — items were NOT changed, so nothing is out of sync.` },
+          { status: 402 }
+        )
+      }
+    } else if (deltaPence < 0) {
+      if (!currentOrder.stripe_payment_intent_id) {
+        return NextResponse.json(
+          { error: `Items imply a refund of £${(-deltaPence / 100).toFixed(2)} but this order has no payment_intent on record to refund against — process the refund manually in Stripe first, then edit items to match.` },
+          { status: 400 }
+        )
+      }
+      try {
+        await stripe.refunds.create({
+          payment_intent: currentOrder.stripe_payment_intent_id,
+          amount: -deltaPence,
+          metadata: { order_id: id, kind: 'admin_order_edit_refund' },
+        })
+        settlement = 'refunded'
+      } catch (err: any) {
+        return NextResponse.json(
+          { error: `The £${(-deltaPence / 100).toFixed(2)} refund failed (${err.message || 'unknown error'}) — items were NOT changed, so nothing is out of sync.` },
+          { status: 400 }
+        )
+      }
+    }
+
     const { error } = await supabase
       .from('customer_window_orders')
-      .update({ items, total_amount: totalAmount })
+      .update({ items, total_amount: newTotal, edited_at: new Date().toISOString() })
       .eq('id', id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ success: true })
+    if (error) {
+      // Payment already settled but the write failed — this is the one
+      // case that can still mismatch, so surface it loudly.
+      return NextResponse.json(
+        { error: `Payment was ${settlement} but saving the new items failed: ${error.message}. This needs reconciling by hand.` },
+        { status: 500 }
+      )
+    }
+    return NextResponse.json({ success: true, settlement, delta: deltaPence / 100 })
   }
 
   if (action === 'charge_additional') {
