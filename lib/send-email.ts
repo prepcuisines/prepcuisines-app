@@ -762,6 +762,35 @@ export async function sendCancelledRetentionEmailToCustomer(
   )
 }
 
+// One-off: the whole hero is a single flattened image (built directly,
+// not via HTML) - wrapped entirely in one link to the menu page, so
+// tapping anywhere on the image takes them there. No separate clickable
+// zones inside the image itself, since it's just one picture.
+export async function sendFlattenedHeroEmailToCustomer(
+  toEmail: string,
+  imageUrl: string,
+  subject: string
+) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  await sendEmailViaNeo(
+    toEmail,
+    subject,
+    `
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#1a2e1a;padding:0;" width="100%">
+      <tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;" width="600">
+          <tr><td>
+            <a href="${siteUrl}/menu" style="display:block;">
+              <img src="${imageUrl}" alt="prepcuisines — Browse the menu" width="600" style="display:block;width:100%;height:auto;border:0;" />
+            </a>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+    `
+  )
+}
+
 // One-off promotional push for EXISTING subscribers about a new dish -
 // separate audience and separate one-time tracking from the leads payday
 // email above. No discount here (they're already subscribers, not eligible

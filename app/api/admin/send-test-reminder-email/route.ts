@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import {
   sendWeeklyOrderLinkToCustomer,
   sendComeOrderInviteEmailToCustomer,
+  sendFlattenedHeroEmailToCustomer,
 } from '@/lib/send-email'
 
 function isAuthorized(req: NextRequest) {
@@ -28,6 +29,19 @@ export async function GET(req: NextRequest) {
   const kind = req.nextUrl.searchParams.get('kind') || 'subscriber'
   if (!to) {
     return NextResponse.json({ error: 'Missing ?to=' }, { status: 400 })
+  }
+
+  if (kind === 'flattened') {
+    try {
+      await sendFlattenedHeroEmailToCustomer(
+        to,
+        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/full_draft12_email.png',
+        'Chef-made meals, zero cooking required — 40% off your first order'
+      )
+      return NextResponse.json({ success: true, sentTo: to, kind })
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message || 'Send failed' }, { status: 500 })
+    }
   }
 
   const { data: window } = await supabase
