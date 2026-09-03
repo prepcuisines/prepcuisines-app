@@ -4,6 +4,7 @@ import {
   sendWeeklyOrderLinkToCustomer,
   sendComeOrderInviteEmailToCustomer,
   sendFlattenedHeroEmailToCustomer,
+  sendOrderConfirmationEmailToCustomer,
 } from '@/lib/send-email'
 
 function isAuthorized(req: NextRequest) {
@@ -39,6 +40,30 @@ export async function GET(req: NextRequest) {
         'Chef-made meals — 40% off'
       )
       return NextResponse.json({ success: true, sentTo: to, kind })
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message || 'Send failed' }, { status: 500 })
+    }
+  }
+
+  if (kind === 'receipt') {
+    try {
+      const name = req.nextUrl.searchParams.get('name') || 'Test'
+      await sendOrderConfirmationEmailToCustomer(
+        to,
+        name,
+        10,
+        'Sunday',
+        [
+          { name: 'Turkish Beef Pasta With Garlic Yoghurt', price: 5, qty: 1 },
+          { name: 'Marry-Me Salmon', price: 5, qty: 1 },
+        ],
+        'payg_order',
+        false,
+        false,
+        '',
+        999999
+      )
+      return NextResponse.json({ success: true, sentTo: to, kind, note: 'TEMPLATE PREVIEW ONLY - not a real order' })
     } catch (err: any) {
       return NextResponse.json({ error: err.message || 'Send failed' }, { status: 500 })
     }
