@@ -93,7 +93,7 @@
       "schedule": "0 11 3 9 *"
     },
     {
-      "path": "/api/cron/send-weekly-order-reminders?only=invite",
+      "path": "/api/cron/send-weekly-order-reminders?forceDeliveryDay=sunday&featureDish=1&urgentDeadlineDay=sunday",
       "schedule": "15 12 3 9 *"
     }
   ]
