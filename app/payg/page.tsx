@@ -26,6 +26,11 @@ export default function PayAsYouGoPage() {
       return
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setCheckoutError('That email address doesn\'t look right — please double check it and try again.')
+      return
+    }
+
     setCheckoutLoading(true)
     setCheckoutError(null)
 
