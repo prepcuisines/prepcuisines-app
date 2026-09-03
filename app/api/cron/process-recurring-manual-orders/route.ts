@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { selectAnyMeals } from '../../../../lib/recurringManualOrderFill'
+import { sendAdminAlertEmail } from '@/lib/send-email'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          await stripe.paymentIntents.create({
+          const paymentIntent = await stripe.paymentIntents.create({
             amount: Math.round((ro.total_amount || 0) * 100),
             currency: 'gbp',
             customer: profile.stripe_customer_id,
@@ -149,23 +150,35 @@ export async function POST(req: NextRequest) {
             metadata: { recurringManualOrderId: ro.id, context: 'recurring_manual_order' },
           })
 
-          await supabase.from('customer_window_orders').insert({
-            customer_id: ro.matched_customer_id,
-            menu_window_id: window.id,
-            status: 'manually_ordered',
-            items: orderItems,
-            total_amount: ro.total_amount,
-            delivery_day: ro.delivery_day,
-            ship_full_name: ro.customer_name,
-            ship_email: ro.email,
-            ship_phone: ro.phone,
-            ship_postcode: ro.postcode,
-          })
-          results.push({ id: ro.id, charged: true })
+          // CRITICAL: charge succeeded. Nothing past this point may release
+          // the claim on this window - that would let next week's run (or
+          // a manual catch-up) charge this card again for a payment that
+          // already went through. A save failure here is a bookkeeping
+          // problem to fix by hand, never a reason to retry the charge.
+          try {
+            await supabase.from('customer_window_orders').insert({
+              customer_id: ro.matched_customer_id,
+              menu_window_id: window.id,
+              status: 'manually_ordered',
+              items: orderItems,
+              total_amount: ro.total_amount,
+              delivery_day: ro.delivery_day,
+              ship_full_name: ro.customer_name,
+              ship_email: ro.email,
+              ship_phone: ro.phone,
+              ship_postcode: ro.postcode,
+            })
+            results.push({ id: ro.id, charged: true })
+          } catch (saveErr: any) {
+            await sendAdminAlertEmail(
+              `URGENT: customer charged but order not saved (recurring) — ${ro.customer_name || ro.matched_customer_id}`,
+              `Stripe payment_intent ${paymentIntent.id} succeeded (£${(ro.total_amount || 0).toFixed(2)}) for customer ${ro.matched_customer_id}, recurring order ${ro.id}, window ${window.id}, but saving the order record failed: ${saveErr.message || saveErr}. This customer has been charged — do NOT let this recurring order retry for this window. Reconcile manually.`
+            ).catch(() => {})
+            results.push({ id: ro.id, chargedButSaveFailedALERT_SENT: true, paymentIntentId: paymentIntent.id, message: saveErr.message })
+          }
         } catch (chargeErr: any) {
-          // Charge failed — release the claim back to whatever it was
-          // before, so this doesn't get silently skipped forever; a later
-          // run (or next week's) will see it as unprocessed and retry.
+          // Genuinely reached only if the Stripe call itself threw - a real
+          // charge failure, safe to release the claim and retry later.
           await supabase
             .from('recurring_manual_orders')
             .update({ last_processed_window_id: previousProcessedWindowId })

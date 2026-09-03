@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
+import { sendOrderConfirmationEmailToCustomer, sendAdminAlertEmail } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
@@ -96,37 +96,58 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      await supabase.from('customer_window_orders').insert({
-        customer_id: failure.customer_id,
-        menu_window_id: failure.menu_window_id,
-        status: 'manually_ordered',
-        items: failure.items,
-        total_amount: failure.amount,
-        delivery_day: failure.delivery_day,
-        ship_full_name: profile.full_name || null,
-      })
+      // CRITICAL: charge succeeded. Nothing past this point may release
+      // this failure back to resolved:false - that would let a future
+      // retry charge this card again for a payment that already went
+      // through. A save failure here is a bookkeeping problem to fix by
+      // hand, never a reason to retry the charge.
+      try {
+        await supabase.from('customer_window_orders').insert({
+          customer_id: failure.customer_id,
+          menu_window_id: failure.menu_window_id,
+          status: 'manually_ordered',
+          items: failure.items,
+          total_amount: failure.amount,
+          delivery_day: failure.delivery_day,
+          ship_full_name: profile.full_name || null,
+        })
+      } catch (saveErr: any) {
+        await sendAdminAlertEmail(
+          `URGENT: customer charged but order not saved (retry) — ${profile.full_name || failure.customer_id}`,
+          `Stripe payment_intent ${paymentIntent.id} succeeded (£${(failure.amount || 0).toFixed(2)}) for customer ${failure.customer_id}, but saving the order record failed: ${saveErr.message || saveErr}. This customer has been charged — do NOT retry this payment_failures row. Reconcile manually.`
+        ).catch(() => {})
+        results.push({ id: failure.id, retried: true, succeeded: true, saveFailedALERT_SENT: true, paymentIntentId: paymentIntent.id })
+        continue
+      }
 
-      if (profile.email) {
-        await sendOrderConfirmationEmailToCustomer(
-          profile.email,
-          (profile.full_name || 'there').split(' ')[0],
-          failure.amount,
-          failure.delivery_day || 'your',
-          failure.items,
-          'manually_ordered',
-          true,
-          (profile.orders_completed || 0) === 0
-        )
-        await klaviyoTrackEvent(
-          profile.email,
-          'Placed Order',
-          { items: failure.items, delivery_day: failure.delivery_day, order_type: 'retry_success' },
-          failure.amount
-        )
+      try {
+        if (profile.email) {
+          await sendOrderConfirmationEmailToCustomer(
+            profile.email,
+            (profile.full_name || 'there').split(' ')[0],
+            failure.amount,
+            failure.delivery_day || 'your',
+            failure.items,
+            'manually_ordered',
+            true,
+            (profile.orders_completed || 0) === 0
+          )
+          await klaviyoTrackEvent(
+            profile.email,
+            'Placed Order',
+            { items: failure.items, delivery_day: failure.delivery_day, order_type: 'retry_success' },
+            failure.amount
+          )
+        }
+      } catch (sideEffectErr: any) {
+        results.push({ id: failure.id, retried: true, succeeded: true, notificationFailed: sideEffectErr.message })
+        continue
       }
 
       results.push({ id: failure.id, retried: true, succeeded: true })
     } catch (err: any) {
+      // Genuinely reached only if the Stripe call itself threw - a real
+      // charge failure, safe to release for another attempt later.
       await supabase.from('payment_failures').update({ resolved: false }).eq('id', failure.id)
       results.push({ id: failure.id, retried: true, succeeded: false, error: err.message })
     }

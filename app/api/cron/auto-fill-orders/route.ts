@@ -258,72 +258,97 @@ export async function POST(req: NextRequest) {
           })
 
           if (paymentIntent.status === 'succeeded') {
-            await supabase
-              .from('customer_profiles')
-              .update({
-                orders_completed: ordersCompleted + 1,
-                ...(sub.winback_discount_pending ? { winback_discount_pending: false } : {}),
-              })
-              .eq('id', sub.id)
+            // CRITICAL: the charge has genuinely happened now. Nothing past
+            // this point may cause this customer to be treated as
+            // retry-eligible again - that would double-charge a real card.
+            // This save is deliberately its own try/catch, separate from
+            // the Stripe call above: a failure here is a bookkeeping
+            // problem to fix by hand, never a reason to retry the charge.
+            let orderSaved = false
+            let insertedOrder: { order_number: number | null } | null = null
+            try {
+              await supabase
+                .from('customer_profiles')
+                .update({
+                  orders_completed: ordersCompleted + 1,
+                  ...(sub.winback_discount_pending ? { winback_discount_pending: false } : {}),
+                })
+                .eq('id', sub.id)
 
-            const { data: insertedOrder } = await supabase
-              .from('customer_window_orders')
-              .update({
-                status: 'auto_filled',
-                stripe_payment_intent_id: paymentIntent.id,
-                items: orderItemsSnapshot,
-                total_amount: totalAmount / 100,
-                ship_full_name: sub.full_name || null,
-                ship_phone: sub.phone || null,
-                ship_house_number: sub.house_number || null,
-                ship_street: sub.street || null,
-                ship_postcode: sub.postcode || null,
-                delivery_instructions: sub.standing_delivery_instructions || null,
-              })
-              .eq('id', reservedOrderId)
-              .select('order_number')
-              .single()
-
-            if (sub.email) {
-              await sendOrderConfirmationEmailToCustomer(
-                sub.email,
-                (sub.full_name || 'there').split(' ')[0],
-                totalAmount / 100,
-                window.delivery_day || 'your',
-                orderItemsSnapshot,
-                'auto_filled',
-                true,
-                false,
-                sub.postcode || '',
-                insertedOrder?.order_number ?? null,
-                '9pm'
-              )
-              await klaviyoTrackEvent(
-                sub.email,
-                'Placed Order',
-                {
+              const { data } = await supabase
+                .from('customer_window_orders')
+                .update({
+                  status: 'auto_filled',
+                  stripe_payment_intent_id: paymentIntent.id,
                   items: orderItemsSnapshot,
-                  delivery_day: window.delivery_day,
-                  order_type: 'auto_filled',
-                },
-                totalAmount / 100
-              )
-              // The real recurring revenue, unlike the one-off Subscribe
-              // event at signup - without this, Meta only ever sees the
-              // discounted first order and can't tell a one-time customer
-              // from a loyal long-term subscriber.
-              await sendMetaConversionEvent({
-                eventName: 'Purchase',
-                eventId: paymentIntent.id,
-                email: sub.email,
-                phone: sub.phone,
-                value: totalAmount / 100,
-                currency: 'GBP',
-                orderId: paymentIntent.id,
-              })
+                  total_amount: totalAmount / 100,
+                  ship_full_name: sub.full_name || null,
+                  ship_phone: sub.phone || null,
+                  ship_house_number: sub.house_number || null,
+                  ship_street: sub.street || null,
+                  ship_postcode: sub.postcode || null,
+                  delivery_instructions: sub.standing_delivery_instructions || null,
+                })
+                .eq('id', reservedOrderId)
+                .select('order_number')
+                .single()
+              insertedOrder = data
+              orderSaved = true
+            } catch (saveErr: any) {
+              await sendAdminAlertEmail(
+                `URGENT: customer charged but order not saved — ${sub.full_name || sub.id}`,
+                `Stripe payment_intent ${paymentIntent.id} succeeded (£${(totalAmount / 100).toFixed(2)}) for customer ${sub.id} (${sub.email}), window ${window.id}, but saving the order record failed: ${saveErr.message || saveErr}. This customer has been charged — do NOT let any retry mechanism charge them again for this window. Reconcile manually.`
+              ).catch(() => {})
+              results.push({ customer: sub.id, status: 'charged_but_save_failed_ALERT_SENT', paymentIntentId: paymentIntent.id, message: saveErr.message })
             }
 
-            results.push({ customer: sub.id, status: 'charged', items: chosen.map((c) => c.name) })
+            if (orderSaved) {
+              // Side effects only - a failure in any of these must never
+              // cascade back into "payment failed" territory.
+              try {
+                if (sub.email) {
+                  await sendOrderConfirmationEmailToCustomer(
+                    sub.email,
+                    (sub.full_name || 'there').split(' ')[0],
+                    totalAmount / 100,
+                    window.delivery_day || 'your',
+                    orderItemsSnapshot,
+                    'auto_filled',
+                    true,
+                    false,
+                    sub.postcode || '',
+                    insertedOrder?.order_number ?? null,
+                    '9pm'
+                  )
+                  await klaviyoTrackEvent(
+                    sub.email,
+                    'Placed Order',
+                    {
+                      items: orderItemsSnapshot,
+                      delivery_day: window.delivery_day,
+                      order_type: 'auto_filled',
+                    },
+                    totalAmount / 100
+                  )
+                  // The real recurring revenue, unlike the one-off Subscribe
+                  // event at signup - without this, Meta only ever sees the
+                  // discounted first order and can't tell a one-time customer
+                  // from a loyal long-term subscriber.
+                  await sendMetaConversionEvent({
+                    eventName: 'Purchase',
+                    eventId: paymentIntent.id,
+                    email: sub.email,
+                    phone: sub.phone,
+                    value: totalAmount / 100,
+                    currency: 'GBP',
+                    orderId: paymentIntent.id,
+                  })
+                }
+              } catch (sideEffectErr: any) {
+                results.push({ customer: sub.id, status: 'charged_ok_but_notification_failed', message: sideEffectErr.message })
+              }
+              results.push({ customer: sub.id, status: 'charged', items: chosen.map((c) => c.name) })
+            }
           } else {
             await supabase.from('payment_failures').insert({
               customer_id: sub.id,
@@ -349,6 +374,9 @@ export async function POST(req: NextRequest) {
             results.push({ customer: sub.id, status: 'payment_failed' })
           }
         } catch (err: any) {
+          // Genuinely reached only if the Stripe call itself threw (card
+          // declined, network error before confirmation, etc.) - a real
+          // charge failure, safe to mark on_hold and retry later.
           await supabase.from('payment_failures').insert({
             customer_id: sub.id,
             menu_window_id: window.id,
