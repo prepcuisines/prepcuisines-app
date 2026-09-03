@@ -106,6 +106,10 @@ export async function POST(req: NextRequest) {
   const onlyLeads = body?.only === 'leads'
   const onlyLeadsPayday = body?.only === 'leads_payday'
   const onlySubscribersNewDish = body?.only === 'subscribers_new_dish'
+  // One-off: targets ONLY the customer_profiles invite group (non-
+  // subscriber accounts), skipping subscribers entirely - for a
+  // standalone catch-up send to that group without touching anyone else.
+  const onlyInvite = body?.only === 'invite'
   // One-off: adds a real photo of a specific dish to today's cutoff
   // reminder / invite emails, on top of the normal template - not a
   // permanent template change, just this send.
@@ -125,7 +129,7 @@ export async function POST(req: NextRequest) {
   // When onlyLeads is set this is forced to 3 purely as internal plumbing
   // (group 4's code path lives behind that check) — it carries no meaning
   // about any delivery day or cutoff in this mode.
-  const effectiveDay = onlyLeads || onlyLeadsPayday || onlySubscribersNewDish
+  const effectiveDay = onlyLeads || onlyLeadsPayday || onlySubscribersNewDish || onlyInvite
     ? 3
     : forceDeliveryDay === 'wednesday'
       ? 5
@@ -176,7 +180,7 @@ export async function POST(req: NextRequest) {
     .not('standing_plan_size', 'is', null)
     .or(`standing_delivery_day.eq.${targetDeliveryDay},second_delivery_day.eq.${targetDeliveryDay}`)
 
-  const subscriberQueue = onlyLeads || onlyLeadsPayday || onlySubscribersNewDish
+  const subscriberQueue = onlyLeads || onlyLeadsPayday || onlySubscribersNewDish || onlyInvite
     ? []
     : (subscribers || [])
         .filter(
