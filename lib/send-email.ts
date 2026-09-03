@@ -451,6 +451,7 @@ export async function sendWeeklyOrderLinkToCustomer(
     toEmail,
     `Don't forget to pick your meals for ${deliveryDay}`,
     `
+    <style>@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap');</style>
     <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
@@ -458,16 +459,16 @@ export async function sendWeeklyOrderLinkToCustomer(
             <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
           </td></tr>
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
-            <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">⏰ TIME TO PICK YOUR MEALS</span>
+            <span style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">⏰ TIME TO PICK YOUR MEALS</span>
           </td></tr>
           <tr><td style="padding:40px 36px 36px;">
-            <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
               ${deliveryDay} delivery
             </p>
-            <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
+            <p style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
               Don't forget to pick<br/><em style="font-style:italic;">your meals this week.</em>
             </p>
-            <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
               Hi ${firstName}, your ${deliveryDay} delivery is coming up — pick your meals before
               the cutoff, or we'll go with your usual favourites instead.
             </p>
@@ -477,7 +478,7 @@ export async function sendWeeklyOrderLinkToCustomer(
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
               <tr><td style="padding:16px 24px;">
-                <p style="margin:0;font-size:14px;color:#1a2e1a;">
+                <p style="margin:0;font-family:'Outfit',Arial,sans-serif;font-size:14px;color:#1a2e1a;">
                   <strong>Cutoff is ${cutoffText}</strong> — after that we'll fill your box
                   from your favourites automatically.
                 </p>
@@ -486,18 +487,18 @@ export async function sendWeeklyOrderLinkToCustomer(
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
               <tr><td align="center">
-                <a href="${siteUrl}/menu" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Choose Your Meals &rarr;</a>
+                <a href="${siteUrl}/menu" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-family:'Outfit',Arial,sans-serif;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Choose Your Meals &rarr;</a>
               </td></tr>
             </table>
 
-            <p style="font-size:13px;color:#888888;line-height:1.75;margin:20px 0 0;text-align:center;">
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:13px;color:#888888;line-height:1.75;margin:20px 0 0;text-align:center;">
               Haven't set your favourites yet? <a href="${siteUrl}/favourites" style="color:#1a2e1a;">Pick them here</a>
               so we always know what you love.
             </p>
 
             <table border="0" cellpadding="0" cellspacing="0" width="100%">
               <tr><td style="border-top:1px solid #e8e0d0;padding-top:20px;margin-top:20px;">
-                <p style="font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
+                <p style="font-family:'Outfit',Arial,sans-serif;font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
                   Any questions, just reply here — I read every one.<br/><br/>
                   <span style="font-style:normal;color:#1a2e1a;font-weight:600;">&mdash; Bukr</span>
                 </p>
@@ -505,8 +506,16 @@ export async function sendWeeklyOrderLinkToCustomer(
             </table>
           </td></tr>
           <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
-            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered</p>
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 14px;" width="150"/>
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 14px;"><tr>
+              <td style="padding:0 6px;">
+                <a href="https://www.instagram.com/prepcuisines?igsi=M3Rsdno0YmVqOWtn&utm_source=qr" style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#c9a84c;text-align:center;font-family:'Outfit',Arial,sans-serif;font-size:11px;font-weight:800;color:#1a2e1a;text-decoration:none;">IG</a>
+              </td>
+              <td style="padding:0 6px;">
+                <a href="https://www.tiktok.com/@prepcuisines?_r=1&_t=ZG-99PgwI4yizB" style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#c9a84c;text-align:center;font-family:'Outfit',Arial,sans-serif;font-size:11px;font-weight:800;color:#1a2e1a;text-decoration:none;">TT</a>
+              </td>
+            </tr></table>
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered</p>
           </td></tr>
         </table>
       </td></tr>
@@ -581,6 +590,7 @@ export async function sendComeOrderInviteEmailToCustomer(
     toEmail,
     `Fancy trying prepcuisines this week?`,
     `
+    <style>@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap');</style>
     <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
@@ -588,23 +598,30 @@ export async function sendComeOrderInviteEmailToCustomer(
             <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
           </td></tr>
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
-            <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🍽️ FRESH MENU, READY WHEN YOU ARE</span>
+            <span style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🍽️ FRESH MENU, READY WHEN YOU ARE</span>
           </td></tr>
           <tr><td style="padding:40px 36px 36px;">
-            <p style="font-size:13px;font-weight:700;color:#c9a84c;margin:0 0 16px;letter-spacing:0.02em;">
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#c9a84c;margin:0 0 16px;letter-spacing:0.02em;">
               🚚 We're now delivering nationwide!
             </p>
-            <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
               Come try us
             </p>
-            <p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
+            <p style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.25;">
               Chef-made meals,<br/><em style="font-style:italic;">zero cooking required.</em>
             </p>
-            <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:15px;line-height:1.75;color:#333333;margin:0 0 20px;">
               Hey ${firstName}, we've got a fresh menu ready to go. Fresh ingredients, real
               flavour, ready to heat and eat — no chopping, no washing up. We deliver twice a
               week, so pick whichever day suits you.
             </p>
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 28px;" width="100%">
+              <tr><td align="center">
+                <p style="font-family:'Outfit',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#c9a84c;margin:0 0 2px;">All meals</p>
+                <p style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:44px;color:#1a2e1a;margin:0;line-height:1;">From £4.80</p>
+              </td></tr>
+            </table>
 
             ${featuredDishBlock}
             ${menuBlock}
@@ -614,10 +631,10 @@ export async function sendComeOrderInviteEmailToCustomer(
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
               <tr><td style="padding:20px 24px;">
                 <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                  <tr><td style="padding:8px 0;font-size:14px;color:#1a2e1a;">
+                  <tr><td style="padding:8px 0;font-family:'Outfit',Arial,sans-serif;font-size:14px;color:#1a2e1a;">
                     <strong>Wednesday delivery</strong> — order by ${wednesdayCutoffText}
                   </td></tr>
-                  <tr><td style="padding:8px 0;font-size:14px;color:#1a2e1a;border-top:1px solid #e8e0d0;">
+                  <tr><td style="padding:8px 0;font-family:'Outfit',Arial,sans-serif;font-size:14px;color:#1a2e1a;border-top:1px solid #e8e0d0;">
                     <strong>Sunday delivery</strong> — order by ${sundayCutoffText}
                   </td></tr>
                 </table>
@@ -626,13 +643,13 @@ export async function sendComeOrderInviteEmailToCustomer(
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 10px;" width="100%">
               <tr><td align="center">
-                <a href="${siteUrl}/menu" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Browse the Menu &rarr;</a>
+                <a href="${siteUrl}/menu" style="display:inline-block;background:#1a2e1a;border-radius:6px;padding:18px 32px;font-family:'Outfit',Arial,sans-serif;font-size:15px;font-weight:700;color:#f5f0e8;text-decoration:none;letter-spacing:0.04em;">Browse the Menu &rarr;</a>
               </td></tr>
             </table>
 
             <table border="0" cellpadding="0" cellspacing="0" width="100%">
               <tr><td style="border-top:1px solid #e8e0d0;padding-top:20px;">
-                <p style="font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
+                <p style="font-family:'Outfit',Arial,sans-serif;font-size:13px;color:#888888;line-height:1.75;margin:0;font-style:italic;">
                   Any questions, just reply here — I read every one.<br/><br/>
                   <span style="font-style:normal;color:#1a2e1a;font-weight:600;">&mdash; Bukr</span>
                 </p>
@@ -640,8 +657,16 @@ export async function sendComeOrderInviteEmailToCustomer(
             </table>
           </td></tr>
           <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
-            <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
+            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 14px;" width="150"/>
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 14px;"><tr>
+              <td style="padding:0 6px;">
+                <a href="https://www.instagram.com/prepcuisines?igsi=M3Rsdno0YmVqOWtn&utm_source=qr" style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#c9a84c;text-align:center;font-family:'Outfit',Arial,sans-serif;font-size:11px;font-weight:800;color:#1a2e1a;text-decoration:none;">IG</a>
+              </td>
+              <td style="padding:0 6px;">
+                <a href="https://www.tiktok.com/@prepcuisines?_r=1&_t=ZG-99PgwI4yizB" style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#c9a84c;text-align:center;font-family:'Outfit',Arial,sans-serif;font-size:11px;font-weight:800;color:#1a2e1a;text-decoration:none;">TT</a>
+              </td>
+            </tr></table>
+            <p style="font-family:'Outfit',Arial,sans-serif;font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
           </td></tr>
         </table>
       </td></tr>
