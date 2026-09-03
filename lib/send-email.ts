@@ -418,12 +418,19 @@ export async function sendWeeklyOrderLinkToCustomer(
   const featuredDishBlock = featuredDish
     ? `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;" width="100%">
         <tr><td>
-          <img alt="${featuredDish.name}" src="${featuredDish.imageUrl}" style="display:block;width:100%;max-width:488px;height:auto;border-radius:8px;margin:0 0 10px;" />
-          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#c9a84c;font-weight:600;margin:0 0 2px;">New on the menu</p>
-          <p style="font-size:16px;font-weight:700;color:#1a2e1a;margin:0;">${featuredDish.name}</p>
+          <p style="font-family:'Outfit',Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#c9a84c;font-weight:600;margin:0 0 4px;">New on the menu</p>
+          <p style="font-family:'Outfit',Arial,sans-serif;font-size:16px;font-weight:700;color:#1a2e1a;margin:0 0 10px;">${featuredDish.name}</p>
+          <img alt="${featuredDish.name}" src="${featuredDish.imageUrl}" style="display:block;width:100%;max-width:488px;height:auto;border-radius:8px;" />
         </td></tr>
       </table>`
     : ''
+
+  const priceStatement = `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;" width="100%">
+    <tr><td align="center">
+      <p style="font-family:'Outfit',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#c9a84c;margin:0 0 2px;">All meals</p>
+      <p style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:44px;color:#1a2e1a;margin:0;line-height:1;">From £4.80</p>
+    </td></tr>
+  </table>`
 
   const dishRows = sampleDishNames
     .map(
@@ -474,6 +481,7 @@ export async function sendWeeklyOrderLinkToCustomer(
             </p>
 
             ${featuredDishBlock}
+            ${priceStatement}
             ${menuBlock}
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
@@ -545,9 +553,9 @@ export async function sendComeOrderInviteEmailToCustomer(
   const featuredDishBlock = featuredDish
     ? `<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;" width="100%">
         <tr><td>
-          <img alt="${featuredDish.name}" src="${featuredDish.imageUrl}" style="display:block;width:100%;max-width:488px;height:auto;border-radius:8px;margin:0 0 10px;" />
-          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#c9a84c;font-weight:600;margin:0 0 2px;">New on the menu — try it this week</p>
-          <p style="font-size:16px;font-weight:700;color:#1a2e1a;margin:0;">${featuredDish.name}</p>
+          <p style="font-family:'Outfit',Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#c9a84c;font-weight:600;margin:0 0 4px;">New on the menu — try it this week</p>
+          <p style="font-family:'Outfit',Arial,sans-serif;font-size:16px;font-weight:700;color:#1a2e1a;margin:0 0 10px;">${featuredDish.name}</p>
+          <img alt="${featuredDish.name}" src="${featuredDish.imageUrl}" style="display:block;width:100%;max-width:488px;height:auto;border-radius:8px;" />
         </td></tr>
       </table>`
     : ''
