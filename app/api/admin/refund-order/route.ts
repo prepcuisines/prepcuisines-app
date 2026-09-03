@@ -10,9 +10,8 @@ const supabase = createClient(
 )
 
 function isAuthorized(req: NextRequest) {
-  // TEMP: auth disabled for one explicit manual refund firing — restoring
-  // immediately after.
-  return true
+  const session = req.cookies.get('pc_admin_session')?.value
+  return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
 async function handleRefund(orderId: string | null, amountRaw: string | number | null, reason: string | undefined) {
