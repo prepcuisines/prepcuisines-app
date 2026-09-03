@@ -20,8 +20,9 @@ const supabase = createClient(
 // image loading, and cutoff wording before a real batch goes out.
 // Doesn't touch weekly_reminder_log or any customer/lead data.
 export async function GET(req: NextRequest) {
-  // TEMP: auth check disabled for one immediate manual test firing —
-  // restoring immediately after.
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
 
   const to = req.nextUrl.searchParams.get('to')
   const kind = req.nextUrl.searchParams.get('kind') || 'subscriber'
