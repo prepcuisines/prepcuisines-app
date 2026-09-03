@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       const { data: subscribers, error: subsError } = await supabase
         .from('customer_profiles')
         .select(
-          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status, winback_discount_pending'
+          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status, winback_discount_pending, standing_breakfast_qty, second_breakfast_qty, standing_dessert_qty, second_dessert_qty, standing_skip_breakfast, standing_skip_dessert'
         )
         .eq('subscription_status', 'active')
         .or(`standing_delivery_day.eq.${window.delivery_day},second_delivery_day.eq.${window.delivery_day}`)
@@ -186,6 +186,43 @@ export async function POST(req: NextRequest) {
           continue
         }
 
+        // Standing breakfast/dessert preferences: same per-day pattern as
+        // meal plan size (second day's own setting if present, otherwise
+        // falls back to the standing one) - previously auto-fill ignored
+        // these fields entirely, so a customer's usual breakfast/dessert
+        // picks silently vanished on any week they didn't order manually.
+        const skipBreakfast = !!sub.standing_skip_breakfast
+        const skipDessert = !!sub.standing_skip_dessert
+        const breakfastQtyMap: Record<string, number> =
+          (isSecondDay ? sub.second_breakfast_qty || sub.standing_breakfast_qty : sub.standing_breakfast_qty) || {}
+        const dessertQtyMap: Record<string, number> =
+          (isSecondDay ? sub.second_dessert_qty || sub.standing_dessert_qty : sub.standing_dessert_qty) || {}
+
+        const availableById = new Map<string, any>(
+          (windowItems || [])
+            .map((wi: any) => wi.menu_items)
+            .filter(Boolean)
+            .map((item: any) => [item.id, item])
+        )
+
+        const extraChosen: any[] = []
+        if (!skipBreakfast) {
+          for (const [itemId, qty] of Object.entries(breakfastQtyMap)) {
+            const item = availableById.get(itemId)
+            if (item && item.category === 'breakfast' && qty > 0) {
+              for (let i = 0; i < qty; i++) extraChosen.push(item)
+            }
+          }
+        }
+        if (!skipDessert) {
+          for (const [itemId, qty] of Object.entries(dessertQtyMap)) {
+            const item = availableById.get(itemId)
+            if (item && item.category === 'dessert' && qty > 0) {
+              for (let i = 0; i < qty; i++) extraChosen.push(item)
+            }
+          }
+        }
+
         const { data: prefs } = await supabase
           .from('favourites')
           .select('menu_item_id, preference')
@@ -202,7 +239,7 @@ export async function POST(req: NextRequest) {
         const likedAvailable = eligibleMeals.filter((m: any) => likedIds.has(m.id))
         const restAvailable = eligibleMeals.filter((m: any) => !likedIds.has(m.id))
 
-        const chosen: any[] = []
+        const chosen: any[] = [...extraChosen]
         let remaining = planSize
         const likedShuffled = [...likedAvailable]
         while (remaining > 0 && likedShuffled.length > 0) {
