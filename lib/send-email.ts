@@ -468,7 +468,10 @@ export async function sendWeeklyOrderLinkToCustomer(
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
             <span style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">⏰ TIME TO PICK YOUR MEALS</span>
           </td></tr>
-          <tr><td style="padding:40px 36px 36px;">
+          <tr><td style="padding:32px 36px 36px;">
+            ${featuredDishBlock}
+            ${priceStatement}
+
             <p style="font-family:'Outfit',Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
               ${deliveryDay} delivery
             </p>
@@ -480,8 +483,6 @@ export async function sendWeeklyOrderLinkToCustomer(
               the cutoff, or we'll go with your usual favourites instead.
             </p>
 
-            ${featuredDishBlock}
-            ${priceStatement}
             ${menuBlock}
 
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
@@ -608,7 +609,16 @@ export async function sendComeOrderInviteEmailToCustomer(
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
             <span style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🍽️ FRESH MENU, READY WHEN YOU ARE</span>
           </td></tr>
-          <tr><td style="padding:40px 36px 36px;">
+          <tr><td style="padding:32px 36px 36px;">
+            ${featuredDishBlock}
+
+            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 28px;" width="100%">
+              <tr><td align="center">
+                <p style="font-family:'Outfit',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#c9a84c;margin:0 0 2px;">All meals</p>
+                <p style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:44px;color:#1a2e1a;margin:0;line-height:1;">From £4.80</p>
+              </td></tr>
+            </table>
+
             <p style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#c9a84c;margin:0 0 16px;letter-spacing:0.02em;">
               🚚 We're now delivering nationwide!
             </p>
@@ -624,14 +634,6 @@ export async function sendComeOrderInviteEmailToCustomer(
               week, so pick whichever day suits you.
             </p>
 
-            <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 28px;" width="100%">
-              <tr><td align="center">
-                <p style="font-family:'Outfit',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#c9a84c;margin:0 0 2px;">All meals</p>
-                <p style="font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:44px;color:#1a2e1a;margin:0;line-height:1;">From £4.80</p>
-              </td></tr>
-            </table>
-
-            ${featuredDishBlock}
             ${menuBlock}
 
             ${urgentBanner}
