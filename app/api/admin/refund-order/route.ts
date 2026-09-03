@@ -14,16 +14,8 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
-// Issues a real Stripe refund against a specific order's payment_intent -
-// partial or full. Requires the exact order id and amount to be passed
-// explicitly (never inferred), since this moves real money. Logs the
-// refund on the order record so it's visible in admin order history.
-export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
-  }
-
-  const { orderId, amount, reason } = await req.json()
+async function handleRefund(orderId: string | null, amountRaw: string | number | null, reason: string | undefined) {
+  const amount = typeof amountRaw === 'number' ? amountRaw : amountRaw ? parseFloat(amountRaw) : NaN
 
   if (!orderId || !amount || amount <= 0) {
     return NextResponse.json({ error: 'orderId and a positive amount are required' }, { status: 400 })
@@ -74,4 +66,29 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Refund failed' }, { status: 500 })
   }
+}
+
+// Issues a real Stripe refund against a specific order's payment_intent -
+// partial or full. Requires the exact order id and amount to be passed
+// explicitly (never inferred), since this moves real money. Logs the
+// refund on the order record so it's visible in admin order history.
+// GET (query params) for manual/admin triggering; POST (JSON body) for
+// a future "Refund" button in the admin UI.
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+  return handleRefund(
+    req.nextUrl.searchParams.get('orderId'),
+    req.nextUrl.searchParams.get('amount'),
+    req.nextUrl.searchParams.get('reason') || undefined
+  )
+}
+
+export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+  const body = await req.json().catch(() => ({}))
+  return handleRefund(body.orderId, body.amount, body.reason)
 }
