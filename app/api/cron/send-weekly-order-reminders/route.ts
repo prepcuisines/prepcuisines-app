@@ -353,16 +353,10 @@ export async function POST(req: NextRequest) {
         .from('weekly_reminder_log')
         .insert({ customer_id: person.id, menu_window_id: subscriberWindow.id })
     } else if (person.kind === 'leadInvite') {
-      await sendComeOrderInviteEmailToCustomer(
+      await sendFlattenedHeroEmailToCustomer(
         person.email,
-        (person.full_name || 'there').split(' ')[0],
-        wednesdayWindowForInvite?.cutoffText || subscriberWindow.cutoffText,
-        subscriberWindow.cutoffText,
-        wednesdayWindowForInvite?.sampleDishNames.length
-          ? wednesdayWindowForInvite.sampleDishNames
-          : subscriberWindow.sampleDishNames,
-        urgentDeadlineDay,
-        featuredDish
+        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/full_draft12_email.png',
+        'Chef-made meals — 40% off'
       )
       await supabase
         .from('marketing_leads')
