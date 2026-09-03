@@ -779,16 +779,16 @@ export async function sendFlattenedHeroEmailToCustomer(
     <table border="0" cellpadding="0" cellspacing="0" style="background:#1a2e1a;padding:32px 16px;" width="100%">
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;" width="600">
-          <tr><td style="padding:0 8px 20px;">
-            <p style="font-family:Arial,sans-serif;font-size:15px;line-height:1.7;color:#f5f0e8;margin:0;text-align:center;">
-              Chef-made meals, zero cooking required. Fresh ingredients, real flavour,
-              ready in just 2&ndash;3 minutes &mdash; all from &pound;4.80 per meal.
-            </p>
-          </td></tr>
           <tr><td>
             <a href="${siteUrl}/menu" style="display:block;">
               <img src="${imageUrl}" alt="prepcuisines — Browse the menu" width="600" style="display:block;width:100%;height:auto;border:0;" />
             </a>
+          </td></tr>
+          <tr><td style="padding:20px 8px 0;">
+            <p style="font-family:Arial,sans-serif;font-size:15px;line-height:1.7;color:#f5f0e8;margin:0;text-align:center;">
+              Chef-made meals, zero cooking required. Fresh ingredients, real flavour,
+              ready in just 2&ndash;3 minutes &mdash; all from &pound;4.80 per meal.
+            </p>
           </td></tr>
           <tr><td align="center" style="padding:24px 8px 8px;">
             <a href="${siteUrl}/menu" style="font-family:Arial,sans-serif;font-size:15px;font-weight:700;color:#c9a84c;">Browse the menu &rarr;</a>
