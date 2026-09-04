@@ -2238,6 +2238,32 @@ export default function AdminDashboard() {
       .sort((a, b) => b.qty - a.qty)
   }, [expandedTallyKey, filteredOrders])
 
+  // Box sizing for nationwide deliveries only (Stoke goes out in bags, not
+  // boxes) - small holds up to 6 meals, medium 7-10, large 11+. Counts how
+  // many of each size are needed for whichever delivery date is selected.
+  const boxCountsForKey = useMemo(() => {
+    if (!expandedTallyKey) return { small: 0, medium: 0, large: 0 }
+    const counts = { small: 0, medium: 0, large: 0 }
+    for (const o of filteredOrders) {
+      if (o.cancelled || o.status === 'skipped') continue
+      const week = o.menu_windows?.week_start_date
+        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB')
+        : null
+      const day = dayNameOf(o.delivery_day)
+      const key = `${week}__${day}`
+      if (key !== expandedTallyKey) continue
+      if ((o.ship_postcode || '').trim().toUpperCase().startsWith('ST')) continue
+      const itemCount = (o.items || [])
+        .filter((item) => item.name && item.name !== 'Delivery')
+        .reduce((s, item) => s + (item.qty || 0), 0)
+      if (itemCount <= 0) continue
+      if (itemCount <= 6) counts.small++
+      else if (itemCount <= 10) counts.medium++
+      else counts.large++
+    }
+    return counts
+  }, [expandedTallyKey, filteredOrders])
+
   const [cookSheetRegion, setCookSheetRegion] = useState<'all' | 'stoke' | 'nationwide'>('all')
   const [showCookSheetList, setShowCookSheetList] = useState(true)
 
@@ -4394,6 +4420,15 @@ Bukr / prepcuisines`
                     />
                   )
                 })()}
+
+                {expandedTallyKey && (
+                  <div className="box-count-summary">
+                    <span className="box-count-label">Nationwide boxes needed:</span>
+                    <span className="box-count-item">Small (≤6): <strong>{boxCountsForKey.small}</strong></span>
+                    <span className="box-count-item">Medium (7–10): <strong>{boxCountsForKey.medium}</strong></span>
+                    <span className="box-count-item">Large (11+): <strong>{boxCountsForKey.large}</strong></span>
+                  </div>
+                )}
 
                 {expandedTallyKey && (
                   <div className="cook-sheet-panel">
@@ -8421,6 +8456,28 @@ function Styles() {
         border-radius: 10px;
         padding: 18px 20px;
         margin-bottom: 22px;
+      }
+      .box-count-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        background: var(--pc-gold-light, #e8d5b0);
+        border-radius: 10px;
+        padding: 14px 20px;
+        margin-bottom: 22px;
+        font-size: 14px;
+      }
+      .box-count-label {
+        font-weight: 700;
+        color: var(--pc-green, #2d3510);
+      }
+      .box-count-item {
+        color: var(--pc-green-mid, #3a4516);
+      }
+      .box-count-item strong {
+        font-size: 16px;
+        color: var(--pc-green, #2d3510);
       }
       .cook-sheet-title {
         font-family: var(--font-playfair), serif;
