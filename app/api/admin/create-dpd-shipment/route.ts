@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   const { data: order, error } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, delivery_day, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id, dpd_consignment_number, menu_windows(delivery_day, week_start_date)'
+      'id, delivery_day, items, ship_full_name, ship_phone, ship_email, ship_house_number, ship_street, ship_postcode, delivery_instructions, dpd_shipment_id, dpd_consignment_number, menu_windows(delivery_day, week_start_date)'
     )
     .eq('id', orderId)
     .maybeSingle()
@@ -143,6 +143,8 @@ export async function POST(req: NextRequest) {
           ? order.ship_phone.replace(/[^\d+]/g, '').slice(0, 15)
           : undefined,
       },
+      deliveryEmail: order.ship_email || undefined,
+      deliveryInstructions: order.delivery_instructions || undefined,
       shippingRef1: order.id.slice(0, 25),
     },
     'live'

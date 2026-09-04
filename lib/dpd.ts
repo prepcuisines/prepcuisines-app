@@ -194,6 +194,7 @@ type CreateDomesticShipmentInput = {
   deliveryContact?: DpdContactDetails
   deliveryEmail?: string
   deliveryMobile?: string
+  deliveryInstructions?: string
   shippingRef1?: string // used for our own order ID for reconciliation
 }
 
@@ -244,6 +245,9 @@ export async function createDomesticShipment(
       totalWeight: input.totalWeight,
       networkCode: input.networkCode,
       shippingRef1: input.shippingRef1,
+      deliveryInstructions: input.deliveryInstructions
+        ? input.deliveryInstructions.slice(0, 250)
+        : undefined,
       collectionDetails: {
         address: input.collectionAddress,
         contactDetails: input.collectionContact,
