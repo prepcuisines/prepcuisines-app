@@ -195,6 +195,32 @@ export async function PATCH(req: NextRequest) {
     if (!target) {
       return NextResponse.json({ error: 'That delivery date no longer exists' }, { status: 400 })
     }
+
+    const { data: currentOrder } = await supabase
+      .from('customer_window_orders')
+      .select('customer_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (currentOrder) {
+      const { data: existing } = await supabase
+        .from('customer_window_orders')
+        .select('id, status')
+        .eq('customer_id', currentOrder.customer_id)
+        .eq('menu_window_id', target.id)
+        .neq('cancelled', true)
+        .maybeSingle()
+
+      if (existing) {
+        return NextResponse.json(
+          {
+            error: `This customer already has an order for ${target.delivery_day} (status: ${existing.status}) - can't move into a day they're already ordering. Cancel or merge that one first if this move is intentional.`,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
     const { error } = await supabase
       .from('customer_window_orders')
       .update({ menu_window_id: target.id, delivery_day: target.delivery_day })
