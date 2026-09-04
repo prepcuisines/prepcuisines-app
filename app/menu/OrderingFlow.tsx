@@ -175,6 +175,7 @@ function DishCard({
         ) : (
           <div className="pc-meal-img-placeholder">prepcuisines</div>
         )}
+        <span className="pc-meal-price-badge">£{Number(item.price).toFixed(2)}</span>
       </div>
       <div className="pc-meal-body">
         <h3 className="pc-meal-name">{item.name}</h3>
