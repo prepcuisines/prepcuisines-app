@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createDomesticShipment } from '@/lib/dpd'
 
 function isAuthorized(req: NextRequest) {
-  // TEMP: disabled for one sandbox verification test - restoring after.
-  return true
+  const session = req.cookies.get('pc_admin_session')?.value
+  return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
 const COLLECTION_ADDRESS = {
