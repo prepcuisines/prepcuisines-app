@@ -301,6 +301,80 @@ export async function PATCH(req: NextRequest) {
     })
   }
 
+  // One deliberate action to settle a price difference after editing items -
+  // takes a single signed amount and does exactly ONE Stripe operation:
+  // charges more if positive, refunds if negative. Never both. This is what
+  // replaces doing a manual full refund followed by a fresh full charge,
+  // which is confusing for the customer (multiple payment notifications for
+  // what's really just one net adjustment) and needlessly moves more money
+  // than necessary.
+  if (action === 'settle_difference') {
+    const { amount } = payload // signed, in pounds: positive = charge more, negative = refund
+    if (amount === undefined || amount === null || amount === 0) {
+      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
+    }
+
+    const { data: order } = await supabase
+      .from('customer_window_orders')
+      .select('customer_id, stripe_payment_intent_id, refunded_amount')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!order?.customer_id) {
+      return NextResponse.json({ error: 'This order has no identified customer' }, { status: 400 })
+    }
+
+    if (amount > 0) {
+      const { data: profile } = await supabase
+        .from('customer_profiles')
+        .select('stripe_customer_id, stripe_payment_method_id')
+        .eq('id', order.customer_id)
+        .maybeSingle()
+
+      if (!profile?.stripe_customer_id || !profile?.stripe_payment_method_id) {
+        return NextResponse.json({ error: 'No saved card on file for this customer' }, { status: 400 })
+      }
+
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(amount * 100),
+          currency: 'gbp',
+          customer: profile.stripe_customer_id,
+          payment_method: profile.stripe_payment_method_id,
+          off_session: true,
+          confirm: true,
+          description: `prepcuisines admin order edit — additional ${amount.toFixed(2)} GBP`,
+          metadata: { order_id: id, kind: 'admin_settle_difference_charge' },
+        })
+        return NextResponse.json({ success: true, direction: 'charged', amount, paymentIntentId: paymentIntent.id })
+      } catch (err: any) {
+        return NextResponse.json({ error: err.message || 'Charge failed — card may have been declined' }, { status: 402 })
+      }
+    } else {
+      const refundAmount = -amount
+      if (!order.stripe_payment_intent_id) {
+        return NextResponse.json(
+          { error: 'This order has no payment on record to refund against' },
+          { status: 400 }
+        )
+      }
+      try {
+        const refund = await stripe.refunds.create({
+          payment_intent: order.stripe_payment_intent_id,
+          amount: Math.round(refundAmount * 100),
+          metadata: { order_id: id, kind: 'admin_settle_difference_refund' },
+        })
+        await supabase
+          .from('customer_window_orders')
+          .update({ refunded_amount: (order.refunded_amount || 0) + refundAmount })
+          .eq('id', id)
+        return NextResponse.json({ success: true, direction: 'refunded', amount: refundAmount, refundId: refund.id })
+      } catch (err: any) {
+        return NextResponse.json({ error: err.message || 'Refund failed' }, { status: 400 })
+      }
+    }
+  }
+
   if (action === 'charge_additional') {
     const { amount } = payload // in pounds
     if (!amount || amount <= 0) {
