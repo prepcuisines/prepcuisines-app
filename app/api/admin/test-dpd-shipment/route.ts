@@ -14,10 +14,11 @@ const COLLECTION_ADDRESS = {
   organisation: 'prepcuisines',
 }
 
-// Sandbox-only test: confirms DPD's API actually accepts the new
-// deliveryInstructions/deliveryEmail fields without error, before trusting
-// that the fix to create-dpd-shipment genuinely works end to end. Never
-// hits 'live' — this must never create a real shipment.
+// LIVE test: confirms DPD's real API actually accepts and stores the new
+// deliveryInstructions/deliveryEmail fields. Uses the business's own
+// address as BOTH collection and delivery, so nothing is sent to a real
+// stranger - this is a genuine live shipment/label though, with whatever
+// DPD's normal per-shipment charge is.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
@@ -32,19 +33,19 @@ export async function GET(req: NextRequest) {
       collectionAddress: COLLECTION_ADDRESS,
       deliveryAddress: {
         countryCode: 'GB',
-        street: '10 Test Street',
+        street: 'Sun Street',
         town: 'Stoke-on-Trent',
         postcode: 'ST1 4JR',
       },
       deliveryContact: {
-        contactName: 'Test Customer',
+        contactName: 'PrepCuisines Test Shipment',
         telephone: '07700900000',
       },
-      deliveryEmail: 'test@example.com',
-      deliveryInstructions: 'TEST: please leave with neighbour at number 12, safe place behind bins',
-      shippingRef1: 'test-instructions-field',
+      deliveryEmail: 'prepcuisines@gmail.com',
+      deliveryInstructions: 'TEST SHIPMENT - please leave in the porch, this is a live field verification test only',
+      shippingRef1: 'live-instructions-field-test',
     },
-    'sandbox'
+    'live'
   )
 
   return NextResponse.json(result)
