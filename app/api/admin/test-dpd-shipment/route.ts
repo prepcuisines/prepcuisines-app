@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         telephone: '07700900000',
       },
       deliveryEmail: 'prepcuisines@gmail.com',
-      deliveryInstructions: 'TEST SHIPMENT - please leave in the porch, this is a live field verification test only',
+      deliveryInstructions: 'TEST - leave in porch, verification only',
       shippingRef1: 'live-instructions-field-test',
     },
     'live'
