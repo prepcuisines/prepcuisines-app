@@ -43,7 +43,6 @@ export async function GET(req: NextRequest) {
       },
       deliveryEmail: 'prepcuisines@gmail.com',
       deliveryInstructions: 'hi',
-      shippingRef1: 'test123',
     },
     'live'
   )
