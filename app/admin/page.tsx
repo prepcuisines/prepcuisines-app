@@ -2330,7 +2330,9 @@ export default function AdminDashboard() {
           `<tr><td style="padding:10px 0;font-size:18px;border-bottom:1px solid #ddd;">${i.name}</td><td style="padding:10px 0;font-size:20px;font-weight:800;border-bottom:1px solid #ddd;text-align:right;color:#1a2e1a;white-space:nowrap;">x ${i.qty}</td></tr>`
       )
       .join('')
-    const totalItems = (o.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+    const totalItems = (o.items || [])
+      .filter((i) => i.name && i.name !== 'Delivery')
+      .reduce((s, i) => s + (i.qty || 0), 0)
     const noteHtml = o.delivery_instructions
       ? `<div style="margin-top:12px;padding:12px 16px;background:#fff8e1;border-left:4px solid #f39c12;font-size:16px;"><strong>NOTE:</strong> ${o.delivery_instructions}</div>`
       : ''
