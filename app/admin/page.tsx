@@ -150,11 +150,12 @@ const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 function nextDateForWeekday(name: string): string {
   const targetIdx = WEEKDAY_NAMES.indexOf(name)
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
   const diff = (targetIdx - today.getDay() + 7) % 7
-  const target = new Date(today)
-  target.setDate(today.getDate() + diff)
-  return target.toISOString().slice(0, 10)
+  const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diff)
+  const y = target.getFullYear()
+  const m = String(target.getMonth() + 1).padStart(2, '0')
+  const d = String(target.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function getGreeting() {
