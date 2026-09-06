@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
         labelCount: result.labels.length,
         byteLength: firstLabel.length,
         mediaBox: mediaBoxMatch ? mediaBoxMatch[1] : 'not found (may not be a raw PDF)',
+        first200Chars: decoded.slice(0, 200),
       }
     } else {
       results[printerType] = { success: false, error: result.error }
