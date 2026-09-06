@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getShipmentLabels } from '@/lib/dpd'
+import { gunzipSync, inflateSync, inflateRawSync } from 'zlib'
 
 function isAuthorized(req: NextRequest) {
   // TEMP: disabled for one read-only label format test - restoring after.
@@ -22,15 +23,31 @@ export async function GET(req: NextRequest) {
     const result = await getShipmentLabels(shipmentId, 'live', printerType)
     if (result.success) {
       const firstLabel = result.labels[0] || ''
-      // First few bytes of a decoded PDF reveal the page size via /MediaBox
-      const decoded = Buffer.from(firstLabel, 'base64').toString('latin1')
+      const rawBuf = Buffer.from(firstLabel, 'base64')
+      let decoded = rawBuf.toString('latin1')
+      let decompressMethod = 'none'
+      for (const [name, fn] of [
+        ['gunzip', gunzipSync],
+        ['inflate', inflateSync],
+        ['inflateRaw', inflateRawSync],
+      ] as const) {
+        try {
+          const out = fn(rawBuf).toString('latin1')
+          decoded = out
+          decompressMethod = name
+          break
+        } catch {
+          // not this format, try next
+        }
+      }
       const mediaBoxMatch = decoded.match(/\/MediaBox\s*\[([^\]]+)\]/)
       results[printerType] = {
         success: true,
         labelCount: result.labels.length,
         byteLength: firstLabel.length,
-        mediaBox: mediaBoxMatch ? mediaBoxMatch[1] : 'not found (may not be a raw PDF)',
-        first200Chars: decoded.slice(0, 200),
+        decompressMethod,
+        mediaBox: mediaBoxMatch ? mediaBoxMatch[1] : 'not found',
+        first100Chars: decoded.slice(0, 100),
       }
     } else {
       results[printerType] = { success: false, error: result.error }
