@@ -145,6 +145,18 @@ function money(n: number | null | undefined) {
   return `£${(n || 0).toFixed(2)}`
 }
 
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function nextDateForWeekday(name: string): string {
+  const targetIdx = WEEKDAY_NAMES.indexOf(name)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diff = (targetIdx - today.getDay() + 7) % 7
+  const target = new Date(today)
+  target.setDate(today.getDate() + diff)
+  return target.toISOString().slice(0, 10)
+}
+
 function getGreeting() {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
@@ -3420,10 +3432,21 @@ Bukr / prepcuisines`
                 <span className="pc-home-tile-value">{money(overview.range?.avgBasket || 0)}</span>
                 <span className="pc-home-tile-label">Avg. basket</span>
               </div>
-              <div className="pc-home-tile">
+              <button
+                className="pc-home-tile pc-home-tile-action"
+                onClick={() => {
+                  const r = homeRangeDates()
+                  setSegment('all')
+                  setCustomerDateField('signup')
+                  setCustomerDateFrom(r.from)
+                  setCustomerDateTo(r.to)
+                  setCustomerSingleDate('')
+                  setTab('customers')
+                }}
+              >
                 <span className="pc-home-tile-value">{overview.range?.newCustomers ?? 0}</span>
-                <span className="pc-home-tile-label">New customers</span>
-              </div>
+                <span className="pc-home-tile-label">New customers →</span>
+              </button>
               <button className="pc-home-tile pc-home-tile-action" onClick={() => setTab('ops-hub')}>
                 <span className="pc-home-tile-value">{topAlertsCount}</span>
                 <span className="pc-home-tile-label">Failed payments →</span>
@@ -3431,8 +3454,32 @@ Bukr / prepcuisines`
             </div>
 
             <div className="stat-grid">
-              <StatCard label="Total customers" value={overview.totalCustomers} />
-              <StatCard label="Active subscriptions" value={overview.activeSubscriptions} />
+              <button
+                className="stat-card-link"
+                onClick={() => {
+                  setSegment('all')
+                  setCustomerDateField('signup')
+                  setCustomerDateFrom('')
+                  setCustomerDateTo('')
+                  setCustomerSingleDate('')
+                  setTab('customers')
+                }}
+              >
+                <StatCard label="Total customers →" value={overview.totalCustomers} />
+              </button>
+              <button
+                className="stat-card-link"
+                onClick={() => {
+                  setSegment('active')
+                  setCustomerDateField('signup')
+                  setCustomerDateFrom('')
+                  setCustomerDateTo('')
+                  setCustomerSingleDate('')
+                  setTab('customers')
+                }}
+              >
+                <StatCard label="Active subscriptions →" value={overview.activeSubscriptions} />
+              </button>
               <StatCard
                 label="Avg. customer LTV"
                 value={
@@ -3507,6 +3554,42 @@ Bukr / prepcuisines`
                     {label}
                   </button>
                 ))}
+                <button
+                  className={`segment-pill ${
+                    customerDateField === 'delivery_day' &&
+                    customerSingleDate &&
+                    new Date(`${customerSingleDate}T00:00:00`).toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                    }) === 'Sunday'
+                      ? 'segment-pill-active'
+                      : ''
+                  }`}
+                  onClick={() => {
+                    setSegment('active')
+                    setCustomerDateField('delivery_day')
+                    setCustomerSingleDate(nextDateForWeekday('Sunday'))
+                  }}
+                >
+                  Sunday subscribers
+                </button>
+                <button
+                  className={`segment-pill ${
+                    customerDateField === 'delivery_day' &&
+                    customerSingleDate &&
+                    new Date(`${customerSingleDate}T00:00:00`).toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                    }) === 'Wednesday'
+                      ? 'segment-pill-active'
+                      : ''
+                  }`}
+                  onClick={() => {
+                    setSegment('active')
+                    setCustomerDateField('delivery_day')
+                    setCustomerSingleDate(nextDateForWeekday('Wednesday'))
+                  }}
+                >
+                  Wednesday subscribers
+                </button>
                 <select
                   className="text-input"
                   style={{ width: 'auto' }}
@@ -8281,6 +8364,21 @@ function Styles() {
         grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         gap: 14px;
         margin-bottom: 32px;
+      }
+      .stat-card-link {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+        font: inherit;
+        color: inherit;
+      }
+      .stat-card-link:hover .stat-card {
+        border-color: var(--pc-gold, #c9a84c);
       }
       .stat-card {
         background: var(--pc-white, #faf8f4);
