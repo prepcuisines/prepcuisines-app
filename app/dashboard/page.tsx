@@ -740,9 +740,9 @@ export default function DashboardPage() {
                 </div>
                 <div className="pc-cancel-offer-card">
                   <strong>Is it the price?</strong>
-                  <p>Stay subscribed and get 60% off your next order.</p>
+                  <p>Stay subscribed and get 40% off your next order.</p>
                   <button className="pc-checkout-btn secondary" onClick={acceptDiscountOffer} disabled={actionLoading}>
-                    Get 60% off my next order
+                    Get 40% off my next order
                   </button>
                 </div>
                 <button
