@@ -271,7 +271,7 @@ export default function DashboardPage() {
     setActionLoading(false)
   }
 
-  const [cancelStep, setCancelStep] = useState<'closed' | 'reason' | 'offer'>('closed')
+  const [cancelStep, setCancelStep] = useState<'closed' | 'reason' | 'pause' | 'discount'>('closed')
   const [cancelReason, setCancelReason] = useState('')
 
   const openCancelFlow = () => {
@@ -713,7 +713,7 @@ export default function DashboardPage() {
                 <button
                   className="pc-checkout-btn primary"
                   disabled={!cancelReason}
-                  onClick={() => setCancelStep('offer')}
+                  onClick={() => setCancelStep('pause')}
                 >
                   Continue
                 </button>
@@ -727,29 +727,35 @@ export default function DashboardPage() {
               </>
             )}
 
-            {cancelStep === 'offer' && (
+            {cancelStep === 'pause' && (
               <>
-                <h3>Before you go — two options</h3>
-                <p>You can always cancel outright below, but here's what else you can do:</p>
-                <div className="pc-cancel-offer-card">
-                  <strong>Just need a break?</strong>
-                  <p>Skip your next order instead — your account and preferences stay exactly as they are.</p>
-                  <button className="pc-checkout-btn secondary" onClick={acceptPauseOffer} disabled={actionLoading}>
-                    Skip my next order
-                  </button>
-                </div>
-                <div className="pc-cancel-offer-card">
-                  <strong>Is it the price?</strong>
-                  <p>Stay subscribed and get 40% off your next order.</p>
-                  <button className="pc-checkout-btn secondary" onClick={acceptDiscountOffer} disabled={actionLoading}>
-                    Get 40% off my next order
-                  </button>
-                </div>
+                <h3>Just need a break?</h3>
+                <p>Skip your next order instead — your account and preferences stay exactly as they are, and you can come back whenever you're ready.</p>
+                <button className="pc-checkout-btn primary" onClick={acceptPauseOffer} disabled={actionLoading}>
+                  Skip my next order
+                </button>
+                <button
+                  className="pc-switch-mode-link"
+                  onClick={() => setCancelStep('discount')}
+                  style={{ marginTop: 12 }}
+                >
+                  No thanks, continue to cancel
+                </button>
+              </>
+            )}
+
+            {cancelStep === 'discount' && (
+              <>
+                <h3>Before you go — one more thing</h3>
+                <p>Stay subscribed and get 40% off your next order.</p>
+                <button className="pc-checkout-btn primary" onClick={acceptDiscountOffer} disabled={actionLoading}>
+                  Get 40% off my next order
+                </button>
                 <button
                   className="pc-switch-mode-link pc-dashboard-cancel"
                   onClick={cancelSubscription}
                   disabled={actionLoading}
-                  style={{ marginTop: 16 }}
+                  style={{ marginTop: 12 }}
                 >
                   No thanks, cancel my subscription
                 </button>
