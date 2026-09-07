@@ -37,6 +37,7 @@ type Customer = {
   postcode: string | null
   subscription_status: string | null
   subscription_cancelled_at: string | null
+  cancellation_reason: string | null
   effectiveStatus?: string | null
   avgDaysBetweenOrders?: number | null
   orders_completed: number | null
@@ -2277,6 +2278,16 @@ export default function AdminDashboard() {
     return counts
   }, [expandedTallyKey, filteredOrders])
 
+  const cancellationReasonTally = useMemo(() => {
+    const tally: Record<string, number> = {}
+    for (const c of customers) {
+      if ((c.effectiveStatus ?? c.subscription_status) !== 'cancelled') continue
+      if (!c.cancellation_reason) continue
+      tally[c.cancellation_reason] = (tally[c.cancellation_reason] || 0) + 1
+    }
+    return Object.entries(tally).sort((a, b) => b[1] - a[1])
+  }, [customers])
+
   const [cookSheetRegion, setCookSheetRegion] = useState<'all' | 'stoke' | 'nationwide'>('all')
   const [showCookSheetList, setShowCookSheetList] = useState(true)
 
@@ -3536,6 +3547,21 @@ Bukr / prepcuisines`
               </button>
             </div>
 
+            {segment === 'cancelled' && cancellationReasonTally.length > 0 && (
+              <div className="box-count-summary" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span className="box-count-label" style={{ marginBottom: 6 }}>
+                  Why people are cancelling:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+                  {cancellationReasonTally.map(([reason, count]) => (
+                    <span className="box-count-item" key={reason}>
+                      {reason}: <strong>{count}</strong>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="toolbar">
               <div className="segment-pills" role="tablist" aria-label="Customer segment">
                 {(
@@ -3742,6 +3768,10 @@ Bukr / prepcuisines`
                                 year: 'numeric',
                               })}
                             </span>
+                          )}
+                        {(c.effectiveStatus ?? c.subscription_status) === 'cancelled' &&
+                          c.cancellation_reason && (
+                            <span className="pill pill-muted">{c.cancellation_reason}</span>
                           )}
                         {c.skip_next_order &&
                           (c.effectiveStatus ?? c.subscription_status) === 'active' && (
@@ -6325,6 +6355,13 @@ Bukr / prepcuisines`
                           month: 'short',
                           year: 'numeric',
                         })}
+                      </span>
+                    )}
+                  {(viewCustomerDetail.effectiveStatus ?? viewCustomerDetail.subscription_status) ===
+                    'cancelled' &&
+                    viewCustomerDetail.cancellation_reason && (
+                      <span className="pill pill-muted" style={{ marginLeft: 8 }}>
+                        Reason: {viewCustomerDetail.cancellation_reason}
                       </span>
                     )}
                   {viewCustomerDetail.skip_next_order &&
