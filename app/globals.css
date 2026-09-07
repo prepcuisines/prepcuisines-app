@@ -306,6 +306,19 @@ html, body { margin: 0; padding: 0; }
 .pc-checkout-card.featured .pc-checkout-features li::before { color: var(--pc-gold); }
 
 .pc-checkout-btn { width: 100%; padding: 15px; border-radius: 100px; border: none; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.25s ease; }
+
+.pc-cancel-modal-overlay { position: fixed; inset: 0; background: rgba(45,53,16,0.55); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+.pc-cancel-modal { background: var(--pc-cream, #f5f2ec); border-radius: 16px; padding: 32px 28px; max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto; }
+.pc-cancel-modal h3 { font-family: var(--font-playfair), serif; font-size: 22px; color: var(--pc-green); margin: 0 0 8px; }
+.pc-cancel-modal p { font-size: 14px; color: var(--pc-green); opacity: 0.75; margin: 0 0 18px; line-height: 1.5; }
+.pc-cancel-reason-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.pc-cancel-reason-btn { text-align: left; padding: 13px 16px; border-radius: 10px; border: 1.5px solid rgba(45,53,16,0.15); background: var(--pc-white, #fff); color: var(--pc-green); font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+.pc-cancel-reason-btn:hover { border-color: var(--pc-gold); }
+.pc-cancel-reason-btn-active { border-color: var(--pc-gold); background: var(--pc-gold-light, #e8d5b0); font-weight: 700; }
+.pc-cancel-offer-card { background: var(--pc-white, #fff); border: 1.5px solid rgba(45,53,16,0.12); border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+.pc-cancel-offer-card strong { display: block; font-size: 15px; color: var(--pc-green); margin-bottom: 4px; }
+.pc-cancel-offer-card p { margin-bottom: 12px; }
+.pc-cancel-offer-card .pc-checkout-btn { width: auto; padding: 10px 20px; }
 .pc-checkout-btn.primary { background: var(--pc-gold); color: var(--pc-green); }
 .pc-checkout-btn.primary:hover { background: var(--pc-gold-light); transform: translateY(-2px); }
 .pc-checkout-btn.secondary { background: transparent; border: 1.5px solid rgba(45,53,16,0.2); color: var(--pc-green); }

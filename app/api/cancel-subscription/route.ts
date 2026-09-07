@@ -13,7 +13,7 @@ const supabase = createClient(
 // orders they still genuinely have left) - the same thing admin-side
 // cancellation now does too.
 export async function POST(req: NextRequest) {
-  const { userId } = await req.json()
+  const { userId, reason } = await req.json()
   if (!userId) {
     return NextResponse.json({ error: 'Not logged in' }, { status: 401 })
   }
@@ -26,7 +26,11 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase
     .from('customer_profiles')
-    .update({ subscription_status: 'cancelled', subscription_cancelled_at: new Date().toISOString() })
+    .update({
+      subscription_status: 'cancelled',
+      subscription_cancelled_at: new Date().toISOString(),
+      ...(reason ? { cancellation_reason: reason } : {}),
+    })
     .eq('id', userId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -271,13 +271,59 @@ export default function DashboardPage() {
     setActionLoading(false)
   }
 
+  const [cancelStep, setCancelStep] = useState<'closed' | 'reason' | 'offer'>('closed')
+  const [cancelReason, setCancelReason] = useState('')
+
+  const openCancelFlow = () => {
+    setCancelReason('')
+    setCancelStep('reason')
+  }
+
+  const acceptPauseOffer = async () => {
+    if (!profile) return
+    setActionLoading(true)
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setActionLoading(false)
+      return
+    }
+    const { error: updateError } = await supabase
+      .from('customer_profiles')
+      .update({ skip_next_order: true })
+      .eq('id', user.id)
+    if (!updateError) {
+      setProfile({ ...profile, skip_next_order: true })
+      setCancelStep('closed')
+    }
+    setActionLoading(false)
+  }
+
+  const acceptDiscountOffer = async () => {
+    if (!profile) return
+    setActionLoading(true)
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setActionLoading(false)
+      return
+    }
+    const { error: updateError } = await supabase
+      .from('customer_profiles')
+      .update({ winback_discount_pending: true })
+      .eq('id', user.id)
+    if (!updateError) {
+      setCancelStep('closed')
+    }
+    setActionLoading(false)
+  }
+
   const cancelSubscription = async () => {
     if (!profile) return
-    const confirmed = window.confirm(
-      'Are you sure you want to cancel your subscription? You can always sign up again later.'
-    )
-    if (!confirmed) return
-
     setActionLoading(true)
     const supabase = createClient()
     const {
@@ -288,11 +334,12 @@ export default function DashboardPage() {
     const res = await fetch('/api/cancel-subscription', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id }),
+      body: JSON.stringify({ userId: user.id, reason: cancelReason || undefined }),
     })
 
     if (res.ok) {
       setProfile({ ...profile, subscription_status: 'cancelled' })
+      setCancelStep('closed')
     }
     setActionLoading(false)
   }
@@ -618,7 +665,7 @@ export default function DashboardPage() {
               </button>
               <button
                 className="pc-switch-mode-link pc-dashboard-cancel"
-                onClick={cancelSubscription}
+                onClick={openCancelFlow}
                 disabled={actionLoading}
               >
                 Cancel Subscription
@@ -638,6 +685,79 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {cancelStep !== 'closed' && (
+        <div className="pc-cancel-modal-overlay" onClick={() => setCancelStep('closed')}>
+          <div className="pc-cancel-modal" onClick={(e) => e.stopPropagation()}>
+            {cancelStep === 'reason' && (
+              <>
+                <h3>Sorry to see you thinking of leaving</h3>
+                <p>Mind telling us why? It helps us do better.</p>
+                <div className="pc-cancel-reason-list">
+                  {[
+                    'Too expensive',
+                    'Just need a break',
+                    'Not enough variety',
+                    'Moving away',
+                    'Other',
+                  ].map((r) => (
+                    <button
+                      key={r}
+                      className={`pc-cancel-reason-btn ${cancelReason === r ? 'pc-cancel-reason-btn-active' : ''}`}
+                      onClick={() => setCancelReason(r)}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="pc-checkout-btn primary"
+                  disabled={!cancelReason}
+                  onClick={() => setCancelStep('offer')}
+                >
+                  Continue
+                </button>
+                <button
+                  className="pc-switch-mode-link"
+                  onClick={() => setCancelStep('closed')}
+                  style={{ marginTop: 12 }}
+                >
+                  Never mind, stay
+                </button>
+              </>
+            )}
+
+            {cancelStep === 'offer' && (
+              <>
+                <h3>Before you go — two options</h3>
+                <p>You can always cancel outright below, but here's what else you can do:</p>
+                <div className="pc-cancel-offer-card">
+                  <strong>Just need a break?</strong>
+                  <p>Skip your next order instead — your account and preferences stay exactly as they are.</p>
+                  <button className="pc-checkout-btn secondary" onClick={acceptPauseOffer} disabled={actionLoading}>
+                    Skip my next order
+                  </button>
+                </div>
+                <div className="pc-cancel-offer-card">
+                  <strong>Is it the price?</strong>
+                  <p>Stay subscribed and get 60% off your next order.</p>
+                  <button className="pc-checkout-btn secondary" onClick={acceptDiscountOffer} disabled={actionLoading}>
+                    Get 60% off my next order
+                  </button>
+                </div>
+                <button
+                  className="pc-switch-mode-link pc-dashboard-cancel"
+                  onClick={cancelSubscription}
+                  disabled={actionLoading}
+                  style={{ marginTop: 16 }}
+                >
+                  No thanks, cancel my subscription
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }
