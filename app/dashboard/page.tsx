@@ -77,6 +77,7 @@ type Profile = {
   standing_skip_breakfast: boolean
   standing_skip_dessert: boolean
   stripe_payment_method_id: string | null
+  retention_discount_last_claimed_at: string | null
 }
 
 export default function DashboardPage() {
@@ -109,7 +110,7 @@ export default function DashboardPage() {
     const { data } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id'
+        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id, retention_discount_last_claimed_at'
       )
       .eq('id', user.id)
       .single()
@@ -301,6 +302,13 @@ export default function DashboardPage() {
     setActionLoading(false)
   }
 
+  const discountEligible = (() => {
+    if (!profile?.retention_discount_last_claimed_at) return true
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    return new Date(profile.retention_discount_last_claimed_at) < sixMonthsAgo
+  })()
+
   const acceptDiscountOffer = async () => {
     if (!profile) return
     setActionLoading(true)
@@ -312,11 +320,13 @@ export default function DashboardPage() {
       setActionLoading(false)
       return
     }
+    const now = new Date().toISOString()
     const { error: updateError } = await supabase
       .from('customer_profiles')
-      .update({ winback_discount_pending: true })
+      .update({ winback_discount_pending: true, retention_discount_last_claimed_at: now })
       .eq('id', user.id)
     if (!updateError) {
+      setProfile({ ...profile, retention_discount_last_claimed_at: now })
       setCancelStep('closed')
     }
     setActionLoading(false)
@@ -746,18 +756,27 @@ export default function DashboardPage() {
 
             {cancelStep === 'discount' && (
               <>
-                <h3>Before you go — one more thing</h3>
-                <p>Stay subscribed and get 40% off your next order.</p>
-                <button className="pc-checkout-btn primary" onClick={acceptDiscountOffer} disabled={actionLoading}>
-                  Get 40% off my next order
-                </button>
+                {discountEligible ? (
+                  <>
+                    <h3>Before you go — one more thing</h3>
+                    <p>Stay subscribed and get 40% off your next order.</p>
+                    <button className="pc-checkout-btn primary" onClick={acceptDiscountOffer} disabled={actionLoading}>
+                      Get 40% off my next order
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3>Before you go</h3>
+                    <p>Sorry to see you go — hope to see you again soon.</p>
+                  </>
+                )}
                 <button
                   className="pc-switch-mode-link pc-dashboard-cancel"
                   onClick={cancelSubscription}
                   disabled={actionLoading}
                   style={{ marginTop: 12 }}
                 >
-                  No thanks, cancel my subscription
+                  {discountEligible ? 'No thanks, cancel my subscription' : 'Cancel my subscription'}
                 </button>
               </>
             )}
