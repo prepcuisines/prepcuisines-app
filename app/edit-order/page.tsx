@@ -109,7 +109,7 @@ function EditOrderInner() {
       }
     }
     const r = full > 0 ? paid / full : 1
-    return r < 0.9 ? 0.8 : 1
+    return r < 0.7 ? 0.6 : r < 0.9 ? 0.8 : 1
   }, [order, menu])
 
   const isStoke = (order?.ship_postcode || '').trim().toUpperCase().replace(/\s/g, '').startsWith('ST')
