@@ -775,7 +775,19 @@ export default function DashboardPage() {
                 ) : (
                   <>
                     <h3>Before you go</h3>
-                    <p>Sorry to see you go — hope to see you again soon.</p>
+                    <p>
+                      You've already used this discount recently — it'll be available again from{' '}
+                      {(() => {
+                        const nextEligible = new Date(profile.retention_discount_last_claimed_at!)
+                        nextEligible.setMonth(nextEligible.getMonth() + 6)
+                        return nextEligible.toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })
+                      })()}
+                      .
+                    </p>
                   </>
                 )}
                 <button
