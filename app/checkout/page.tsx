@@ -40,12 +40,16 @@ export default function CheckoutPage() {
   const [makePlanSizePermanent, setMakePlanSizePermanent] = useState(false)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [subscriberOrdersCompleted, setSubscriberOrdersCompleted] = useState(0)
+  const [subscriberWinbackPending, setSubscriberWinbackPending] = useState(false)
+  const [subscriberBonusOrders, setSubscriberBonusOrders] = useState(0)
   const [subscriberPostcode, setSubscriberPostcode] = useState('')
   const [deliveryInstructions, setDeliveryInstructions] = useState('')
   const [makeInstructionsPermanent, setMakeInstructionsPermanent] = useState(false)
 
   const [returningUserId, setReturningUserId] = useState<string | null>(null)
   const [returningOrdersCompleted, setReturningOrdersCompleted] = useState(0)
+  const [returningWinbackPending, setReturningWinbackPending] = useState(false)
+  const [returningBonusOrders, setReturningBonusOrders] = useState(0)
   const [returningDeliveriesPerWeek, setReturningDeliveriesPerWeek] = useState<number | null>(null)
   const [unfinishedSignupUserId, setUnfinishedSignupUserId] = useState<string | null>(null)
   const [unfinishedSignupEmail, setUnfinishedSignupEmail] = useState<string | null>(null)
@@ -56,7 +60,7 @@ export default function CheckoutPage() {
       if (!data.user) return
       const { data: profile } = await supabase
         .from('customer_profiles')
-        .select('email, subscription_status, standing_delivery_day, second_delivery_day, deliveries_per_week, standing_plan_size, orders_completed, postcode, standing_delivery_instructions')
+        .select('email, subscription_status, standing_delivery_day, second_delivery_day, deliveries_per_week, standing_plan_size, orders_completed, postcode, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining')
         .eq('id', data.user.id)
         .single()
       if (!profile) return
@@ -74,6 +78,8 @@ export default function CheckoutPage() {
         setDeliveriesPerWeek(profile.deliveries_per_week)
         setStandingPlanSize(profile.standing_plan_size)
         setSubscriberOrdersCompleted(profile.orders_completed || 0)
+        setSubscriberWinbackPending(!!profile.winback_discount_pending)
+        setSubscriberBonusOrders(profile.bonus_discount_orders_remaining || 0)
         setSubscriberPostcode(profile.postcode || '')
         setDeliveryInstructions(profile.standing_delivery_instructions || '')
         return
@@ -98,6 +104,8 @@ export default function CheckoutPage() {
       if (hasRealHistory) {
         setReturningUserId(data.user.id)
         setReturningOrdersCompleted(profile.orders_completed || 0)
+        setReturningWinbackPending(!!profile.winback_discount_pending)
+        setReturningBonusOrders(profile.bonus_discount_orders_remaining || 0)
         setReturningDeliveriesPerWeek(profile.deliveries_per_week)
       }
     })
@@ -242,6 +250,8 @@ export default function CheckoutPage() {
     if (!returningUserId) return
     setSubscriberUserId(returningUserId)
     setSubscriberOrdersCompleted(returningOrdersCompleted)
+    setSubscriberWinbackPending(returningWinbackPending)
+    setSubscriberBonusOrders(returningBonusOrders)
     setSubscriberPostcode(postcode.trim())
     setNeedsReactivationOnPlace(true)
     setCheckoutError(null)
@@ -348,16 +358,21 @@ export default function CheckoutPage() {
       )
     }
 
-    const isDiscounted = subscriberOrdersCompleted <= 5
-    const rate = isDiscounted ? 0.8 : 1
+    const hasBonusDiscount = subscriberBonusOrders > 0
+    const isDiscounted = subscriberOrdersCompleted <= 5 || hasBonusDiscount
+    const rate = subscriberWinbackPending ? 0.6 : isDiscounted ? 0.8 : 1
     const foodTotal = lineItems.reduce((sum, i) => sum + i.price * i.qty * rate, 0)
     const normalisedPostcode = subscriberPostcode.trim().toUpperCase().replace(/\s/g, '')
     const subDeliveryFee = normalisedPostcode.startsWith('ST') ? 2.99 : 7.95
     const total = foodTotal + subDeliveryFee
     const discountedOrdersRemaining = Math.max(0, 6 - subscriberOrdersCompleted)
-    const tierLabel = isDiscounted
-      ? `Order ${subscriberOrdersCompleted + 1} — 20% off applied (${discountedOrdersRemaining} left at this rate)`
-      : 'Full price — loyalty discount period ended'
+    const tierLabel = subscriberWinbackPending
+      ? '40% off applied — stay-subscribed offer'
+      : hasBonusDiscount
+        ? `20% off applied (${subscriberBonusOrders} bonus order${subscriberBonusOrders === 1 ? '' : 's'} left at this rate)`
+        : isDiscounted
+          ? `Order ${subscriberOrdersCompleted + 1} — 20% off applied (${discountedOrdersRemaining} left at this rate)`
+          : 'Full price — loyalty discount period ended'
 
     return (
       <>
