@@ -305,6 +305,7 @@ html, body { margin: 0; padding: 0; }
 .pc-checkout-card.featured .pc-checkout-features li { color: rgba(245,242,236,0.75); }
 .pc-checkout-card.featured .pc-checkout-features li::before { color: var(--pc-gold); }
 
+.pc-discount-banner { background: var(--pc-gold-light, #e8d5b0); color: var(--pc-green, #1a2e1a); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
 .pc-checkout-btn { width: 100%; padding: 15px; border-radius: 100px; border: none; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.25s ease; }
 
 .pc-cancel-modal-overlay { position: fixed; inset: 0; background: rgba(45,53,16,0.55); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; }

@@ -78,6 +78,7 @@ type Profile = {
   standing_skip_dessert: boolean
   stripe_payment_method_id: string | null
   retention_discount_last_claimed_at: string | null
+  winback_discount_pending: boolean
 }
 
 export default function DashboardPage() {
@@ -110,7 +111,7 @@ export default function DashboardPage() {
     const { data } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id, retention_discount_last_claimed_at'
+        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id, retention_discount_last_claimed_at, winback_discount_pending'
       )
       .eq('id', user.id)
       .single()
@@ -531,6 +532,13 @@ export default function DashboardPage() {
             </h1>
             <p className="pc-mp-subtitle">Here's your subscription at a glance.</p>
           </div>
+
+          {profile.winback_discount_pending && (
+            <div className="pc-discount-banner">
+              You have <strong>40% off</strong> your next order — it'll be applied automatically, whether
+              you order yourself or it's auto-filled.
+            </div>
+          )}
 
           <div className="pc-dashboard-card">
             <div className="pc-dashboard-row">
