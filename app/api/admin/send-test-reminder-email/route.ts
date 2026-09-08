@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
     try {
       await sendFlattenedHeroEmailToCustomer(
         to,
-        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/full_draft12_email.png',
-        'Chef-made meals — 40% off'
+        `${process.env.NEXT_PUBLIC_SITE_URL || ''}/lead-hero-sept.jpg`,
+        'Chef-made meals from £4.80'
       )
       return NextResponse.json({ success: true, sentTo: to, kind })
     } catch (err: any) {
