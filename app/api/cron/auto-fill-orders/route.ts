@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       const { data: subscribers, error: subsError } = await supabase
         .from('customer_profiles')
         .select(
-          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status, winback_discount_pending, standing_breakfast_qty, second_breakfast_qty, standing_dessert_qty, second_dessert_qty, standing_skip_breakfast, standing_skip_dessert'
+          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status, winback_discount_pending, bonus_discount_orders_remaining, standing_breakfast_qty, second_breakfast_qty, standing_dessert_qty, second_dessert_qty, standing_skip_breakfast, standing_skip_dessert'
         )
         .eq('subscription_status', 'active')
         .or(`standing_delivery_day.eq.${window.delivery_day},second_delivery_day.eq.${window.delivery_day}`)
@@ -262,9 +262,14 @@ export async function POST(req: NextRequest) {
         }
 
         const ordersCompleted = sub.orders_completed || 0
+        const hasBonusDiscount = (sub.bonus_discount_orders_remaining || 0) > 0
         // A genuine win-back offer (see sendWinBackEmailToCustomer) beats
         // the normal returning-order tier — one-time, cleared below once used.
-        const discountRate = sub.winback_discount_pending ? 0.6 : ordersCompleted <= 5 ? 0.8 : 1
+        const discountRate = sub.winback_discount_pending
+          ? 0.6
+          : ordersCompleted <= 5 || hasBonusDiscount
+            ? 0.8
+            : 1
 
         const foodTotal = chosen.reduce((sum, item) => sum + item.price * discountRate, 0)
 
@@ -309,6 +314,9 @@ export async function POST(req: NextRequest) {
                 .update({
                   orders_completed: ordersCompleted + 1,
                   ...(sub.winback_discount_pending ? { winback_discount_pending: false } : {}),
+                  ...(ordersCompleted > 5 && hasBonusDiscount
+                    ? { bonus_discount_orders_remaining: (sub.bonus_discount_orders_remaining || 0) - 1 }
+                    : {}),
                 })
                 .eq('id', sub.id)
 

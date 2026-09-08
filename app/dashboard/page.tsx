@@ -79,6 +79,7 @@ type Profile = {
   stripe_payment_method_id: string | null
   retention_discount_last_claimed_at: string | null
   winback_discount_pending: boolean
+  bonus_discount_orders_remaining: number
 }
 
 export default function DashboardPage() {
@@ -111,7 +112,7 @@ export default function DashboardPage() {
     const { data } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id, retention_discount_last_claimed_at, winback_discount_pending'
+        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id, retention_discount_last_claimed_at, winback_discount_pending, bonus_discount_orders_remaining'
       )
       .eq('id', user.id)
       .single()
@@ -310,6 +311,12 @@ export default function DashboardPage() {
     return new Date(profile.retention_discount_last_claimed_at) < sixMonthsAgo
   })()
 
+  // Two different retention offers depending on where they are in their
+  // discount lifecycle: still within the first 5 orders (already getting
+  // 20% off) gets the bigger one-off 40% bump; someone who's used all 5 and
+  // is back to paying full price gets 4 more discounted orders instead.
+  const hasUsedAllInitialDiscountOrders = (profile?.orders_completed || 0) > 5
+
   const acceptDiscountOffer = async () => {
     if (!profile) return
     setActionLoading(true)
@@ -328,6 +335,29 @@ export default function DashboardPage() {
       .eq('id', user.id)
     if (!updateError) {
       setProfile({ ...profile, retention_discount_last_claimed_at: now })
+      setCancelStep('closed')
+    }
+    setActionLoading(false)
+  }
+
+  const acceptBonusDiscountOffer = async () => {
+    if (!profile) return
+    setActionLoading(true)
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setActionLoading(false)
+      return
+    }
+    const now = new Date().toISOString()
+    const { error: updateError } = await supabase
+      .from('customer_profiles')
+      .update({ bonus_discount_orders_remaining: 4, retention_discount_last_claimed_at: now })
+      .eq('id', user.id)
+    if (!updateError) {
+      setProfile({ ...profile, bonus_discount_orders_remaining: 4, retention_discount_last_claimed_at: now })
       setCancelStep('closed')
     }
     setActionLoading(false)
@@ -537,6 +567,13 @@ export default function DashboardPage() {
             <div className="pc-discount-banner">
               You have <strong>40% off</strong> your next order — it'll be applied automatically, whether
               you order yourself or it's auto-filled.
+            </div>
+          )}
+
+          {profile.bonus_discount_orders_remaining > 0 && (
+            <div className="pc-discount-banner">
+              You have <strong>{profile.bonus_discount_orders_remaining} order{profile.bonus_discount_orders_remaining === 1 ? '' : 's'} at 20% off</strong> remaining
+              — applied automatically to your next {profile.bonus_discount_orders_remaining === 1 ? 'order' : `${profile.bonus_discount_orders_remaining} orders`}.
             </div>
           )}
 
@@ -765,13 +802,27 @@ export default function DashboardPage() {
             {cancelStep === 'discount' && (
               <>
                 {discountEligible ? (
-                  <>
-                    <h3>Before you go — one more thing</h3>
-                    <p>Stay subscribed and get 40% off your next order.</p>
-                    <button className="pc-checkout-btn primary" onClick={acceptDiscountOffer} disabled={actionLoading}>
-                      Get 40% off my next order
-                    </button>
-                  </>
+                  hasUsedAllInitialDiscountOrders ? (
+                    <>
+                      <h3>Before you go — one more thing</h3>
+                      <p>Stay subscribed and we'll give you 4 more orders at 20% off.</p>
+                      <button
+                        className="pc-checkout-btn primary"
+                        onClick={acceptBonusDiscountOffer}
+                        disabled={actionLoading}
+                      >
+                        Get 4 orders at 20% off
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <h3>Before you go — one more thing</h3>
+                      <p>Stay subscribed and get 40% off your next order.</p>
+                      <button className="pc-checkout-btn primary" onClick={acceptDiscountOffer} disabled={actionLoading}>
+                        Get 40% off my next order
+                      </button>
+                    </>
+                  )
                 ) : (
                   <>
                     <h3>Before you go</h3>
