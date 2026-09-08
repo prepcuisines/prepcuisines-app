@@ -49,9 +49,20 @@ export async function GET(req: NextRequest) {
     : { data: [] }
 
   const customerIdsWithOrders = new Set((candidateOrders || []).map((o) => o.customer_id))
-  const activeSubscriptions = (activeCandidates || []).filter(
+  const activeProfileSubscriptions = (activeCandidates || []).filter(
     (c) => !!c.standing_plan_size || customerIdsWithOrders.has(c.id)
   ).length
+
+  // Recurring manual/PAYG-style orders (no customer_profiles row at all, e.g.
+  // no card on file) are a real ongoing subscription too - only count ones
+  // not already linked to a profile, to avoid double-counting.
+  const { count: activeManualOrders } = await supabase
+    .from('recurring_manual_orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('active', true)
+    .is('matched_customer_id', null)
+
+  const activeSubscriptions = activeProfileSubscriptions + (activeManualOrders || 0)
 
   const { count: newSignupsThisWeek } = await supabase
     .from('customer_profiles')

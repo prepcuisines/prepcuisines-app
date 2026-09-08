@@ -189,11 +189,21 @@ export async function GET(req: NextRequest) {
   const avgReorderDays =
     allGaps.length > 0 ? Math.round(allGaps.reduce((s, g) => s + g, 0) / allGaps.length) : null
 
-  const { count: activeSubsCount } = await supabase
+  const { count: activeProfileSubsCount } = await supabase
     .from('customer_profiles')
     .select('id', { count: 'exact', head: true })
     .eq('subscription_status', 'active')
     .not('standing_plan_size', 'is', null)
+
+  // Same rule as the top-bar overview: recurring manual/PAYG orders with no
+  // customer_profiles row of their own are a real ongoing subscription too.
+  const { count: activeManualOrdersCount } = await supabase
+    .from('recurring_manual_orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('active', true)
+    .is('matched_customer_id', null)
+
+  const activeSubsCount = (activeProfileSubsCount || 0) + (activeManualOrdersCount || 0)
 
   // ---- 5. Alerts ----
   const { count: failedPaymentsCount } = await supabase
