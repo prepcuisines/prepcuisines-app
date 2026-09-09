@@ -54,6 +54,17 @@ export interface DishTally {
   quantity: number;
 }
 
+export interface IngredientPricing {
+  pricingUnit: 'kg' | 'unit';
+  /** £ per kg — used when pricingUnit is 'kg'. */
+  costPerKg?: number | null;
+  /** £ per item (e.g. per wrap) — used when pricingUnit is 'unit'. */
+  costPerUnit?: number | null;
+  /** Grams per item — used alongside costPerUnit to convert grams to a
+   * number of items. */
+  unitWeightG?: number | null;
+}
+
 export interface CookSheetOptions {
   /** Spare portions per dish. Pass 0 to cook exactly what was ordered. */
   buffer?: number;
@@ -61,10 +72,11 @@ export interface CookSheetOptions {
   includeDesserts?: boolean;
   /** Override the recipe book (e.g. if you later move recipes into Supabase). */
   recipes?: Recipe[];
-  /** £ per kg for each ingredient name. Ingredients missing here are left
-   * with null costs throughout, and their names collected in
-   * `unpricedIngredients` so the UI can flag what's still needed. */
-  costPerKg?: Record<string, number>;
+  /** Pricing for each ingredient name. Ingredients missing here, or missing
+   * the fields their pricingUnit needs, are left with null costs throughout,
+   * and their names collected in `unpricedIngredients` so the UI can flag
+   * what's still needed. */
+  ingredientCosts?: Record<string, IngredientPricing>;
 }
 
 export interface CookSheetLine {
@@ -211,17 +223,28 @@ export function buildCookSheet(
     includeBreakfast = true,
     includeDesserts = true,
     recipes = RECIPES,
-    costPerKg = {},
+    ingredientCosts = {},
   } = options;
 
   const unpriced = new Set<string>();
   const costFor = (name: string, grams: number): number | null => {
-    const rate = costPerKg[name];
-    if (rate === undefined || rate === null) {
+    const pricing = ingredientCosts[name];
+    if (!pricing) {
       unpriced.add(name);
       return null;
     }
-    return (grams / 1000) * rate;
+    if (pricing.pricingUnit === 'unit') {
+      if (pricing.costPerUnit == null || !pricing.unitWeightG) {
+        unpriced.add(name);
+        return null;
+      }
+      return (grams / pricing.unitWeightG) * pricing.costPerUnit;
+    }
+    if (pricing.costPerKg == null) {
+      unpriced.add(name);
+      return null;
+    }
+    return (grams / 1000) * pricing.costPerKg;
   };
 
   // Several order names can resolve to one recipe — sum them rather than

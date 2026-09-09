@@ -4,12 +4,22 @@ import { useEffect, useMemo, useState } from 'react'
 
 type Ingredient = {
   name: string
+  pricingUnit: 'kg' | 'unit'
   costPerKg: number | null
+  costPerUnit: number | null
+  unitWeightG: number | null
+}
+
+type EditedField = {
+  pricingUnit: 'kg' | 'unit'
+  costPerKg: string
+  costPerUnit: string
+  unitWeightG: string
 }
 
 export default function IngredientCostsPanel() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
-  const [edited, setEdited] = useState<Record<string, string>>({})
+  const [edited, setEdited] = useState<Record<string, EditedField>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
@@ -30,11 +40,36 @@ export default function IngredientCostsPanel() {
     loadIngredients()
   }, [])
 
+  const fieldFor = (ing: Ingredient): EditedField =>
+    edited[ing.name] ?? {
+      pricingUnit: ing.pricingUnit,
+      costPerKg: ing.costPerKg !== null ? String(ing.costPerKg) : '',
+      costPerUnit: ing.costPerUnit !== null ? String(ing.costPerUnit) : '',
+      unitWeightG: ing.unitWeightG !== null ? String(ing.unitWeightG) : '',
+    }
+
+  const updateField = (name: string, ing: Ingredient, patch: Partial<EditedField>) => {
+    setEdited((prev) => ({ ...prev, [name]: { ...fieldFor(ing), ...patch } }))
+  }
+
+  const isPriced = (ing: Ingredient) =>
+    ing.pricingUnit === 'unit' ? ing.costPerUnit !== null && ing.unitWeightG !== null : ing.costPerKg !== null
+
   const handleSave = async () => {
     const updates = Object.entries(edited)
-      .filter(([, val]) => val.trim() !== '')
-      .map(([name, val]) => ({ name, costPerKg: Number(val) }))
-      .filter((u) => Number.isFinite(u.costPerKg) && u.costPerKg >= 0)
+      .map(([name, f]) => {
+        if (f.pricingUnit === 'unit') {
+          const costPerUnit = Number(f.costPerUnit)
+          const unitWeightG = Number(f.unitWeightG)
+          if (!Number.isFinite(costPerUnit) || costPerUnit < 0) return null
+          if (!Number.isFinite(unitWeightG) || unitWeightG <= 0) return null
+          return { name, pricingUnit: 'unit' as const, costPerUnit, unitWeightG }
+        }
+        const costPerKg = Number(f.costPerKg)
+        if (!Number.isFinite(costPerKg) || costPerKg < 0) return null
+        return { name, pricingUnit: 'kg' as const, costPerKg }
+      })
+      .filter((u): u is NonNullable<typeof u> => u !== null)
 
     if (updates.length === 0) return
 
@@ -46,11 +81,9 @@ export default function IngredientCostsPanel() {
       body: JSON.stringify({ updates }),
     })
     if (res.ok) {
-      setIngredients((prev) =>
-        prev.map((ing) => (ing.name in edited ? { ...ing, costPerKg: Number(edited[ing.name]) } : ing))
-      )
+      await loadIngredients()
       setEdited({})
-      setSaveMessage(`Saved ${updates.length} price${updates.length === 1 ? '' : 's'}.`)
+      setSaveMessage(`Saved ${updates.length} change${updates.length === 1 ? '' : 's'}.`)
       setTimeout(() => setSaveMessage(null), 3000)
     } else {
       setSaveMessage('Save failed — try again.')
@@ -61,20 +94,21 @@ export default function IngredientCostsPanel() {
   const visibleIngredients = useMemo(() => {
     return ingredients.filter((ing) => {
       if (search && !ing.name.toLowerCase().includes(search.toLowerCase())) return false
-      if (showUnpriced && ing.costPerKg !== null) return false
+      if (showUnpriced && isPriced(ing)) return false
       return true
     })
   }, [ingredients, search, showUnpriced])
 
-  const unpricedCount = ingredients.filter((ing) => ing.costPerKg === null).length
+  const unpricedCount = ingredients.filter((ing) => !isPriced(ing)).length
   const hasEdits = Object.keys(edited).length > 0
 
   return (
-    <div style={{ maxWidth: 640, padding: '0 0 100px' }}>
+    <div style={{ maxWidth: 720, padding: '0 0 100px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Ingredient Costs</h1>
       <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>
-        Enter what each ingredient costs you per kg. The Kitchen tab uses these to work out cost
-        per meal and per week automatically.
+        Enter what each ingredient costs you. Most are priced per kg, but anything you actually
+        buy by the item — wraps, for example — can be priced per item instead. The Kitchen tab
+        uses these to work out cost per meal and per week automatically.
         {unpricedCount > 0 && (
           <>
             {' '}
@@ -108,39 +142,75 @@ export default function IngredientCostsPanel() {
         <p>Loading…</p>
       ) : (
         <div>
-          {visibleIngredients.map((ing) => (
-            <div
-              key={ing.name}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 0',
-                borderBottom: '1px solid #eee',
-              }}
-            >
-              <span style={{ fontSize: 14 }}>{ing.name}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: '#888', fontSize: 13 }}>£</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder={ing.costPerKg === null ? 'not set' : undefined}
-                  value={edited[ing.name] ?? (ing.costPerKg !== null ? String(ing.costPerKg) : '')}
-                  onChange={(e) => setEdited((prev) => ({ ...prev, [ing.name]: e.target.value }))}
-                  style={{
-                    width: 90,
-                    padding: '6px 8px',
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    fontSize: 14,
-                  }}
-                />
-                <span style={{ color: '#888', fontSize: 13 }}>/kg</span>
+          {visibleIngredients.map((ing) => {
+            const f = fieldFor(ing)
+            return (
+              <div
+                key={ing.name}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 0',
+                  borderBottom: '1px solid #eee',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span style={{ fontSize: 14, flex: 1, minWidth: 180 }}>{ing.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <select
+                    value={f.pricingUnit}
+                    onChange={(e) => updateField(ing.name, ing, { pricingUnit: e.target.value as 'kg' | 'unit' })}
+                    style={{ padding: '6px 4px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13 }}
+                  >
+                    <option value="kg">per kg</option>
+                    <option value="unit">per item</option>
+                  </select>
+
+                  {f.pricingUnit === 'kg' ? (
+                    <>
+                      <span style={{ color: '#888', fontSize: 13 }}>£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder={ing.costPerKg === null ? 'not set' : undefined}
+                        value={f.costPerKg}
+                        onChange={(e) => updateField(ing.name, ing, { costPerKg: e.target.value })}
+                        style={{ width: 80, padding: '6px 8px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+                      />
+                      <span style={{ color: '#888', fontSize: 13 }}>/kg</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: '#888', fontSize: 13 }}>£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder={ing.costPerUnit === null ? 'not set' : undefined}
+                        value={f.costPerUnit}
+                        onChange={(e) => updateField(ing.name, ing, { costPerUnit: e.target.value })}
+                        style={{ width: 70, padding: '6px 8px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+                      />
+                      <span style={{ color: '#888', fontSize: 13 }}>/item, weighs</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder={ing.unitWeightG === null ? 'g' : undefined}
+                        value={f.unitWeightG}
+                        onChange={(e) => updateField(ing.name, ing, { unitWeightG: e.target.value })}
+                        style={{ width: 60, padding: '6px 8px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+                      />
+                      <span style={{ color: '#888', fontSize: 13 }}>g each</span>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

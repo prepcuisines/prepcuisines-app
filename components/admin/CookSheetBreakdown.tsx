@@ -10,6 +10,7 @@ import {
   buildCookSheet,
   cookSheetToText,
   formatWeight,
+  type IngredientPricing,
 } from '../../lib/cook-sheet/calculate'
 import { openPrintWindow, renderCookSheetHtml, renderLabelsHtml } from '../../lib/cook-sheet/print'
 import { CATEGORY_LABEL } from '../../lib/cook-sheet/recipes'
@@ -41,18 +42,23 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
   const [includeDesserts, setIncludeDesserts] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [costPerKg, setCostPerKg] = useState<Record<string, number>>({})
+  const [ingredientCosts, setIngredientCosts] = useState<Record<string, IngredientPricing>>({})
 
   useEffect(() => {
     fetch('/api/admin/ingredient-costs')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data?.ingredients) return
-        const map: Record<string, number> = {}
+        const map: Record<string, IngredientPricing> = {}
         for (const ing of data.ingredients) {
-          if (ing.costPerKg !== null) map[ing.name] = ing.costPerKg
+          map[ing.name] = {
+            pricingUnit: ing.pricingUnit || 'kg',
+            costPerKg: ing.costPerKg,
+            costPerUnit: ing.costPerUnit,
+            unitWeightG: ing.unitWeightG,
+          }
         }
-        setCostPerKg(map)
+        setIngredientCosts(map)
       })
       .catch(() => {})
   }, [])
@@ -62,9 +68,9 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
       buildCookSheet(
         tally.map((d) => ({ name: d.name, quantity: d.qty })),
         dateLabel,
-        { buffer, includeBreakfast, includeDesserts, costPerKg }
+        { buffer, includeBreakfast, includeDesserts, ingredientCosts }
       ),
-    [tally, dateLabel, buffer, includeBreakfast, includeDesserts, costPerKg]
+    [tally, dateLabel, buffer, includeBreakfast, includeDesserts, ingredientCosts]
   )
 
   const flash = (message: string) => {
