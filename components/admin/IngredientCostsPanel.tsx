@@ -7,14 +7,10 @@ type Ingredient = {
   costPerKg: number | null
 }
 
-export default function IngredientCostsPage() {
-  const [authenticated, setAuthenticated] = useState(false)
-  const [checkingAuth, setCheckingAuth] = useState(true)
-  const [password, setPassword] = useState('')
-  const [loginError, setLoginError] = useState<string | null>(null)
+export default function IngredientCostsPanel() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [edited, setEdited] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -23,38 +19,16 @@ export default function IngredientCostsPage() {
   const loadIngredients = async () => {
     setLoading(true)
     const res = await fetch('/api/admin/ingredient-costs')
-    if (res.status === 401) {
-      setAuthenticated(false)
-      setCheckingAuth(false)
-      setLoading(false)
-      return
+    if (res.ok) {
+      const data = await res.json()
+      setIngredients(data.ingredients || [])
     }
-    const data = await res.json()
-    setIngredients(data.ingredients || [])
-    setAuthenticated(true)
-    setCheckingAuth(false)
     setLoading(false)
   }
 
   useEffect(() => {
     loadIngredients()
   }, [])
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoginError(null)
-    const res = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    })
-    if (!res.ok) {
-      const data = await res.json()
-      setLoginError(data.error || 'Login failed')
-      return
-    }
-    await loadIngredients()
-  }
 
   const handleSave = async () => {
     const updates = Object.entries(edited)
@@ -95,56 +69,8 @@ export default function IngredientCostsPage() {
   const unpricedCount = ingredients.filter((ing) => ing.costPerKg === null).length
   const hasEdits = Object.keys(edited).length > 0
 
-  if (checkingAuth) {
-    return (
-      <div style={{ padding: 60, textAlign: 'center', fontFamily: 'sans-serif' }}>
-        Loading…
-      </div>
-    )
-  }
-
-  if (!authenticated) {
-    return (
-      <div style={{ maxWidth: 360, margin: '80px auto', fontFamily: 'sans-serif' }}>
-        <h1 style={{ fontSize: 20, marginBottom: 16 }}>Admin Login</h1>
-        <form onSubmit={handleLogin}>
-          <input
-            type="password"
-            placeholder="Admin password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: '100%',
-              padding: 10,
-              marginBottom: 12,
-              border: '1px solid #ccc',
-              borderRadius: 6,
-            }}
-          />
-          {loginError && (
-            <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{loginError}</div>
-          )}
-          <button
-            type="submit"
-            style={{
-              width: '100%',
-              padding: 10,
-              background: '#2d3510',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            Log In
-          </button>
-        </form>
-      </div>
-    )
-  }
-
   return (
-    <div style={{ maxWidth: 640, margin: '40px auto', fontFamily: 'sans-serif', padding: '0 20px 100px' }}>
+    <div style={{ maxWidth: 640, padding: '0 0 100px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Ingredient Costs</h1>
       <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>
         Enter what each ingredient costs you per kg. The Kitchen tab uses these to work out cost
@@ -232,6 +158,7 @@ export default function IngredientCostsPage() {
             justifyContent: 'center',
             gap: 12,
             alignItems: 'center',
+            zIndex: 10,
           }}
         >
           {saveMessage && <span style={{ fontSize: 13, color: '#2d3510' }}>{saveMessage}</span>}
