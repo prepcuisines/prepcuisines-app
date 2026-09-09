@@ -61,6 +61,10 @@ export interface CookSheetOptions {
   includeDesserts?: boolean;
   /** Override the recipe book (e.g. if you later move recipes into Supabase). */
   recipes?: Recipe[];
+  /** £ per kg for each ingredient name. Ingredients missing here are left
+   * with null costs throughout, and their names collected in
+   * `unpricedIngredients` so the UI can flag what's still needed. */
+  costPerKg?: Record<string, number>;
 }
 
 export interface CookSheetLine {
@@ -70,6 +74,8 @@ export interface CookSheetLine {
   totalRaw: number;
   cookedPerPortion: number | null;
   totalCooked: number | null;
+  /** Cost for totalRaw grams of this ingredient, if a price is on file. */
+  cost: number | null;
 }
 
 export interface CookSheetDish {
@@ -84,18 +90,25 @@ export interface CookSheetDish {
   dishLabelSheets: number;
   /** Order names that matched this recipe, for spotting naming drift. */
   matchedNames: string[];
+  /** Sum of every line's cost, or null if any ingredient is unpriced. */
+  totalCost: number | null;
+  /** totalCost / portions — cost to make one portion of this dish. */
+  costPerPortion: number | null;
 }
 
 export interface ShoppingLine {
   name: string;
   totalGrams: number;
   isMeat: boolean;
+  cost: number | null;
 }
 
 export interface ShoppingSection {
   key: 'meals' | 'breakfast' | 'desserts';
   title: string;
   lines: ShoppingLine[];
+  /** Sum of every line's cost, or null if any ingredient is unpriced. */
+  totalCost: number | null;
 }
 
 export interface ColourLabelRow {
@@ -117,6 +130,10 @@ export interface CookSheet {
   totalDishLabelSheets: number;
   /** Ordered dish names with no matching recipe — these are cooked blind. */
   unmatched: DishTally[];
+  /** Sum of every dish's totalCost, or null if any ingredient is unpriced. */
+  totalCost: number | null;
+  /** Distinct ingredient names used this week with no price on file. */
+  unpricedIngredients: string[];
 }
 
 /* ── Name matching ─────────────────────────────────────────────────────── */
@@ -194,7 +211,18 @@ export function buildCookSheet(
     includeBreakfast = true,
     includeDesserts = true,
     recipes = RECIPES,
+    costPerKg = {},
   } = options;
+
+  const unpriced = new Set<string>();
+  const costFor = (name: string, grams: number): number | null => {
+    const rate = costPerKg[name];
+    if (rate === undefined || rate === null) {
+      unpriced.add(name);
+      return null;
+    }
+    return (grams / 1000) * rate;
+  };
 
   // Several order names can resolve to one recipe — sum them rather than
   // taking the first match, which is what the old server.js did.
@@ -234,15 +262,20 @@ export function buildCookSheet(
       const lines: CookSheetLine[] = recipe.ingredients.map((ing) => {
         const isMeat = Boolean(ing.isMeat);
         const cooked = isMeat ? cookedPerPortion : null;
+        const totalRaw = ing.raw * portions;
         return {
           name: ing.name,
           isMeat,
           rawPerPortion: ing.raw,
-          totalRaw: ing.raw * portions,
+          totalRaw,
           cookedPerPortion: cooked,
           totalCooked: cooked === null ? null : cooked * portions,
+          cost: costFor(ing.name, totalRaw),
         };
       });
+
+      const anyUnpriced = lines.some((l) => l.cost === null);
+      const totalCost = anyUnpriced ? null : lines.reduce((sum, l) => sum + (l.cost ?? 0), 0);
 
       return {
         recipe,
@@ -252,6 +285,8 @@ export function buildCookSheet(
         lines,
         dishLabelSheets: sheetsFor(portions, DISH_LABELS_PER_SHEET),
         matchedNames,
+        totalCost,
+        costPerPortion: totalCost === null ? null : totalCost / portions,
       };
     });
 
@@ -268,7 +303,7 @@ export function buildCookSheet(
       const key = shoppingKey(line.name, line.isMeat);
       const existing = bucket.get(key);
       if (existing) existing.totalGrams += line.totalRaw;
-      else bucket.set(key, { name: key, totalGrams: line.totalRaw, isMeat: line.isMeat });
+      else bucket.set(key, { name: key, totalGrams: line.totalRaw, isMeat: line.isMeat, cost: null });
     }
   }
 
@@ -283,10 +318,22 @@ export function buildCookSheet(
     ['meals', 'breakfast', 'desserts'] as ShoppingSection['key'][]
   )
     .map((key) => {
-      const all = [...buckets[key].values()];
+      const all = [...buckets[key].values()].map((line) => ({
+        ...line,
+        // Recompute from the aggregated total, not summed per-dish costs -
+        // same ingredient across several dishes should price as one lookup.
+        cost: costFor(line.name, line.totalGrams),
+      }));
       const meats = all.filter((l) => l.isMeat).sort((a, b) => b.totalGrams - a.totalGrams);
       const rest = all.filter((l) => !l.isMeat).sort((a, b) => b.totalGrams - a.totalGrams);
-      return { key, title: sectionTitles[key], lines: [...meats, ...rest] };
+      const lines = [...meats, ...rest];
+      const anyUnpriced = lines.some((l) => l.cost === null);
+      return {
+        key,
+        title: sectionTitles[key],
+        lines,
+        totalCost: anyUnpriced ? null : lines.reduce((sum, l) => sum + (l.cost ?? 0), 0),
+      };
     })
     .filter((section) => section.lines.length > 0);
 
@@ -306,6 +353,8 @@ export function buildCookSheet(
 
   const totalOrdered = dishes.reduce((sum, d) => sum + d.ordered, 0);
   const totalPortions = dishes.reduce((sum, d) => sum + d.portions, 0);
+  const anyDishUnpriced = dishes.some((d) => d.totalCost === null);
+  const totalCost = anyDishUnpriced ? null : dishes.reduce((sum, d) => sum + (d.totalCost ?? 0), 0);
 
   return {
     dateLabel,
@@ -319,6 +368,8 @@ export function buildCookSheet(
     totalDishLabels: totalPortions,
     totalDishLabelSheets: sheetsFor(totalPortions, DISH_LABELS_PER_SHEET),
     unmatched,
+    totalCost,
+    unpricedIngredients: Array.from(unpriced).sort((a, b) => a.localeCompare(b)),
   };
 }
 
@@ -338,7 +389,10 @@ export function cookSheetToText(sheet: CookSheet): string {
     out.push(
       `${dish.recipe.name.toUpperCase()} — ${dish.ordered} ordered` +
         (dish.buffer ? ` + ${dish.buffer} buffer` : '') +
-        ` = ${dish.portions} portions`,
+        ` = ${dish.portions} portions` +
+        (dish.costPerPortion !== null
+          ? ` — £${dish.costPerPortion.toFixed(2)}/portion, £${(dish.totalCost ?? 0).toFixed(2)} total`
+          : ' — cost n/a'),
     );
     if (dish.recipe.stickerColour !== 'n/a') out.push(`Sticker: ${dish.recipe.stickerColour}`);
     out.push('-'.repeat(56));
@@ -346,20 +400,31 @@ export function cookSheetToText(sheet: CookSheet): string {
       const label = (line.name + (line.isMeat ? ' [MEAT]' : '')).padEnd(38);
       const per = `${line.rawPerPortion}g raw`.padEnd(14);
       const total = formatWeight(line.totalRaw).padEnd(12);
+      const cost = (line.cost !== null ? `£${line.cost.toFixed(2)}` : '—').padEnd(8);
       const cooked =
         line.totalCooked === null
           ? ''
           : `→ ${formatWeight(line.totalCooked)} cooked (${line.cookedPerPortion}g per portion)`;
-      out.push(`${label}${per}${total}${cooked}`.trimEnd());
+      out.push(`${label}${per}${total}${cost}${cooked}`.trimEnd());
     }
   }
 
   for (const section of sheet.shopping) {
     out.push('');
-    out.push(section.title.toUpperCase());
+    out.push(
+      `${section.title.toUpperCase()}` +
+        (section.totalCost !== null ? ` — £${section.totalCost.toFixed(2)} total` : ' — cost n/a'),
+    );
     for (const line of section.lines) {
-      out.push(`  ${line.isMeat ? '* ' : ''}${line.name}: ${formatWeight(line.totalGrams)}`);
+      const cost = line.cost !== null ? `£${line.cost.toFixed(2)}` : '—'
+      out.push(`  ${line.isMeat ? '* ' : ''}${line.name}: ${formatWeight(line.totalGrams)} (${cost})`);
     }
+  }
+
+  out.push('')
+  out.push(sheet.totalCost !== null ? `TOTAL INGREDIENT COST: £${sheet.totalCost.toFixed(2)}` : 'TOTAL INGREDIENT COST: n/a — some ingredients not priced')
+  if (sheet.unpricedIngredients.length) {
+    out.push(`  unpriced: ${sheet.unpricedIngredients.join(', ')}`)
   }
 
   out.push('');

@@ -530,3 +530,18 @@ export const RECIPES: Recipe[] = [
     ],
   },
 ];
+
+/**
+ * Every distinct ingredient name used across all recipes (meat + regular),
+ * alphabetised. Used to drive the ingredient-costs admin page so it always
+ * matches whatever's actually in the recipes above - no separate list to
+ * keep in sync by hand.
+ */
+export function allIngredientNames(): string[] {
+  const names = new Set<string>();
+  for (const recipe of RECIPES) {
+    if (recipe.meat) names.add(recipe.meat.name);
+    for (const ing of recipe.ingredients) names.add(ing.name);
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
+}

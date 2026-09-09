@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   DEFAULT_BUFFER,
@@ -41,15 +41,30 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
   const [includeDesserts, setIncludeDesserts] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [costPerKg, setCostPerKg] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    fetch('/api/admin/ingredient-costs')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.ingredients) return
+        const map: Record<string, number> = {}
+        for (const ing of data.ingredients) {
+          if (ing.costPerKg !== null) map[ing.name] = ing.costPerKg
+        }
+        setCostPerKg(map)
+      })
+      .catch(() => {})
+  }, [])
 
   const sheet = useMemo(
     () =>
       buildCookSheet(
         tally.map((d) => ({ name: d.name, quantity: d.qty })),
         dateLabel,
-        { buffer, includeBreakfast, includeDesserts }
+        { buffer, includeBreakfast, includeDesserts, costPerKg }
       ),
-    [tally, dateLabel, buffer, includeBreakfast, includeDesserts]
+    [tally, dateLabel, buffer, includeBreakfast, includeDesserts, costPerKg]
   )
 
   const flash = (message: string) => {
@@ -147,7 +162,25 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
           <StatBox label="Portions to cook" value={sheet.totalPortions} accent />
           <StatBox label="Dishes" value={sheet.dishes.length} />
           <StatBox label="Dish label sheets" value={sheet.totalDishLabelSheets} />
+          <StatBox
+            label="Total ingredient cost"
+            value={sheet.totalCost !== null ? `£${sheet.totalCost.toFixed(2)}` : '—'}
+            accent
+          />
         </div>
+
+        {sheet.unpricedIngredients.length > 0 && (
+          <div className="empty-panel" style={{ borderStyle: 'solid', borderColor: '#f0dcae', background: '#fffaf0' }}>
+            <strong style={{ color: '#8a6d1a' }}>
+              {sheet.unpricedIngredients.length} ingredient{sheet.unpricedIngredients.length === 1 ? '' : 's'} not priced yet
+            </strong>{' '}
+            — costs can&apos;t be shown until these have a price:{' '}
+            {sheet.unpricedIngredients.join(', ')}.{' '}
+            <a href="/admin/ingredient-costs" target="_blank" rel="noreferrer">
+              Add prices →
+            </a>
+          </div>
+        )}
 
         {sheet.unmatched.length > 0 && (
           <div className="empty-panel" style={{ borderStyle: 'solid', borderColor: '#f0c9c2', background: '#fff5f4' }}>
@@ -190,6 +223,11 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
                 {dish.portions} portions ({dish.ordered} ordered
                 {dish.buffer ? ` + ${dish.buffer}` : ''})
               </span>
+              <span className="pill pill-muted">
+                {dish.costPerPortion !== null
+                  ? `£${dish.costPerPortion.toFixed(2)}/portion · £${(dish.totalCost ?? 0).toFixed(2)} total`
+                  : 'cost n/a'}
+              </span>
             </div>
           </div>
           <div className="table-wrap">
@@ -199,6 +237,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
                   <th>Ingredient</th>
                   <th>Per portion</th>
                   <th>Total for {dish.portions}</th>
+                  <th>Cost</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,6 +255,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
                       {formatWeight(line.totalRaw)}
                       {line.totalCooked !== null && ` → ${formatWeight(line.totalCooked)} cooked`}
                     </td>
+                    <td className="num nowrap">{line.cost !== null ? `£${line.cost.toFixed(2)}` : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -226,15 +266,21 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
 
       {expanded && sheet.shopping.map((section) => (
         <div className="insights-block" key={section.key}>
-          <h3 className="ops-subtitle" style={{ marginTop: 0 }}>
-            {section.title}
-          </h3>
+          <div className="insights-block-header">
+            <h3 className="ops-subtitle" style={{ margin: 0 }}>
+              {section.title}
+            </h3>
+            <span className="pill pill-muted">
+              {section.totalCost !== null ? `£${section.totalCost.toFixed(2)} total` : 'cost n/a'}
+            </span>
+          </div>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Item</th>
                   <th>Buy</th>
+                  <th>Cost</th>
                 </tr>
               </thead>
               <tbody>
@@ -245,6 +291,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
                       {line.name}
                     </td>
                     <td className="num nowrap">{formatWeight(line.totalGrams)}</td>
+                    <td className="num nowrap">{line.cost !== null ? `£${line.cost.toFixed(2)}` : '—'}</td>
                   </tr>
                 ))}
               </tbody>

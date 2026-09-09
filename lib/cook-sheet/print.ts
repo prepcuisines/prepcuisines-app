@@ -49,6 +49,7 @@ export function renderCookSheetHtml(sheet: CookSheet): string {
         <td style="padding:7px 12px;font-size:12.5px;font-weight:${line.isMeat ? 600 : 400};border-bottom:1px solid ${COLOURS.lineSoft};">${escapeHtml(line.name)}${line.isMeat ? ` <span style="color:${COLOURS.gold};">&#9679;</span>` : ''}</td>
         <td style="padding:7px 12px;font-size:12.5px;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${line.rawPerPortion}g${line.cookedPerPortion ? ` &rarr; <strong>${line.cookedPerPortion}g</strong> cooked` : ''}</td>
         <td style="padding:7px 12px;font-size:13px;font-weight:700;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${formatWeight(line.totalRaw)}${line.totalCooked ? ` &rarr; <strong>${formatWeight(line.totalCooked)}</strong> cooked` : ''}</td>
+        <td style="padding:7px 12px;font-size:12.5px;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${line.cost !== null ? `&pound;${line.cost.toFixed(2)}` : '&mdash;'}</td>
       </tr>`,
         )
         .join('');
@@ -60,6 +61,7 @@ export function renderCookSheetHtml(sheet: CookSheet): string {
           <div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             ${stickerBadge(dish, 10)}
             <span style="color:${COLOURS.sage};font-size:11px;">${CATEGORY_LABEL[dish.recipe.cat]} &middot; ${dish.ordered} ordered${dish.buffer ? ` + ${dish.buffer} buffer` : ''}</span>
+            <span style="color:${COLOURS.sage};font-size:11px;">&middot; ${dish.costPerPortion !== null ? `&pound;${dish.costPerPortion.toFixed(2)}/portion, &pound;${(dish.totalCost ?? 0).toFixed(2)} total` : 'cost n/a'}</span>
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
@@ -72,6 +74,7 @@ export function renderCookSheetHtml(sheet: CookSheet): string {
           <th style="padding:7px 12px;font-size:10px;text-align:left;color:#6b7c5e;text-transform:uppercase;letter-spacing:.08em;">Ingredient</th>
           <th style="padding:7px 12px;font-size:10px;text-align:left;color:#6b7c5e;text-transform:uppercase;letter-spacing:.08em;">Per portion</th>
           <th style="padding:7px 12px;font-size:10px;text-align:left;color:#6b7c5e;text-transform:uppercase;letter-spacing:.08em;">Total for ${dish.portions}</th>
+          <th style="padding:7px 12px;font-size:10px;text-align:left;color:#6b7c5e;text-transform:uppercase;letter-spacing:.08em;">Cost</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -92,11 +95,15 @@ export function renderCookSheetHtml(sheet: CookSheet): string {
           (line) => `<tr>
         <td style="padding:8px 12px;font-size:12.5px;font-weight:${line.isMeat ? 600 : 400};border-bottom:1px solid ${COLOURS.lineSoft};">${line.isMeat ? '&#129385; ' : ''}${escapeHtml(line.name)}</td>
         <td style="padding:8px 12px;font-size:13px;font-weight:700;text-align:right;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${formatWeight(line.totalGrams)}</td>
+        <td style="padding:8px 12px;font-size:12.5px;text-align:right;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${line.cost !== null ? `&pound;${line.cost.toFixed(2)}` : '&mdash;'}</td>
       </tr>`,
         )
         .join('');
       return `<div style="margin-top:16px;page-break-inside:avoid;">
-      <div style="background:${headerBg};border-radius:8px 8px 0 0;padding:11px 16px;color:${COLOURS.gold};font-size:15px;font-weight:600;">${escapeHtml(section.title)}</div>
+      <div style="background:${headerBg};border-radius:8px 8px 0 0;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:${COLOURS.gold};font-size:15px;font-weight:600;">${escapeHtml(section.title)}</span>
+        <span style="color:${COLOURS.gold};font-size:12px;">${section.totalCost !== null ? `&pound;${section.totalCost.toFixed(2)} total` : 'cost n/a'}</span>
+      </div>
       <table style="width:100%;border-collapse:collapse;border:1px solid ${COLOURS.line};border-top:none;"><tbody>${rows}</tbody></table>
     </div>`;
     })
