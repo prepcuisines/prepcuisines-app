@@ -347,8 +347,8 @@ export async function POST(req: NextRequest) {
     } else if (person.kind === 'invite') {
       await sendFlattenedHeroEmailToCustomer(
         person.email,
-        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/full_draft12_email.png',
-        'Chef-made meals — 40% off'
+        `${process.env.NEXT_PUBLIC_SITE_URL || ''}/lead-hero-sept.jpg`,
+        'Chef-made meals from £4.80'
       )
       // Logged against subscriberWindow like group 1 — once this window's
       // cutoff passes, they surface again the following week with the
