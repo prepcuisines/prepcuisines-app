@@ -35,6 +35,7 @@ const MEAL_COUNTS = [4, 6, 8, 10, 12, 14, 16]
 const MEAL_PRICE = 8
 const FIRST_ORDER_RATE = 0.6
 const STANDARD_RATE = 0.8
+const PAYG_RATE = 1.0
 const DELIVERY_FEE_CHARGED = 7.95
 const STOKE_DELIVERY_FEE_CHARGED = 2.99
 
@@ -107,6 +108,7 @@ export default function OperationalCostsPanel() {
     const packaging = perMealPackaging * qty + boxCostFor(qty, costMap) + (costMap.shipping_label ?? 0)
     const firstOrderRevenue = qty * MEAL_PRICE * FIRST_ORDER_RATE + DELIVERY_FEE_CHARGED
     const standardRevenue = qty * MEAL_PRICE * STANDARD_RATE + DELIVERY_FEE_CHARGED
+    const paygRevenue = qty * MEAL_PRICE * PAYG_RATE + DELIVERY_FEE_CHARGED
     const sundayCost = packaging + (costMap.dpd_sunday ?? 0)
     const wedCost = packaging + (costMap.dpd_wednesday ?? 0)
     return {
@@ -116,6 +118,8 @@ export default function OperationalCostsPanel() {
       firstWed: firstOrderRevenue - wedCost,
       stdSun: standardRevenue - sundayCost,
       stdWed: standardRevenue - wedCost,
+      paygSun: paygRevenue - sundayCost,
+      paygWed: paygRevenue - wedCost,
     }
   })
 
@@ -129,11 +133,13 @@ export default function OperationalCostsPanel() {
     const packaging = perMealPackaging * qty + (costMap.stoke_bag ?? 0) + (costMap.shipping_label ?? 0)
     const firstOrderRevenue = qty * MEAL_PRICE * FIRST_ORDER_RATE + STOKE_DELIVERY_FEE_CHARGED
     const standardRevenue = qty * MEAL_PRICE * STANDARD_RATE + STOKE_DELIVERY_FEE_CHARGED
+    const paygRevenue = qty * MEAL_PRICE * PAYG_RATE + STOKE_DELIVERY_FEE_CHARGED
     return {
       qty,
       packaging,
       first: firstOrderRevenue - packaging,
       standard: standardRevenue - packaging,
+      payg: paygRevenue - packaging,
     }
   })
 
@@ -194,18 +200,25 @@ export default function OperationalCostsPanel() {
               Revenue left after packaging + DPD (Nationwide)
             </h3>
             <p style={{ color: '#888', fontSize: 12.5, marginBottom: 12 }}>
-              Before food/ingredient cost. First order = 40% off (£{(MEAL_PRICE * FIRST_ORDER_RATE).toFixed(2)}/meal), standard = 20% off (£{(MEAL_PRICE * STANDARD_RATE).toFixed(2)}/meal). Delivery fee charged: £{DELIVERY_FEE_CHARGED.toFixed(2)}.
+              Before food/ingredient cost. Delivery fee charged: £{DELIVERY_FEE_CHARGED.toFixed(2)}.
             </p>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #ddd' }}>
-                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Meals</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Packaging</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>First-Sun</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>First-Wed</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Standard-Sun</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Standard-Wed</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px' }} rowSpan={2}>Meals</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }} rowSpan={2}>Packaging</th>
+                    <th style={{ textAlign: 'center', padding: '6px 8px' }} colSpan={2}>40% off first order</th>
+                    <th style={{ textAlign: 'center', padding: '6px 8px' }} colSpan={2}>20% off (2-5 orders)</th>
+                    <th style={{ textAlign: 'center', padding: '6px 8px' }} colSpan={2}>Pay as you go (£8/meal)</th>
+                  </tr>
+                  <tr style={{ borderBottom: '2px solid #ddd' }}>
+                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 400, color: '#888' }}>Sun</th>
+                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 400, color: '#888' }}>Wed</th>
+                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 400, color: '#888' }}>Sun</th>
+                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 400, color: '#888' }}>Wed</th>
+                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 400, color: '#888' }}>Sun</th>
+                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 400, color: '#888' }}>Wed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -217,6 +230,8 @@ export default function OperationalCostsPanel() {
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.firstWed.toFixed(2)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.stdSun.toFixed(2)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.stdWed.toFixed(2)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.paygSun.toFixed(2)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.paygWed.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -239,8 +254,9 @@ export default function OperationalCostsPanel() {
                   <tr style={{ borderBottom: '2px solid #ddd' }}>
                     <th style={{ textAlign: 'left', padding: '6px 8px' }}>Meals</th>
                     <th style={{ textAlign: 'right', padding: '6px 8px' }}>Packaging</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>First order</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Standard</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>40% off first order</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>20% off (2-5 orders)</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Pay as you go (£8/meal)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -250,6 +266,7 @@ export default function OperationalCostsPanel() {
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.packaging.toFixed(2)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.first.toFixed(2)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.standard.toFixed(2)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.payg.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
