@@ -121,6 +121,8 @@ export interface ShoppingSection {
   lines: ShoppingLine[];
   /** Sum of every line's cost, or null if any ingredient is unpriced. */
   totalCost: number | null;
+  /** Sum of just the meat lines' cost, or null if any meat ingredient here is unpriced. */
+  meatTotalCost: number | null;
 }
 
 export interface ColourLabelRow {
@@ -351,11 +353,13 @@ export function buildCookSheet(
       const rest = all.filter((l) => !l.isMeat).sort((a, b) => b.totalGrams - a.totalGrams);
       const lines = [...meats, ...rest];
       const anyUnpriced = lines.some((l) => l.cost === null);
+      const anyMeatUnpriced = meats.some((l) => l.cost === null);
       return {
         key,
         title: sectionTitles[key],
         lines,
         totalCost: anyUnpriced ? null : lines.reduce((sum, l) => sum + (l.cost ?? 0), 0),
+        meatTotalCost: meats.length === 0 ? null : anyMeatUnpriced ? null : meats.reduce((sum, l) => sum + (l.cost ?? 0), 0),
       };
     })
     .filter((section) => section.lines.length > 0);
@@ -438,9 +442,16 @@ export function cookSheetToText(sheet: CookSheet): string {
       `${section.title.toUpperCase()}` +
         (section.totalCost !== null ? ` — £${section.totalCost.toFixed(2)} total` : ' — cost n/a'),
     );
-    for (const line of section.lines) {
+    for (let i = 0; i < section.lines.length; i++) {
+      const line = section.lines[i];
       const cost = line.cost !== null ? `£${line.cost.toFixed(2)}` : '—'
       out.push(`  ${line.isMeat ? '* ' : ''}${line.name}: ${formatWeight(line.totalGrams)} (${cost})`);
+      const isLastMeat = line.isMeat && !section.lines[i + 1]?.isMeat;
+      if (isLastMeat) {
+        out.push(
+          `  MEAT TOTAL: ${section.meatTotalCost !== null ? `£${section.meatTotalCost.toFixed(2)}` : 'n/a'}`,
+        );
+      }
     }
   }
 

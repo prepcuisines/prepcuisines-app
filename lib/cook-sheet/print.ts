@@ -91,13 +91,21 @@ export function renderCookSheetHtml(sheet: CookSheet): string {
             ? COLOURS.dessert
             : COLOURS.green;
       const rows = section.lines
-        .map(
-          (line) => `<tr>
+        .map((line, idx) => {
+          const row = `<tr>
         <td style="padding:8px 12px;font-size:12.5px;font-weight:${line.isMeat ? 600 : 400};border-bottom:1px solid ${COLOURS.lineSoft};">${line.isMeat ? '&#129385; ' : ''}${escapeHtml(line.name)}</td>
         <td style="padding:8px 12px;font-size:13px;font-weight:700;text-align:right;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${formatWeight(line.totalGrams)}</td>
         <td style="padding:8px 12px;font-size:12.5px;text-align:right;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${line.cost !== null ? `&pound;${line.cost.toFixed(2)}` : '&mdash;'}</td>
-      </tr>`,
-        )
+      </tr>`;
+          const isLastMeat = line.isMeat && !section.lines[idx + 1]?.isMeat;
+          const subtotalRow = isLastMeat
+            ? `<tr style="background:#fbf6ea;font-weight:700;">
+        <td style="padding:8px 12px;font-size:12.5px;border-bottom:1px solid ${COLOURS.lineSoft};" colspan="2">Meat total</td>
+        <td style="padding:8px 12px;font-size:12.5px;text-align:right;border-bottom:1px solid ${COLOURS.lineSoft};white-space:nowrap;">${section.meatTotalCost !== null ? `&pound;${section.meatTotalCost.toFixed(2)}` : '&mdash;'}</td>
+      </tr>`
+            : '';
+          return row + subtotalRow;
+        })
         .join('');
       return `<div style="margin-top:16px;page-break-inside:avoid;">
       <div style="background:${headerBg};border-radius:8px 8px 0 0;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import {
   DEFAULT_BUFFER,
@@ -287,16 +287,29 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
                 </tr>
               </thead>
               <tbody>
-                {section.lines.map((line) => (
-                  <tr key={line.name}>
-                    <td>
-                      {line.isMeat && '🥩 '}
-                      {line.name}
-                    </td>
-                    <td className="num nowrap">{formatWeight(line.totalGrams)}</td>
-                    <td className="num nowrap">{line.cost !== null ? `£${line.cost.toFixed(2)}` : '—'}</td>
-                  </tr>
-                ))}
+                {section.lines.map((line, idx) => {
+                  const isLastMeat = line.isMeat && !section.lines[idx + 1]?.isMeat
+                  return (
+                    <Fragment key={line.name}>
+                      <tr>
+                        <td>
+                          {line.isMeat && '🥩 '}
+                          {line.name}
+                        </td>
+                        <td className="num nowrap">{formatWeight(line.totalGrams)}</td>
+                        <td className="num nowrap">{line.cost !== null ? `£${line.cost.toFixed(2)}` : '—'}</td>
+                      </tr>
+                      {isLastMeat && (
+                        <tr style={{ fontWeight: 700, background: '#fbf6ea' }}>
+                          <td colSpan={2}>Meat total</td>
+                          <td className="num nowrap">
+                            {section.meatTotalCost !== null ? `£${section.meatTotalCost.toFixed(2)}` : '—'}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
