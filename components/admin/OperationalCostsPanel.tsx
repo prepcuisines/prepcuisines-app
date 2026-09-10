@@ -23,7 +23,7 @@ const GROUPS: { title: string; keys: string[] }[] = [
   },
   {
     title: 'Weekly overhead (not per-order)',
-    keys: ['gloves_sunday', 'gloves_wednesday', 'tape'],
+    keys: ['gloves_sunday', 'gloves_wednesday', 'tape', 'drivers_stoke'],
   },
   {
     title: 'DPD delivery (per delivery, incl. VAT)',
