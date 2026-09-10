@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
 import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
 import IngredientCostsPanel from '../../components/admin/IngredientCostsPanel'
+import OperationalCostsPanel from '../../components/admin/OperationalCostsPanel'
 
 type Overview = {
   range?: {
@@ -200,6 +201,7 @@ export default function AdminDashboard() {
     | 'insights'
     | 'ops-hub'
     | 'ingredient-costs'
+    | 'operational-costs'
   >('overview')
   const [analyticsView, setAnalyticsView] = useState<'business' | 'product'>('business')
   const [showEmailMarketing, setShowEmailMarketing] = useState(false)
@@ -3332,6 +3334,7 @@ Bukr / prepcuisines`
               { key: 'delivery', label: 'Delivery' },
               { key: 'cook-sheet', label: 'Kitchen' },
               { key: 'ingredient-costs', label: 'Ingredient Costs' },
+              { key: 'operational-costs', label: 'Packaging & Delivery' },
               { key: 'menu', label: 'Products' },
               { key: 'customers', label: 'Customers' },
               { key: 'insights', label: 'Analytics' },
@@ -4950,6 +4953,12 @@ Bukr / prepcuisines`
         {tab === 'ingredient-costs' && (
           <section>
             <IngredientCostsPanel />
+          </section>
+        )}
+
+        {tab === 'operational-costs' && (
+          <section>
+            <OperationalCostsPanel />
           </section>
         )}
 
