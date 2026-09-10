@@ -29,6 +29,10 @@ const GROUPS: { title: string; keys: string[] }[] = [
     title: 'DPD delivery (per delivery, incl. VAT)',
     keys: ['dpd_sunday', 'dpd_wednesday'],
   },
+  {
+    title: 'Stripe processing fee (per transaction)',
+    keys: ['stripe_fee_percent', 'stripe_fee_fixed'],
+  },
 ]
 
 const MEAL_COUNTS = [4, 6, 8, 10, 12, 14, 16]
@@ -43,6 +47,12 @@ function boxCostFor(qty: number, costs: Record<string, number>) {
   if (qty <= 6) return costs.box_small ?? 0
   if (qty <= 10) return costs.box_medium ?? 0
   return costs.box_large ?? 0
+}
+
+function stripeFeeFor(revenue: number, costs: Record<string, number>) {
+  const percent = costs.stripe_fee_percent ?? 0
+  const fixed = costs.stripe_fee_fixed ?? 0
+  return revenue * (percent / 100) + fixed
 }
 
 export default function OperationalCostsPanel() {
@@ -114,12 +124,12 @@ export default function OperationalCostsPanel() {
     return {
       qty,
       packaging,
-      firstSun: firstOrderRevenue - sundayCost,
-      firstWed: firstOrderRevenue - wedCost,
-      stdSun: standardRevenue - sundayCost,
-      stdWed: standardRevenue - wedCost,
-      paygSun: paygRevenue - sundayCost,
-      paygWed: paygRevenue - wedCost,
+      firstSun: firstOrderRevenue - sundayCost - stripeFeeFor(firstOrderRevenue, costMap),
+      firstWed: firstOrderRevenue - wedCost - stripeFeeFor(firstOrderRevenue, costMap),
+      stdSun: standardRevenue - sundayCost - stripeFeeFor(standardRevenue, costMap),
+      stdWed: standardRevenue - wedCost - stripeFeeFor(standardRevenue, costMap),
+      paygSun: paygRevenue - sundayCost - stripeFeeFor(paygRevenue, costMap),
+      paygWed: paygRevenue - wedCost - stripeFeeFor(paygRevenue, costMap),
     }
   })
 
@@ -137,9 +147,9 @@ export default function OperationalCostsPanel() {
     return {
       qty,
       packaging,
-      first: firstOrderRevenue - packaging,
-      standard: standardRevenue - packaging,
-      payg: paygRevenue - packaging,
+      first: firstOrderRevenue - packaging - stripeFeeFor(firstOrderRevenue, costMap),
+      standard: standardRevenue - packaging - stripeFeeFor(standardRevenue, costMap),
+      payg: paygRevenue - packaging - stripeFeeFor(paygRevenue, costMap),
     }
   })
 
@@ -200,7 +210,7 @@ export default function OperationalCostsPanel() {
               Revenue left after packaging + DPD (Nationwide)
             </h3>
             <p style={{ color: '#888', fontSize: 12.5, marginBottom: 12 }}>
-              Before food/ingredient cost. Delivery fee charged: £{DELIVERY_FEE_CHARGED.toFixed(2)}.
+              Before food/ingredient cost. Delivery fee charged: £{DELIVERY_FEE_CHARGED.toFixed(2)}. Includes Stripe's processing fee on the transaction.
             </p>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -246,7 +256,7 @@ export default function OperationalCostsPanel() {
             <p style={{ color: '#888', fontSize: 12.5, marginBottom: 12 }}>
               No DPD cost here - these go out with drivers, not a courier. Driver cost (2 drivers ×
               £15) is a flat per-day figure like gloves/tape, so it isn&apos;t split per order below.
-              Delivery fee charged: £{STOKE_DELIVERY_FEE_CHARGED.toFixed(2)}.
+              Delivery fee charged: £{STOKE_DELIVERY_FEE_CHARGED.toFixed(2)}. Includes Stripe's processing fee on the transaction.
             </p>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
