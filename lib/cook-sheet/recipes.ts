@@ -17,6 +17,9 @@ export interface RecipeIngredient {
   /** Raw grams per portion. */
   raw: number;
   isMeat?: boolean;
+  /** Optional target cooked grams per portion, for non-meat ingredients
+   * that are also bought/priced dry but shown cooked (e.g. pasta). */
+  cookedWeight?: number;
 }
 
 export interface RecipeMeat {
@@ -380,7 +383,7 @@ export const RECIPES: Recipe[] = [
     meat: { name: 'Beef Mince (for meatballs)', raw: 220, cookedWeight: 176 },
     ingredients: [
       { name: 'Beef Mince (for meatballs)', raw: 220, isMeat: true },
-      { name: 'Spaghetti (cooked weight)', raw: 176 },
+      { name: 'Spaghetti', raw: 205, cookedWeight: 176 },
       { name: 'Green Beans', raw: 20 },
       { name: 'Passata/Sauce', raw: 20 },
     ],

@@ -282,11 +282,11 @@ export function buildCookSheet(
     })
     .map(({ recipe, ordered, matchedNames }) => {
       const portions = ordered + buffer;
-      const cookedPerPortion = recipe.meat?.cookedWeight ?? null;
+      const meatCookedPerPortion = recipe.meat?.cookedWeight ?? null;
 
       const lines: CookSheetLine[] = recipe.ingredients.map((ing) => {
         const isMeat = Boolean(ing.isMeat);
-        const cooked = isMeat ? cookedPerPortion : null;
+        const cooked = ing.cookedWeight ?? (isMeat ? meatCookedPerPortion : null);
         const totalRaw = ing.raw * portions;
         return {
           name: ing.name,
