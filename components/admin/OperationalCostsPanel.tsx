@@ -36,6 +36,7 @@ const MEAL_PRICE = 8
 const FIRST_ORDER_RATE = 0.6
 const STANDARD_RATE = 0.8
 const DELIVERY_FEE_CHARGED = 7.95
+const STOKE_DELIVERY_FEE_CHARGED = 2.99
 
 function boxCostFor(qty: number, costs: Record<string, number>) {
   if (qty <= 6) return costs.box_small ?? 0
@@ -118,6 +119,24 @@ export default function OperationalCostsPanel() {
     }
   })
 
+  // Stoke-on-Trent equivalent: own delivery fee, own container price, a
+  // bag instead of a box, and no DPD cost since these go out with drivers
+  // rather than a courier - driver cost is a flat per-day figure (like
+  // gloves/tape) so it isn't divided into this per-order table either.
+  const stokeBreakdown = MEAL_COUNTS.map((qty) => {
+    const perMealPackaging =
+      (costMap.container_stoke ?? 0) + (costMap.container_label ?? 0) + (costMap.expiry_sticker ?? 0)
+    const packaging = perMealPackaging * qty + (costMap.stoke_bag ?? 0) + (costMap.shipping_label ?? 0)
+    const firstOrderRevenue = qty * MEAL_PRICE * FIRST_ORDER_RATE + STOKE_DELIVERY_FEE_CHARGED
+    const standardRevenue = qty * MEAL_PRICE * STANDARD_RATE + STOKE_DELIVERY_FEE_CHARGED
+    return {
+      qty,
+      packaging,
+      first: firstOrderRevenue - packaging,
+      standard: standardRevenue - packaging,
+    }
+  })
+
   const findCost = (key: string) => costs.find((c) => c.key === key)
 
   return (
@@ -172,7 +191,7 @@ export default function OperationalCostsPanel() {
 
           <div style={{ marginTop: 32 }}>
             <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 4 }}>
-              Revenue left after packaging + DPD (nationwide)
+              Revenue left after packaging + DPD (Nationwide)
             </h3>
             <p style={{ color: '#888', fontSize: 12.5, marginBottom: 12 }}>
               Before food/ingredient cost. First order = 40% off (£{(MEAL_PRICE * FIRST_ORDER_RATE).toFixed(2)}/meal), standard = 20% off (£{(MEAL_PRICE * STANDARD_RATE).toFixed(2)}/meal). Delivery fee charged: £{DELIVERY_FEE_CHARGED.toFixed(2)}.
@@ -198,6 +217,39 @@ export default function OperationalCostsPanel() {
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.firstWed.toFixed(2)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.stdSun.toFixed(2)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.stdWed.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 32 }}>
+            <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 4 }}>
+              Revenue left after packaging (Stoke-on-Trent)
+            </h3>
+            <p style={{ color: '#888', fontSize: 12.5, marginBottom: 12 }}>
+              No DPD cost here - these go out with drivers, not a courier. Driver cost (2 drivers ×
+              £15) is a flat per-day figure like gloves/tape, so it isn&apos;t split per order below.
+              Delivery fee charged: £{STOKE_DELIVERY_FEE_CHARGED.toFixed(2)}.
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #ddd' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Meals</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Packaging</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>First order</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Standard</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stokeBreakdown.map((row) => (
+                    <tr key={row.qty} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '6px 8px' }}>{row.qty}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.packaging.toFixed(2)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.first.toFixed(2)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{row.standard.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
