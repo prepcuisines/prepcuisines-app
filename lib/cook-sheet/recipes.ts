@@ -380,7 +380,7 @@ export const RECIPES: Recipe[] = [
     meat: { name: 'Beef Mince (for meatballs)', raw: 220, cookedWeight: 176 },
     ingredients: [
       { name: 'Beef Mince (for meatballs)', raw: 220, isMeat: true },
-      { name: 'Spaghetti (cooked weight)', raw: 215 },
+      { name: 'Spaghetti (cooked weight)', raw: 176 },
       { name: 'Green Beans', raw: 20 },
       { name: 'Passata/Sauce', raw: 20 },
     ],
