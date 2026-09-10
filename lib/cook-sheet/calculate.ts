@@ -316,7 +316,7 @@ export function buildCookSheet(
     });
 
   /* Shopping lists, split by section */
-  const buckets: Record<ShoppingSection['key'], Map<string, ShoppingLine>> = {
+  const buckets: Record<ShoppingSection['key'], Map<string, ShoppingLine & { originalNames: Set<string> }>> = {
     meals: new Map(),
     breakfast: new Map(),
     desserts: new Map(),
@@ -327,8 +327,18 @@ export function buildCookSheet(
     for (const line of dish.lines) {
       const key = shoppingKey(line.name, line.isMeat);
       const existing = bucket.get(key);
-      if (existing) existing.totalGrams += line.totalRaw;
-      else bucket.set(key, { name: key, totalGrams: line.totalRaw, isMeat: line.isMeat, cost: null });
+      if (existing) {
+        existing.totalGrams += line.totalRaw;
+        existing.originalNames.add(line.name);
+      } else {
+        bucket.set(key, {
+          name: key,
+          totalGrams: line.totalRaw,
+          isMeat: line.isMeat,
+          cost: null,
+          originalNames: new Set([line.name]),
+        });
+      }
     }
   }
 
@@ -343,12 +353,21 @@ export function buildCookSheet(
     ['meals', 'breakfast', 'desserts'] as ShoppingSection['key'][]
   )
     .map((key) => {
-      const all = [...buckets[key].values()].map((line) => ({
-        ...line,
-        // Recompute from the aggregated total, not summed per-dish costs -
-        // same ingredient across several dishes should price as one lookup.
-        cost: costFor(line.name, line.totalGrams),
-      }));
+      const all = [...buckets[key].values()].map((line) => {
+        // The display name may be a merged label (e.g. "Beef Mince (all
+        // variants)") that doesn't exist in ingredientCosts - price it
+        // using whichever original ingredient name actually has a rate on
+        // file, since they're bought as the same product either way.
+        const candidates = Array.from(line.originalNames);
+        const pricedName = candidates.find((n) => {
+          const p = ingredientCosts[n];
+          return p && (p.pricingUnit === 'unit' ? p.costPerUnit != null && p.unitWeightG : p.costPerKg != null);
+        });
+        return {
+          ...line,
+          cost: costFor(pricedName ?? candidates[0] ?? line.name, line.totalGrams),
+        };
+      });
       const meats = all.filter((l) => l.isMeat).sort((a, b) => b.totalGrams - a.totalGrams);
       const rest = all.filter((l) => !l.isMeat).sort((a, b) => b.totalGrams - a.totalGrams);
       const lines = [...meats, ...rest];
