@@ -137,3 +137,31 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ customers: enriched })
 }
+
+// Toggles skip_next_order for a customer - identical to the customer's own
+// self-service "Skip Next Order" button on their dashboard, just triggered
+// by admin instead. Body: { customerId: string, skip: boolean }
+export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const { customerId, skip } = body || {}
+  if (!customerId || typeof skip !== 'boolean') {
+    return NextResponse.json({ error: 'Missing customerId or skip' }, { status: 400 })
+  }
+
+  const { data, error } = await supabase
+    .from('customer_profiles')
+    .update({ skip_next_order: skip })
+    .eq('id', customerId)
+    .select('id, skip_next_order')
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, customer: data })
+}

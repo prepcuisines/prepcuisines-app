@@ -1209,6 +1209,28 @@ export default function AdminDashboard() {
     setCancelSubscriptionResult(null)
   }
 
+  // Toggles a customer's skip-next-order flag from admin - hits the exact
+  // same skip_next_order field the customer's own dashboard button does,
+  // so it's indistinguishable from them having done it themselves.
+  const [skipNextLoading, setSkipNextLoading] = useState(false)
+  const handleToggleSkipNext = async (customerId: string, currentValue: boolean) => {
+    setSkipNextLoading(true)
+    const newValue = !currentValue
+    try {
+      const res = await fetch('/api/admin/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId, skip: newValue }),
+      })
+      if (res.ok) {
+        setCustomers((prev) => prev.map((c) => (c.id === customerId ? { ...c, skip_next_order: newValue } : c)))
+        setViewCustomerDetail((prev) => (prev && prev.id === customerId ? { ...prev, skip_next_order: newValue } : prev))
+      }
+    } finally {
+      setSkipNextLoading(false)
+    }
+  }
+
   const cancelNextOrder = async () => {
     if (!editDeliveryCustomer) return
     setCancelNextOrderStatus('cancelling')
@@ -6448,6 +6470,14 @@ Bukr / prepcuisines`
                     }}
                   >
                     Edit delivery plan
+                  </button>
+                  <button
+                    className="segment-pill"
+                    disabled={skipNextLoading}
+                    onClick={() => handleToggleSkipNext(viewCustomerDetail.id, !!viewCustomerDetail.skip_next_order)}
+                    style={{ marginLeft: 8 }}
+                  >
+                    {viewCustomerDetail.skip_next_order ? 'Undo skip next delivery' : 'Skip next delivery'}
                   </button>
                 </div>
               </div>
