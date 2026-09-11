@@ -532,6 +532,21 @@ export const RECIPES: Recipe[] = [
       { name: 'Biscoff', raw: 20 },
     ],
   },
+  {
+    name: 'Protein Pancakes With Strawberries',
+    cat: 'breakfast',
+    stickerColour: 'n/a',
+    meat: null,
+    ingredients: [
+      { name: 'Banana', raw: 60 },
+      { name: 'Rolled Oats', raw: 30 },
+      { name: 'Whey Protein Powder', raw: 20 },
+      { name: 'Egg', raw: 28 },
+      { name: 'Unsweetened Almond Milk', raw: 50 },
+      { name: 'Baking Powder', raw: 2 },
+      { name: 'Strawberries', raw: 30 },
+    ],
+  },
 ];
 
 /**
