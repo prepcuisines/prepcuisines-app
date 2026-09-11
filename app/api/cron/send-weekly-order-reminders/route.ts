@@ -347,8 +347,8 @@ export async function POST(req: NextRequest) {
     } else if (person.kind === 'invite') {
       await sendFlattenedHeroEmailToCustomer(
         person.email,
-        `${process.env.NEXT_PUBLIC_SITE_URL || ''}/lead-hero-sept.jpg`,
-        'Chef-made meals from £4.80'
+        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/8A2FFD80-B0B0-4CFE-B291-EB8E06D3BF36.png',
+        'New: Protein Pancakes with Strawberries - just £1.99 this week'
       )
       // Logged against subscriberWindow like group 1 — once this window's
       // cutoff passes, they surface again the following week with the
@@ -359,8 +359,8 @@ export async function POST(req: NextRequest) {
     } else if (person.kind === 'leadInvite') {
       await sendFlattenedHeroEmailToCustomer(
         person.email,
-        `${process.env.NEXT_PUBLIC_SITE_URL || ''}/lead-hero-sept.jpg`,
-        'Chef-made meals from £4.80'
+        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/8A2FFD80-B0B0-4CFE-B291-EB8E06D3BF36.png',
+        'New: Protein Pancakes with Strawberries - just £1.99 this week'
       )
       await supabase
         .from('marketing_leads')

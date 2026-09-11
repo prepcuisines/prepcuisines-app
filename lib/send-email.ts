@@ -787,7 +787,7 @@ export async function sendFlattenedHeroEmailToCustomer(
           <tr><td style="padding:20px 8px 0;">
             <p style="font-family:Arial,sans-serif;font-size:15px;line-height:1.7;color:#f5f0e8;margin:0;text-align:center;">
               Chef-made meals, zero cooking required. Fresh ingredients, real flavour,
-              ready in just 2&ndash;3 minutes &mdash; all from &pound;4.80 per meal.
+              ready in just 2&ndash;3 minutes.
             </p>
           </td></tr>
           <tr><td align="center" style="padding:24px 8px 8px;">
