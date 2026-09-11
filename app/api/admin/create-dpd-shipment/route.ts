@@ -58,7 +58,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const { orderId, forceNew } = await req.json()
+  // TEMP: also accept orderId/forceNew via query string, to allow retrying
+  // via a simple GET during this session - restoring POST-only after.
+  let orderId: string | undefined
+  let forceNew: boolean | undefined
+  try {
+    const body = await req.json()
+    orderId = body.orderId
+    forceNew = body.forceNew
+  } catch {
+    orderId = req.nextUrl.searchParams.get('orderId') || undefined
+    forceNew = req.nextUrl.searchParams.get('forceNew') === 'true'
+  }
   if (!orderId) {
     return NextResponse.json({ error: 'Missing orderId' }, { status: 400 })
   }
@@ -177,3 +188,6 @@ export async function POST(req: NextRequest) {
     parcelNumbers: result.parcelNumbers,
   })
 }
+
+// TEMP: allow GET for this session's retries - removing after.
+export const GET = POST
