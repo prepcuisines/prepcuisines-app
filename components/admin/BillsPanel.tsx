@@ -9,6 +9,10 @@ type Bill = {
   frequency: 'weekly' | 'monthly'
   next_due_date: string
   category: 'personal' | 'business'
+  payoff_type: 'none' | 'end_date' | 'total_remaining'
+  end_date: string | null
+  total_remaining: number | null
+  finished: boolean
 }
 
 const emptyForm = {
@@ -17,6 +21,9 @@ const emptyForm = {
   frequency: 'monthly' as 'weekly' | 'monthly',
   next_due_date: '',
   category: 'business' as 'personal' | 'business',
+  payoff_type: 'none' as 'none' | 'end_date' | 'total_remaining',
+  end_date: '',
+  total_remaining: '',
 }
 
 export default function BillsPanel() {
@@ -56,6 +63,9 @@ export default function BillsPanel() {
       frequency: bill.frequency,
       next_due_date: bill.next_due_date,
       category: bill.category,
+      payoff_type: bill.payoff_type,
+      end_date: bill.end_date ?? '',
+      total_remaining: bill.total_remaining !== null ? String(bill.total_remaining) : '',
     })
     setEditingId(bill.id)
     setShowForm(true)
@@ -65,6 +75,15 @@ export default function BillsPanel() {
     const amount = Number(form.amount)
     if (!form.name.trim() || !Number.isFinite(amount) || amount < 0 || !form.next_due_date) {
       setMessage('Fill in every field with a valid amount and date.')
+      return
+    }
+    if (form.payoff_type === 'end_date' && !form.end_date) {
+      setMessage('Add an end date, or switch payoff type to something else.')
+      return
+    }
+    const totalRemaining = Number(form.total_remaining)
+    if (form.payoff_type === 'total_remaining' && (!Number.isFinite(totalRemaining) || totalRemaining < 0)) {
+      setMessage('Add a valid total remaining amount.')
       return
     }
     setSaving(true)
@@ -79,6 +98,9 @@ export default function BillsPanel() {
         frequency: form.frequency,
         next_due_date: form.next_due_date,
         category: form.category,
+        payoff_type: form.payoff_type,
+        end_date: form.payoff_type === 'end_date' ? form.end_date : null,
+        total_remaining: form.payoff_type === 'total_remaining' ? totalRemaining : null,
       }),
     })
     if (res.ok) {
@@ -178,10 +200,37 @@ export default function BillsPanel() {
                     >
                       {bill.category}
                     </span>
+                    {bill.finished && (
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          padding: '2px 8px',
+                          borderRadius: 10,
+                          background: '#2d3510',
+                          color: '#fff',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.03em',
+                          fontWeight: 700,
+                        }}
+                      >
+                        Paid off
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: 12.5, color: '#888' }}>
-                    £{bill.amount.toFixed(2)} · {bill.frequency} · next due {bill.next_due_date} ({label})
+                    £{bill.amount.toFixed(2)} · {bill.frequency}
+                    {!bill.finished && ` · next due ${bill.next_due_date} (${label})`}
                   </div>
+                  {bill.payoff_type === 'end_date' && bill.end_date && (
+                    <div style={{ fontSize: 12.5, color: '#888' }}>
+                      {bill.finished ? 'Ended' : 'Ends'} {bill.end_date}
+                    </div>
+                  )}
+                  {bill.payoff_type === 'total_remaining' && bill.total_remaining !== null && (
+                    <div style={{ fontSize: 12.5, color: '#888' }}>
+                      £{bill.total_remaining.toFixed(2)} left to pay off
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   <button
@@ -265,6 +314,48 @@ export default function BillsPanel() {
               style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
             />
           </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 12.5, color: '#888', marginBottom: 4 }}>
+              Is this recurring, or getting paid off?
+            </label>
+            <select
+              value={form.payoff_type}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, payoff_type: e.target.value as 'none' | 'end_date' | 'total_remaining' }))
+              }
+              style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+            >
+              <option value="none">Just recurring, no end</option>
+              <option value="end_date">Has an end date</option>
+              <option value="total_remaining">Has a total remaining to pay off</option>
+            </select>
+          </div>
+          {form.payoff_type === 'end_date' && (
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12.5, color: '#888', marginBottom: 4 }}>End date</label>
+              <input
+                type="date"
+                value={form.end_date}
+                onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+              />
+            </div>
+          )}
+          {form.payoff_type === 'total_remaining' && (
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12.5, color: '#888', marginBottom: 4 }}>
+                Total remaining (£)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.total_remaining}
+                onChange={(e) => setForm((f) => ({ ...f, total_remaining: e.target.value }))}
+                style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+              />
+            </div>
+          )}
           {message && <p style={{ color: '#a03030', fontSize: 13, marginBottom: 10 }}>{message}</p>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button

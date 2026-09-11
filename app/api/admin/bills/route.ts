@@ -15,21 +15,52 @@ function todayDateOnly(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+function addPeriod(d: Date, frequency: 'weekly' | 'monthly') {
+  if (frequency === 'weekly') d.setUTCDate(d.getUTCDate() + 7)
+  else d.setUTCMonth(d.getUTCMonth() + 1)
+}
+
 // Rolls a due date forward by its frequency until it's today or later -
 // this is what "automatically ticks off" a finished period without any
 // manual action: once a week/month has genuinely passed, the next time
 // this loads, the date has already moved on to the next live occurrence.
-function rollForward(dueDate: string, frequency: 'weekly' | 'monthly'): string {
-  const d = new Date(dueDate + 'T00:00:00Z')
+// Also respects payoff tracking: an end-date bill stops advancing once
+// past its end date, and a total-remaining bill has its balance knocked
+// down by one payment per period that's passed, stopping (and being
+// marked finished) once it reaches zero - whichever limit is hit first.
+function rollForward(bill: {
+  next_due_date: string
+  frequency: 'weekly' | 'monthly'
+  amount: number
+  payoff_type: 'none' | 'end_date' | 'total_remaining'
+  end_date: string | null
+  total_remaining: number | null
+}): { next_due_date: string; total_remaining: number | null; finished: boolean } {
   const today = new Date(todayDateOnly() + 'T00:00:00Z')
+  const endDate = bill.end_date ? new Date(bill.end_date + 'T00:00:00Z') : null
+  let d = new Date(bill.next_due_date + 'T00:00:00Z')
+  let remaining = bill.total_remaining
+  let finished = false
+
   while (d < today) {
-    if (frequency === 'weekly') {
-      d.setUTCDate(d.getUTCDate() + 7)
-    } else {
-      d.setUTCMonth(d.getUTCMonth() + 1)
+    if (bill.payoff_type === 'end_date' && endDate && d > endDate) {
+      finished = true
+      break
     }
+    if (bill.payoff_type === 'total_remaining' && remaining !== null) {
+      remaining = Math.max(0, remaining - bill.amount)
+      if (remaining <= 0) {
+        finished = true
+        addPeriod(d, bill.frequency)
+        break
+      }
+    }
+    addPeriod(d, bill.frequency)
   }
-  return d.toISOString().slice(0, 10)
+
+  if (bill.payoff_type === 'end_date' && endDate && d > endDate) finished = true
+
+  return { next_due_date: d.toISOString().slice(0, 10), total_remaining: remaining, finished }
 }
 
 export async function GET(req: NextRequest) {
@@ -42,12 +73,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const rolled: { id: string; next_due_date: string }[] = []
+  const rolled: { id: string; next_due_date: string; total_remaining: number | null; finished: boolean }[] = []
   const bills = (data || []).map((bill) => {
-    const rolledDate = rollForward(bill.next_due_date, bill.frequency)
-    if (rolledDate !== bill.next_due_date) {
-      rolled.push({ id: bill.id, next_due_date: rolledDate })
-      return { ...bill, next_due_date: rolledDate }
+    const result = rollForward(bill)
+    if (
+      result.next_due_date !== bill.next_due_date ||
+      result.total_remaining !== bill.total_remaining ||
+      result.finished !== bill.finished
+    ) {
+      rolled.push({ id: bill.id, ...result })
+      return { ...bill, ...result }
     }
     return bill
   })
@@ -55,13 +90,22 @@ export async function GET(req: NextRequest) {
   // Persist any roll-forwards so the "ticked off" state sticks, not just
   // this response.
   for (const r of rolled) {
-    await supabase.from('bills').update({ next_due_date: r.next_due_date, updated_at: new Date().toISOString() }).eq('id', r.id)
+    await supabase
+      .from('bills')
+      .update({
+        next_due_date: r.next_due_date,
+        total_remaining: r.total_remaining,
+        finished: r.finished,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', r.id)
   }
 
   return NextResponse.json({ bills })
 }
 
-// Body: { id?: string, name, amount, frequency, next_due_date }
+// Body: { id?: string, name, amount, frequency, next_due_date, category,
+//         payoff_type, end_date?, total_remaining? }
 // Omit id to create a new bill; include it to update an existing one.
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
@@ -69,7 +113,17 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { id, name, amount, frequency, next_due_date, category } = body || {}
+  const {
+    id,
+    name,
+    amount,
+    frequency,
+    next_due_date,
+    category,
+    payoff_type = 'none',
+    end_date = null,
+    total_remaining = null,
+  } = body || {}
 
   if (
     !name ||
@@ -77,15 +131,30 @@ export async function POST(req: NextRequest) {
     amount < 0 ||
     !['weekly', 'monthly'].includes(frequency) ||
     !next_due_date ||
-    !['personal', 'business'].includes(category)
+    !['personal', 'business'].includes(category) ||
+    !['none', 'end_date', 'total_remaining'].includes(payoff_type) ||
+    (payoff_type === 'end_date' && !end_date) ||
+    (payoff_type === 'total_remaining' && (typeof total_remaining !== 'number' || total_remaining < 0))
   ) {
     return NextResponse.json({ error: 'Missing or invalid fields' }, { status: 400 })
+  }
+
+  const payload = {
+    name,
+    amount,
+    frequency,
+    next_due_date,
+    category,
+    payoff_type,
+    end_date: payoff_type === 'end_date' ? end_date : null,
+    total_remaining: payoff_type === 'total_remaining' ? total_remaining : null,
+    finished: false,
   }
 
   if (id) {
     const { data, error } = await supabase
       .from('bills')
-      .update({ name, amount, frequency, next_due_date, category, updated_at: new Date().toISOString() })
+      .update({ ...payload, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single()
@@ -95,7 +164,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('bills')
-    .insert({ name, amount, frequency, next_due_date, category })
+    .insert(payload)
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
