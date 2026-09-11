@@ -71,6 +71,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   }
 
+  // Vercel Cron schedules have no year field, so a one-off entry pinned to
+  // a specific calendar date (e.g. day=12 month=9) will otherwise silently
+  // recur every year on that date forever. onlyDate is a hard guard for
+  // those entries: pass the exact intended date (YYYY-MM-DD, Europe/London)
+  // and this route no-ops on any other date, so leaving the cron entry in
+  // vercel.json past its intended use can never cause an unwanted repeat.
+  const onlyDate = req.nextUrl.searchParams.get('onlyDate')
+  if (onlyDate) {
+    const todayLondon = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' })
+    if (todayLondon !== onlyDate) {
+      return NextResponse.json({ skipped: true, reason: `onlyDate=${onlyDate}, today=${todayLondon}` })
+    }
+  }
+
   // Vercel Cron never sends a body, so this stays empty for real scheduled
   // runs. The admin catch-up trigger (run-weekly-reminders) can pass
   // forceDeliveryDay to replay a specific delivery day's reminder run that
