@@ -21,6 +21,7 @@ type LineItem = {
   qty: number
   price: number
   category: string
+  discountExempt: boolean
 }
 
 export default function CheckoutPage() {
@@ -138,7 +139,7 @@ export default function CheckoutPage() {
     const supabase = createClient()
     supabase
       .from('menu_items')
-      .select('id, name, price, category')
+      .select('id, name, price, category, discount_exempt')
       .in('id', allIds)
       .then(({ data }) => {
         if (data) {
@@ -148,7 +149,14 @@ export default function CheckoutPage() {
               parsed.breakfastQty[item.id] ||
               parsed.dessertQty[item.id] ||
               0
-            return { id: item.id, name: item.name, qty, price: item.price, category: item.category }
+            return {
+              id: item.id,
+              name: item.name,
+              qty,
+              price: item.price,
+              category: item.category,
+              discountExempt: !!item.discount_exempt,
+            }
           })
           setLineItems(items)
         }
@@ -361,7 +369,10 @@ export default function CheckoutPage() {
     const hasBonusDiscount = subscriberBonusOrders > 0
     const isDiscounted = subscriberOrdersCompleted <= 5 || hasBonusDiscount
     const rate = subscriberWinbackPending ? 0.6 : isDiscounted ? 0.8 : 1
-    const foodTotal = lineItems.reduce((sum, i) => sum + i.price * i.qty * rate, 0)
+    const foodTotal = lineItems.reduce(
+      (sum, i) => sum + i.price * i.qty * (i.discountExempt ? 1 : rate),
+      0,
+    )
     const normalisedPostcode = subscriberPostcode.trim().toUpperCase().replace(/\s/g, '')
     const subDeliveryFee = normalisedPostcode.startsWith('ST') ? 2.99 : 7.95
     const total = foodTotal + subDeliveryFee
@@ -496,10 +507,12 @@ export default function CheckoutPage() {
                     {item.name} <span className="pc-subscriber-qty">× {item.qty}</span>
                   </span>
                   <span>
-                    {isDiscounted && (
+                    {isDiscounted && !item.discountExempt && (
                       <span className="pc-subscriber-was">£{(item.price * item.qty).toFixed(2)}</span>
                     )}
-                    <span className="pc-subscriber-now">£{(item.price * item.qty * rate).toFixed(2)}</span>
+                    <span className="pc-subscriber-now">
+                      £{(item.price * item.qty * (item.discountExempt ? 1 : rate)).toFixed(2)}
+                    </span>
                   </span>
                 </div>
               ))}

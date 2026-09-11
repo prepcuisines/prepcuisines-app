@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     const { data: items, error: itemsError } = await supabase
       .from('menu_items')
-      .select('id, name, price')
+      .select('id, name, price, discount_exempt')
       .in('id', allIds)
 
     if (itemsError || !items) {
@@ -157,7 +157,8 @@ export async function POST(req: NextRequest) {
 
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
-      return sum + item.price * qty * discountRate
+      const rate = item.discount_exempt ? 1 : discountRate
+      return sum + item.price * qty * rate
     }, 0)
 
     const normalisedPostcode = (profile.postcode || '').trim().toUpperCase().replace(/\s/g, '')

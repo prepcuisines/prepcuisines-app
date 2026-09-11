@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
 
         const { data: windowItems } = await supabase
           .from('menu_window_items')
-          .select('menu_item_id, menu_items(id, name, price, category)')
+          .select('menu_item_id, menu_items(id, name, price, category, discount_exempt)')
           .eq('menu_window_id', window.id)
 
         const availableMeals = (windowItems || [])
@@ -271,7 +271,10 @@ export async function POST(req: NextRequest) {
             ? 0.8
             : 1
 
-        const foodTotal = chosen.reduce((sum, item) => sum + item.price * discountRate, 0)
+        const foodTotal = chosen.reduce(
+          (sum, item) => sum + item.price * (item.discount_exempt ? 1 : discountRate),
+          0,
+        )
 
         const normalisedPostcode = (sub.postcode || '').trim().toUpperCase().replace(/\s/g, '')
         const isStokeOnTrent = normalisedPostcode.startsWith('ST')
@@ -282,7 +285,8 @@ export async function POST(req: NextRequest) {
         const itemCounts: Record<string, { name: string; price: number; qty: number }> = {}
         chosen.forEach((item) => {
           if (!itemCounts[item.id]) {
-            itemCounts[item.id] = { name: item.name, price: item.price * discountRate, qty: 0 }
+            const rate = item.discount_exempt ? 1 : discountRate
+            itemCounts[item.id] = { name: item.name, price: item.price * rate, qty: 0 }
           }
           itemCounts[item.id].qty += 1
         })
