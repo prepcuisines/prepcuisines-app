@@ -1626,7 +1626,11 @@ export default function AdminDashboard() {
     const ingredientRows = opsHub.kitchen.ingredientsRequired
       .map((i: any) => `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;">${i.name}</td><td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${i.kg}kg</td></tr>`)
       .join('')
-    w.document.write(`<html><head><style>@media print{@page{margin:10mm;}}body{font-family:Arial,sans-serif;padding:20px;}</style></head><body>
+    w.document.write(`<html><head><style>@media print{@page{margin:10mm;}#pc-back-to-hub{display:none !important;}}body{font-family:Arial,sans-serif;padding:20px;}</style></head><body>
+      <div id="pc-back-to-hub" style="position:sticky;top:0;z-index:999;background:#1a2e1a;padding:10px 16px;margin:-20px -20px 20px;display:flex;align-items:center;gap:10px;">
+        <button onclick="window.location.href='/admin'" style="background:#c9a84c;color:#1a2e1a;border:none;border-radius:6px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;">&larr; Back to Hub</button>
+        <span style="color:#f5f0e8;font-size:12px;">Use this if your browser has no back button (e.g. added to your Home Screen).</span>
+      </div>
       <h1>Kitchen Sheet — ${opsHub.nextWindow?.dayName} (w/c ${opsHub.nextWindow ? new Date(opsHub.nextWindow.date).toLocaleDateString('en-GB') : ''})</h1>
       <h2>Meals to cook</h2>
       <table style="width:100%;border-collapse:collapse;">${rows}</table>
@@ -2465,7 +2469,13 @@ export default function AdminDashboard() {
 
   const finishPrintShell = (w: Window, pages: string[]) => {
     w.document.open()
-    w.document.write('<html><head><style>@media print{@page{margin:10mm;}}</style></head><body>')
+    w.document.write(
+      '<html><head><style>@media print{@page{margin:10mm;}#pc-back-to-hub{display:none !important;}}</style></head><body>' +
+        '<div id="pc-back-to-hub" style="position:sticky;top:0;z-index:999;background:#1a2e1a;padding:10px 16px;display:flex;align-items:center;gap:10px;">' +
+        '<button onclick="window.location.href=\'/admin\'" style="background:#c9a84c;color:#1a2e1a;border:none;border-radius:6px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;">&larr; Back to Hub</button>' +
+        '<span style="color:#f5f0e8;font-size:12px;">Use this if your browser has no back button (e.g. added to your Home Screen).</span>' +
+        '</div>'
+    )
     pages.forEach((p) => w.document.write(p))
     w.document.write('</body></html>')
     w.document.close()

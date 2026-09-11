@@ -249,11 +249,22 @@ ${pages || '<p style="font-family:Arial,sans-serif;padding:24px;">Nothing to pri
 
 /* ── Opening the print window ──────────────────────────────────────────── */
 
+const BACK_TO_HUB_BAR = `
+<div id="pc-back-to-hub" style="position:sticky;top:0;z-index:999;background:#1a2e1a;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+  <button onclick="window.location.href='/admin'" style="background:#c9a84c;color:#1a2e1a;border:none;border-radius:6px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;">&larr; Back to Hub</button>
+  <span style="color:#f5f0e8;font-size:12px;">Use this if your browser has no back button (e.g. added to your Home Screen).</span>
+</div>
+<style>@media print { #pc-back-to-hub { display: none !important; } }</style>
+`;
+
 export function openPrintWindow(html: string): boolean {
   const win = window.open('', '_blank');
   if (!win) return false;
+  const withBackBar = /<body[^>]*>/i.test(html)
+    ? html.replace(/(<body[^>]*>)/i, `$1${BACK_TO_HUB_BAR}`)
+    : BACK_TO_HUB_BAR + html;
   win.document.open();
-  win.document.write(html);
+  win.document.write(withBackBar);
   win.document.close();
   return true;
 }
