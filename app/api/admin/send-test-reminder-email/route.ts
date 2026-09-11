@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       await sendFlattenedHeroEmailToCustomer(
         to,
         'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/8A2FFD80-B0B0-4CFE-B291-EB8E06D3BF36.png',
-        'New: Protein Pancakes with Strawberries - just £1.99 this week'
+        'New: Protein Pancakes with Strawberries - £1.99, ends in 7 days'
       )
       return NextResponse.json({ success: true, sentTo: to, kind })
     } catch (err: any) {
