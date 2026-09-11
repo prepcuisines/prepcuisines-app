@@ -434,7 +434,7 @@ export const RECIPES: Recipe[] = [
     ingredients: [
       { name: 'Rolled Oats', raw: 60 },
       { name: 'Full-Fat Greek Yogurt (10%)', raw: 100 },
-      { name: 'Unsweetened Oat Milk', raw: 80 },
+      { name: 'Unsweetened Almond Milk', raw: 80 },
       { name: 'Chia Seeds', raw: 10 },
       { name: 'Hemp Seeds', raw: 10 },
       { name: 'Mixed Berries', raw: 30 },
@@ -452,7 +452,7 @@ export const RECIPES: Recipe[] = [
     ingredients: [
       { name: 'Rolled Oats', raw: 60 },
       { name: 'Full-Fat Greek Yogurt (10%)', raw: 100 },
-      { name: 'Unsweetened Oat Milk', raw: 80 },
+      { name: 'Unsweetened Almond Milk', raw: 80 },
       { name: 'Chia Seeds', raw: 10 },
       { name: 'Hemp Seeds', raw: 10 },
       { name: 'Raspberries', raw: 30 },
@@ -471,7 +471,7 @@ export const RECIPES: Recipe[] = [
     ingredients: [
       { name: 'Rolled Oats', raw: 60 },
       { name: 'Full-Fat Greek Yogurt (10%)', raw: 100 },
-      { name: 'Unsweetened Oat Milk', raw: 80 },
+      { name: 'Unsweetened Almond Milk', raw: 80 },
       { name: 'Chia Seeds', raw: 10 },
       { name: 'Hemp Seeds', raw: 10 },
       { name: 'Blueberries', raw: 30 },
@@ -489,7 +489,7 @@ export const RECIPES: Recipe[] = [
     ingredients: [
       { name: 'Rolled Oats', raw: 60 },
       { name: 'Full-Fat Greek Yogurt (10%)', raw: 100 },
-      { name: 'Unsweetened Oat Milk', raw: 80 },
+      { name: 'Unsweetened Almond Milk', raw: 80 },
       { name: 'Chia Seeds', raw: 10 },
       { name: 'Hemp Seeds', raw: 10 },
       { name: 'Banana', raw: 40 },
