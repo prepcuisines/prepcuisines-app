@@ -8,8 +8,8 @@ const supabase = createClient(
 )
 
 function isAuthorized(req: NextRequest) {
-  // TEMP: disabled for retrying 3 failed labels - restoring immediately after.
-  return true
+  const session = req.cookies.get('pc_admin_session')?.value
+  return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
 // prepcuisines' own kitchen — the collection address for every shipment.
@@ -58,18 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  // TEMP: also accept orderId/forceNew via query string, to allow retrying
-  // via a simple GET during this session - restoring POST-only after.
-  let orderId: string | undefined
-  let forceNew: boolean | undefined
-  try {
-    const body = await req.json()
-    orderId = body.orderId
-    forceNew = body.forceNew
-  } catch {
-    orderId = req.nextUrl.searchParams.get('orderId') || undefined
-    forceNew = req.nextUrl.searchParams.get('forceNew') === 'true'
-  }
+  const { orderId, forceNew } = await req.json()
   if (!orderId) {
     return NextResponse.json({ error: 'Missing orderId' }, { status: 400 })
   }
@@ -188,6 +177,3 @@ export async function POST(req: NextRequest) {
     parcelNumbers: result.parcelNumbers,
   })
 }
-
-// TEMP: allow GET for this session's retries - removing after.
-export const GET = POST
