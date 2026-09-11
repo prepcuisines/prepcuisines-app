@@ -8,9 +8,16 @@ type Bill = {
   amount: number
   frequency: 'weekly' | 'monthly'
   next_due_date: string
+  category: 'personal' | 'business'
 }
 
-const emptyForm = { name: '', amount: '', frequency: 'monthly' as 'weekly' | 'monthly', next_due_date: '' }
+const emptyForm = {
+  name: '',
+  amount: '',
+  frequency: 'monthly' as 'weekly' | 'monthly',
+  next_due_date: '',
+  category: 'business' as 'personal' | 'business',
+}
 
 export default function BillsPanel() {
   const [bills, setBills] = useState<Bill[]>([])
@@ -20,6 +27,7 @@ export default function BillsPanel() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'personal' | 'business'>('all')
 
   const load = async () => {
     setLoading(true)
@@ -47,6 +55,7 @@ export default function BillsPanel() {
       amount: String(bill.amount),
       frequency: bill.frequency,
       next_due_date: bill.next_due_date,
+      category: bill.category,
     })
     setEditingId(bill.id)
     setShowForm(true)
@@ -69,6 +78,7 @@ export default function BillsPanel() {
         amount,
         frequency: form.frequency,
         next_due_date: form.next_due_date,
+        category: form.category,
       }),
     })
     if (res.ok) {
@@ -94,8 +104,9 @@ export default function BillsPanel() {
     return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   }
 
-  const weeklyTotal = bills.filter((b) => b.frequency === 'weekly').reduce((s, b) => s + b.amount, 0)
-  const monthlyTotal = bills.filter((b) => b.frequency === 'monthly').reduce((s, b) => s + b.amount, 0)
+  const visibleBills = bills.filter((b) => filter === 'all' || b.category === filter)
+  const weeklyTotal = visibleBills.filter((b) => b.frequency === 'weekly').reduce((s, b) => s + b.amount, 0)
+  const monthlyTotal = visibleBills.filter((b) => b.frequency === 'monthly').reduce((s, b) => s + b.amount, 0)
 
   return (
     <div style={{ maxWidth: 700, padding: '0 0 40px' }}>
@@ -104,17 +115,38 @@ export default function BillsPanel() {
         Track debt payments and recurring bills. Once a due date passes, it automatically rolls
         forward to the next occurrence — no need to tick anything off by hand.
       </p>
-      <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+      <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
         Weekly total: <strong>£{weeklyTotal.toFixed(2)}</strong> · Monthly total:{' '}
         <strong>£{monthlyTotal.toFixed(2)}</strong>
       </p>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {(['all', 'business', 'personal'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            style={{
+              padding: '6px 14px',
+              fontSize: 13,
+              borderRadius: 20,
+              border: filter === f ? '1px solid #2d3510' : '1px solid #ccc',
+              background: filter === f ? '#2d3510' : '#fff',
+              color: filter === f ? '#fff' : '#333',
+              cursor: 'pointer',
+              textTransform: 'capitalize',
+            }}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <p>Loading…</p>
       ) : (
         <div style={{ marginBottom: 20 }}>
-          {bills.length === 0 && <p style={{ color: '#888', fontSize: 14 }}>No bills added yet.</p>}
-          {bills.map((bill) => {
+          {visibleBills.length === 0 && <p style={{ color: '#888', fontSize: 14 }}>No bills here.</p>}
+          {visibleBills.map((bill) => {
             const days = daysUntil(bill.next_due_date)
             const label = days === 0 ? 'Due today' : days < 0 ? `${Math.abs(days)}d overdue` : `in ${days}d`
             return (
@@ -130,7 +162,23 @@ export default function BillsPanel() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{bill.name}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {bill.name}
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        background: bill.category === 'personal' ? '#e8d5b0' : '#dce8dc',
+                        color: '#333',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.03em',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {bill.category}
+                    </span>
+                  </div>
                   <div style={{ fontSize: 12.5, color: '#888' }}>
                     £{bill.amount.toFixed(2)} · {bill.frequency} · next due {bill.next_due_date} ({label})
                   </div>
@@ -195,6 +243,17 @@ export default function BillsPanel() {
             >
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ display: 'block', fontSize: 12.5, color: '#888', marginBottom: 4 }}>Category</label>
+            <select
+              value={form.category}
+              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as 'personal' | 'business' }))}
+              style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+            >
+              <option value="business">Business</option>
+              <option value="personal">Personal</option>
             </select>
           </div>
           <div style={{ marginBottom: 14 }}>

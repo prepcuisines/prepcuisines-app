@@ -69,16 +69,23 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { id, name, amount, frequency, next_due_date } = body || {}
+  const { id, name, amount, frequency, next_due_date, category } = body || {}
 
-  if (!name || typeof amount !== 'number' || amount < 0 || !['weekly', 'monthly'].includes(frequency) || !next_due_date) {
+  if (
+    !name ||
+    typeof amount !== 'number' ||
+    amount < 0 ||
+    !['weekly', 'monthly'].includes(frequency) ||
+    !next_due_date ||
+    !['personal', 'business'].includes(category)
+  ) {
     return NextResponse.json({ error: 'Missing or invalid fields' }, { status: 400 })
   }
 
   if (id) {
     const { data, error } = await supabase
       .from('bills')
-      .update({ name, amount, frequency, next_due_date, updated_at: new Date().toISOString() })
+      .update({ name, amount, frequency, next_due_date, category, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single()
@@ -88,7 +95,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('bills')
-    .insert({ name, amount, frequency, next_due_date })
+    .insert({ name, amount, frequency, next_due_date, category })
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
