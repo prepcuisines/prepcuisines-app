@@ -144,7 +144,12 @@ export async function POST(req: NextRequest) {
           : undefined,
       },
       deliveryEmail: order.ship_email || undefined,
-      deliveryInstructions: order.delivery_instructions || undefined,
+      // DPD rejects this field past some undocumented length - no official
+      // number found, but a 61-character instruction has failed with
+      // "maximum length exceeded" before, so keeping this conservative.
+      deliveryInstructions: order.delivery_instructions
+        ? order.delivery_instructions.slice(0, 45)
+        : undefined,
       shippingRef1: order.id.slice(0, 25),
     },
     'live'
