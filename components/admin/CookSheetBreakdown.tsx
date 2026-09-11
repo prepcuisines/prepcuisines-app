@@ -181,7 +181,7 @@ export default function CookSheetBreakdown({ tally, dateLabel, dateKey }: Props)
               {sheet.unpricedIngredients.length} ingredient{sheet.unpricedIngredients.length === 1 ? '' : 's'} not priced yet
             </strong>{' '}
             — costs can&apos;t be shown until these have a price:{' '}
-            {sheet.unpricedIngredients.join(', ')}. Add them in the Ingredient Costs tab.
+            {sheet.unpricedIngredients.join(', ')}. Add them in the Costs tab (Ingredient Costs).
           </div>
         )}
 

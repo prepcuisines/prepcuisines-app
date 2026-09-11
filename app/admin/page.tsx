@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
 import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
-import IngredientCostsPanel from '../../components/admin/IngredientCostsPanel'
-import OperationalCostsPanel from '../../components/admin/OperationalCostsPanel'
+import CostsPanel from '../../components/admin/CostsPanel'
 import BillsPanel from '../../components/admin/BillsPanel'
 
 type Overview = {
@@ -201,8 +200,7 @@ export default function AdminDashboard() {
     | 'menu'
     | 'insights'
     | 'ops-hub'
-    | 'ingredient-costs'
-    | 'operational-costs'
+    | 'costs'
     | 'bills'
   >('overview')
   const [analyticsView, setAnalyticsView] = useState<'business' | 'product'>('business')
@@ -3357,8 +3355,7 @@ Bukr / prepcuisines`
               { key: 'orders', label: 'Orders' },
               { key: 'delivery', label: 'Delivery' },
               { key: 'cook-sheet', label: 'Kitchen' },
-              { key: 'ingredient-costs', label: 'Ingredient Costs' },
-              { key: 'operational-costs', label: 'Packaging & Delivery' },
+              { key: 'costs', label: 'Costs' },
               { key: 'bills', label: 'Bills' },
               { key: 'menu', label: 'Products' },
               { key: 'customers', label: 'Customers' },
@@ -4975,15 +4972,9 @@ Bukr / prepcuisines`
           </section>
         )}
 
-        {tab === 'ingredient-costs' && (
+        {tab === 'costs' && (
           <section>
-            <IngredientCostsPanel />
-          </section>
-        )}
-
-        {tab === 'operational-costs' && (
-          <section>
-            <OperationalCostsPanel />
+            <CostsPanel />
           </section>
         )}
 
