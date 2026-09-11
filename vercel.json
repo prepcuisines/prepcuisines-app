@@ -95,6 +95,26 @@
     {
       "path": "/api/cron/send-weekly-order-reminders?forceDeliveryDay=sunday&featureDish=1&urgentDeadlineDay=sunday",
       "schedule": "15 12 3 9 *"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "0 12 12 9 *"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "5 13 12 9 *"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "10 14 12 9 *"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "20 15 12 9 *"
+    },
+    {
+      "path": "/api/cron/send-weekly-order-reminders",
+      "schedule": "30 16 12 9 *"
     }
   ]
 }
