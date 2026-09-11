@@ -96,7 +96,7 @@ export const RECIPES: Recipe[] = [
     meat: { name: 'Chicken Breast', raw: 225, cookedWeight: 180 },
     ingredients: [
       { name: 'Chicken Breast', raw: 210, isMeat: true },
-      { name: 'Pasta (cooked weight)', raw: 180 },
+      { name: 'Pasta', raw: 210, cookedWeight: 180 },
       { name: 'Broccoli', raw: 20 },
       { name: 'Light Cream Sauce', raw: 30 },
     ],
@@ -242,7 +242,7 @@ export const RECIPES: Recipe[] = [
     meat: { name: 'Chicken Breast', raw: 205, cookedWeight: 160 },
     ingredients: [
       { name: 'Chicken Breast', raw: 205, isMeat: true },
-      { name: 'Penne Pasta (cooked weight)', raw: 160 },
+      { name: 'Penne Pasta', raw: 186, cookedWeight: 160 },
       { name: 'Broccoli', raw: 20 },
       { name: 'Cajun Sauce', raw: 20 },
     ],
@@ -288,7 +288,7 @@ export const RECIPES: Recipe[] = [
       { name: 'Red Onion', raw: 50 },
       { name: 'Red Pepper', raw: 40 },
       { name: 'Courgette', raw: 50 },
-      { name: 'Greek Yoghurt (0% fat)', raw: 40 },
+      { name: 'Full-Fat Greek Yogurt (10%)', raw: 40 },
       { name: 'Cucumber', raw: 17 },
       { name: 'Feta Cheese', raw: 10 },
       { name: 'Pomegranate Seeds', raw: 10 },
@@ -333,7 +333,7 @@ export const RECIPES: Recipe[] = [
     meat: { name: 'Beef Steak (strips)', raw: 260, cookedWeight: 160 },
     ingredients: [
       { name: 'Beef Steak (strips)', raw: 260, isMeat: true },
-      { name: 'Noodles (cooked weight)', raw: 150 },
+      { name: 'Noodles', raw: 175, cookedWeight: 150 },
       { name: 'Peppers & Sauce', raw: 30 },
     ],
   },
@@ -507,7 +507,7 @@ export const RECIPES: Recipe[] = [
     stickerColour: 'n/a',
     meat: null,
     ingredients: [
-      { name: 'Natural Peanut Butter', raw: 90 },
+      { name: 'Peanut Butter', raw: 90 },
       { name: 'Vanilla Beef Isolate Protein Powder', raw: 44 },
       { name: 'Ripe Banana', raw: 66 },
     ],
