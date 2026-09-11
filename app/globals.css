@@ -185,7 +185,9 @@ html, body { margin: 0; padding: 0; }
 .pc-meal-card { background: var(--pc-white); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(45,53,16,0.08); transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .pc-meal-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(45,53,16,0.12); }
 .pc-meal-img { width: 100%; height: 180px; background: linear-gradient(135deg, #e8ebdc, #d8dcc8); position: relative; }
-.pc-meal-price-badge { position: absolute; top: 10px; right: 10px; background: var(--pc-gold); color: var(--pc-green); font-family: var(--font-montserrat), sans-serif; font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 999px; box-shadow: 0 2px 6px rgba(45,53,16,0.25); }
+.pc-meal-price-badge { position: absolute; top: 10px; right: 10px; background: var(--pc-gold); color: var(--pc-green); font-family: var(--font-montserrat), sans-serif; font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 999px; box-shadow: 0 2px 6px rgba(45,53,16,0.25); display: flex; align-items: center; gap: 5px; }
+.pc-meal-price-was { text-decoration: line-through; opacity: 0.65; font-weight: 500; font-size: 11px; }
+.pc-meal-promo-badge { position: absolute; top: 10px; left: 10px; background: var(--pc-green); color: var(--pc-gold); font-family: var(--font-montserrat), sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; padding: 5px 10px; border-radius: 999px; box-shadow: 0 2px 6px rgba(45,53,16,0.25); max-width: 62%; text-align: center; line-height: 1.2; }
 .pc-meal-img img { width: 100%; height: 100%; object-fit: cover; }
 .pc-meal-img-placeholder { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-family: var(--font-cormorant), Georgia, serif; font-size: 16px; font-style: italic; color: var(--pc-green); opacity: 0.5; }
 .pc-meal-body { padding: 18px; }

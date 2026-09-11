@@ -49,7 +49,7 @@ export default async function Page() {
   for (const w of dedupedWindows) {
     const { data: items } = await supabase
       .from('menu_window_items')
-      .select('week_in_rotation, menu_items(id, name, description, price, category, allergens, image_url)')
+      .select('week_in_rotation, menu_items(id, name, description, price, category, allergens, image_url, compare_at_price, promo_label)')
       .eq('menu_window_id', w.id)
     itemsByWindow[w.id] = items || []
   }

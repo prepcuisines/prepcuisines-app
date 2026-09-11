@@ -20,6 +20,8 @@ type MenuItem = {
   category: string
   allergens: string
   image_url: string
+  compare_at_price: number | null
+  promo_label: string | null
 }
 
 type WindowItem = {
@@ -176,8 +178,14 @@ function DishCard({
           <div className="pc-meal-img-placeholder">prepcuisines</div>
         )}
         {item.category !== 'meal' && (
-          <span className="pc-meal-price-badge">£{Number(item.price).toFixed(2)}</span>
+          <span className="pc-meal-price-badge">
+            {item.compare_at_price != null && (
+              <span className="pc-meal-price-was">£{Number(item.compare_at_price).toFixed(2)}</span>
+            )}
+            £{Number(item.price).toFixed(2)}
+          </span>
         )}
+        {item.promo_label && <span className="pc-meal-promo-badge">{item.promo_label}</span>}
       </div>
       <div className="pc-meal-body">
         <h3 className="pc-meal-name">{item.name}</h3>
