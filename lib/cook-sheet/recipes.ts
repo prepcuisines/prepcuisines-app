@@ -544,6 +544,7 @@ export const RECIPES: Recipe[] = [
       { name: 'Egg', raw: 28 },
       { name: 'Unsweetened Almond Milk', raw: 50 },
       { name: 'Baking Powder', raw: 2 },
+      { name: 'Nutella', raw: 10 },
       { name: 'Strawberries', raw: 30 },
     ],
   },
