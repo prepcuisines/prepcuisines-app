@@ -10,23 +10,32 @@ type IngredientPricing = {
   unitWeightG: number | null
 }
 
-const MEAL_PRICE = 8
 const FIRST_ORDER_RATE = 0.6
 const STANDARD_RATE = 0.8
 const PAYG_RATE = 1.0
+const FALLBACK_MEAL_PRICE = 8
+
+// Normalises names for matching recipe names against menu_items names,
+// which differ slightly in casing/punctuation (e.g. "Cookie dough" vs
+// "Cookie Dough").
+function normalise(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
 
 export default function MealCostsPanel() {
   const [ingredientCosts, setIngredientCosts] = useState<Record<string, IngredientPricing>>({})
   const [packagingPerMeal, setPackagingPerMeal] = useState(0)
+  const [menuPrices, setMenuPrices] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      const [ingRes, opRes] = await Promise.all([
+      const [ingRes, opRes, menuRes] = await Promise.all([
         fetch('/api/admin/ingredient-costs'),
         fetch('/api/admin/operational-costs'),
+        fetch('/api/admin/menu'),
       ])
       if (ingRes.ok) {
         const data = await ingRes.json()
@@ -40,6 +49,14 @@ export default function MealCostsPanel() {
           }
         }
         setIngredientCosts(map)
+      }
+      if (menuRes.ok) {
+        const data = await menuRes.json()
+        const map: Record<string, number> = {}
+        for (const item of data.menuItems || []) {
+          map[normalise(item.name)] = Number(item.price)
+        }
+        setMenuPrices(map)
       }
       if (opRes.ok) {
         const data = await opRes.json()
@@ -79,17 +96,21 @@ export default function MealCostsPanel() {
         }
       }
       const totalCost = ingredientCost + packagingPerMeal
+      const matchedPrice = menuPrices[normalise(recipe.name)]
+      const mealPrice = matchedPrice ?? FALLBACK_MEAL_PRICE
       return {
         name: recipe.name,
         ingredientCost,
         totalCost,
         missing,
-        profitFirst: MEAL_PRICE * FIRST_ORDER_RATE - totalCost,
-        profitStandard: MEAL_PRICE * STANDARD_RATE - totalCost,
-        profitPayg: MEAL_PRICE * PAYG_RATE - totalCost,
+        mealPrice,
+        priceIsFallback: matchedPrice === undefined,
+        profitFirst: mealPrice * FIRST_ORDER_RATE - totalCost,
+        profitStandard: mealPrice * STANDARD_RATE - totalCost,
+        profitPayg: mealPrice * PAYG_RATE - totalCost,
       }
     }).sort((a, b) => a.totalCost - b.totalCost)
-  }, [ingredientCosts, packagingPerMeal])
+  }, [ingredientCosts, packagingPerMeal, menuPrices])
 
   const visibleDishes = dishes.filter((d) => d.name.toLowerCase().includes(search.toLowerCase()))
 
@@ -97,12 +118,12 @@ export default function MealCostsPanel() {
     <div style={{ maxWidth: 900, padding: '0 0 40px' }}>
       <p style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>
         Real cost per meal for every dish — ingredient cost (from Ingredient Costs) plus per-meal
-        packaging (container, label, expiry sticker: £{packagingPerMeal.toFixed(3)}) — and what's left
-        at each pricing tier. Updates automatically whenever ingredient or packaging prices change.
+        packaging (container, label, expiry sticker: £{packagingPerMeal.toFixed(3)}) — priced against
+        each dish&apos;s real menu price (meals £8, breakfast £4.99, desserts vary), not one flat
+        assumption. Updates automatically whenever ingredient, packaging, or menu prices change.
       </p>
       <p style={{ color: '#888', fontSize: 12.5, marginBottom: 16 }}>
-        Meal price £{MEAL_PRICE.toFixed(2)}. Doesn't include box/DPD/Stripe, which depend on order
-        size — see Delivery Costs for those.
+        Doesn&apos;t include box/DPD/Stripe, which depend on order size — see Delivery Costs for those.
       </p>
 
       <input
@@ -121,6 +142,7 @@ export default function MealCostsPanel() {
             <thead>
               <tr style={{ borderBottom: '2px solid #ddd' }}>
                 <th style={{ textAlign: 'left', padding: '6px 8px' }}>Dish</th>
+                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Price</th>
                 <th style={{ textAlign: 'right', padding: '6px 8px' }}>Ingredients</th>
                 <th style={{ textAlign: 'right', padding: '6px 8px' }}>+ Packaging</th>
                 <th style={{ textAlign: 'right', padding: '6px 8px' }}>Profit (40% off)</th>
@@ -136,7 +158,11 @@ export default function MealCostsPanel() {
                     {d.missing.length > 0 && (
                       <div style={{ fontSize: 11, color: '#a03030' }}>missing: {d.missing.join(', ')}</div>
                     )}
+                    {d.priceIsFallback && (
+                      <div style={{ fontSize: 11, color: '#a06a1a' }}>no matching menu item found — assumed £8</div>
+                    )}
                   </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{d.mealPrice.toFixed(2)}</td>
                   <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{d.ingredientCost.toFixed(2)}</td>
                   <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600 }}>£{d.totalCost.toFixed(2)}</td>
                   <td style={{ padding: '6px 8px', textAlign: 'right' }}>£{d.profitFirst.toFixed(2)}</td>
