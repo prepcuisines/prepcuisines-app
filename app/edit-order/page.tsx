@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Header from '../Header'
 
-type MenuItem = { id: string; name: string; price: number; category: string; image_url: string | null }
+type MenuItem = { id: string; name: string; price: number; category: string; image_url: string | null; discount_exempt: boolean }
 type OrderRow = {
   id: string
   order_number?: number | null
@@ -68,7 +68,7 @@ function EditOrderInner() {
 
       const { data: windowItems } = await supabase
         .from('menu_window_items')
-        .select('menu_items(id, name, price, category, image_url)')
+        .select('menu_items(id, name, price, category, image_url, discount_exempt)')
         .eq('menu_window_id', normalised.menu_window_id)
       setMenu(
         ((windowItems || []) as any[])
@@ -103,7 +103,7 @@ function EditOrderInner() {
     let full = 0
     for (const line of order.items || []) {
       const m = byName.get(line.name)
-      if (m && line.qty > 0) {
+      if (m && line.qty > 0 && !m.discount_exempt) {
         paid += line.price * line.qty
         full += m.price * line.qty
       }
@@ -116,7 +116,10 @@ function EditOrderInner() {
   const deliveryFee = isStoke ? 2.99 : 7.95
   const totalMeals = Object.values(qty).reduce((s, n) => s + n, 0)
   const newTotal = useMemo(() => {
-    const food = menu.reduce((s, m) => s + (qty[m.name] || 0) * Math.round(m.price * rate * 100) / 100, 0)
+    const food = menu.reduce((s, m) => {
+      const itemRate = m.discount_exempt ? 1 : rate
+      return s + (qty[m.name] || 0) * Math.round(m.price * itemRate * 100) / 100
+    }, 0)
     return Math.round((food + deliveryFee) * 100) / 100
   }, [menu, qty, rate, deliveryFee])
   const delta = order ? Math.round((newTotal - order.total_amount) * 100) / 100 : 0
@@ -220,7 +223,7 @@ function EditOrderInner() {
               <>
                 <div className="pc-mp-grid" style={{ marginTop: 24 }}>
                   {menu.map((item) => {
-                    const unit = Math.round(item.price * rate * 100) / 100
+                    const unit = Math.round(item.price * (item.discount_exempt ? 1 : rate) * 100) / 100
                     const n = qty[item.name] || 0
                     return (
                       <div key={item.id} className="pc-meal-card">

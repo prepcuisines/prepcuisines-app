@@ -75,12 +75,12 @@ export async function POST(req: Request) {
   // snapshot stores names, not ids).
   const { data: windowItems } = await supabase
     .from('menu_window_items')
-    .select('menu_items(id, name, price, category)')
+    .select('menu_items(id, name, price, category, discount_exempt)')
     .eq('menu_window_id', order.menu_window_id)
-  const menuByName = new Map<string, { name: string; price: number }>()
+  const menuByName = new Map<string, { name: string; price: number; discountExempt: boolean }>()
   for (const wi of windowItems || []) {
     const mi: any = (wi as any).menu_items
-    if (mi?.name) menuByName.set(mi.name, { name: mi.name, price: mi.price })
+    if (mi?.name) menuByName.set(mi.name, { name: mi.name, price: mi.price, discountExempt: !!mi.discount_exempt })
   }
 
   for (const it of requested) {
@@ -103,7 +103,9 @@ export async function POST(req: Request) {
   let menuSum = 0
   for (const line of snapshot) {
     const menu = menuByName.get(line.name)
-    if (menu && line.qty > 0) {
+    // Exempt items are always at their own fixed price, so including them
+    // here would skew the inferred rate for everything else.
+    if (menu && line.qty > 0 && !menu.discountExempt) {
       paidSum += line.price * line.qty
       menuSum += menu.price * line.qty
     }
@@ -118,7 +120,8 @@ export async function POST(req: Request) {
 
   const newItems = requested.map((it) => {
     const menu = menuByName.get(it.name)!
-    return { name: menu.name, price: Math.round(menu.price * rate * 100) / 100, qty: it.qty }
+    const itemRate = menu.discountExempt ? 1 : rate
+    return { name: menu.name, price: Math.round(menu.price * itemRate * 100) / 100, qty: it.qty }
   })
   const newFood = newItems.reduce((s, it) => s + it.price * it.qty, 0)
   const isStoke = (order.ship_postcode || '').trim().toUpperCase().replace(/\s/g, '').startsWith('ST')
