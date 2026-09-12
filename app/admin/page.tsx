@@ -2993,18 +2993,35 @@ Bukr / prepcuisines`
     loadOrders()
   }
 
+  // Same banding used in Packaging & Delivery costs: small <=6 items,
+  // medium 7-10, large 11+. Delivery line excluded from the count, same
+  // as everywhere else box size is worked out.
+  const boxSizeForOrder = (o: Order): 'small' | 'medium' | 'large' => {
+    const totalItems = (o.items || [])
+      .filter((i) => i.name && i.name !== 'Delivery')
+      .reduce((s, i) => s + (i.qty || 0), 0)
+    if (totalItems <= 6) return 'small'
+    if (totalItems <= 10) return 'medium'
+    return 'large'
+  }
+
   // Batch packing slips for one region, slips ONLY: no DPD shipment is
   // created and label_printed_at is left untouched, so the outstanding
   // shipping/packing-label counters above are unaffected. Safe to re-run.
-  const printPackingSlipsForRegion = (region: 'stoke' | 'nationwide') => {
+  // boxSize only applies to nationwide (Stoke uses bags, not boxes) - lets
+  // slips be printed grouped by box size so they can be packed together.
+  const printPackingSlipsForRegion = (region: 'stoke' | 'nationwide', boxSize?: 'small' | 'medium' | 'large') => {
     const regionOrders = deliverableOrders
       .filter((o) => (region === 'stoke' ? isStokeOrder(o) : !isStokeOrder(o)))
+      .filter((o) => (region === 'nationwide' && boxSize ? boxSizeForOrder(o) === boxSize : true))
       .sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''))
     if (!regionOrders.length) {
       setPrintLabelsError(
         region === 'stoke'
           ? 'No Stoke-on-Trent orders in the selected date'
-          : 'No nationwide orders in the selected date'
+          : boxSize
+            ? `No ${boxSize} nationwide orders in the selected date`
+            : 'No nationwide orders in the selected date'
       )
       return
     }
@@ -5157,6 +5174,32 @@ Bukr / prepcuisines`
                   disabled={printLabelsStatus === 'working'}
                 >
                   🧾 Print Packing Slips — Nationwide ({deliverableOrders.length - printLabelsStokeCount})
+                </button>
+              </div>
+              <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
+                <span style={{ fontSize: 13, color: '#888', alignSelf: 'center', marginRight: 4 }}>
+                  Nationwide by box size:
+                </span>
+                <button
+                  className="segment-pill"
+                  onClick={() => printPackingSlipsForRegion('nationwide', 'small')}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  Small
+                </button>
+                <button
+                  className="segment-pill"
+                  onClick={() => printPackingSlipsForRegion('nationwide', 'medium')}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  Medium
+                </button>
+                <button
+                  className="segment-pill"
+                  onClick={() => printPackingSlipsForRegion('nationwide', 'large')}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  Large
                 </button>
               </div>
               {printLabelsError && (
