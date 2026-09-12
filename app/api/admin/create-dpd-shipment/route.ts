@@ -129,7 +129,11 @@ export async function POST(req: NextRequest) {
   // simply "now", and labels must be printed on collection day (day-of),
   // never days in advance. Early-hours same-day creates (~3am) can be
   // rejected as "date unavailable"; daytime same-day is the working path.
-  const shipmentDate = new Date()
+  // TEMP: one-off override for a single retry (Lukasz Kudrel) where the
+  // shipment needs to go out Thursday specifically rather than today -
+  // removing this override after.
+  const dateOverride = req.nextUrl.searchParams.get('shipmentDate')
+  const shipmentDate = dateOverride ? new Date(dateOverride) : new Date()
 
   const result = await createDomesticShipment(
     {
