@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const { data: items, error: itemsError } = await supabase
       .from('menu_items')
-      .select('id, name, price')
+      .select('id, name, price, discount_exempt')
       .in('id', allIds)
 
     if (itemsError || !items) {
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
       const discountMultiplier = isReturningWelcome40Customer ? 0.8 : 0.6
-      const unitPrice = isSubscribe ? item.price * discountMultiplier : item.price
+      const unitPrice = isSubscribe && !item.discount_exempt ? item.price * discountMultiplier : item.price
       return {
         quantity: qty,
         price_data: {
