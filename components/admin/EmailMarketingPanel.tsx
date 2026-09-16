@@ -46,7 +46,7 @@ export default function EmailMarketingPanel() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
-  const [audience, setAudience] = useState<'all' | 'leads'>('all')
+  const [audience, setAudience] = useState<'all' | 'leads' | 'invite'>('all')
   const [previewCounts, setPreviewCounts] = useState<any>(null)
   const [previewing, setPreviewing] = useState(false)
 
@@ -65,7 +65,7 @@ export default function EmailMarketingPanel() {
   // --- Plain text message state ---
   const [textSubject, setTextSubject] = useState('')
   const [textBody, setTextBody] = useState('')
-  const [textAudience, setTextAudience] = useState<'all' | 'leads'>('leads')
+  const [textAudience, setTextAudience] = useState<'all' | 'leads' | 'subscribers' | 'non_subscribers'>('leads')
   const [textPreview, setTextPreview] = useState<any>(null)
   const [textPreviewing, setTextPreviewing] = useState(false)
   const [textSending, setTextSending] = useState(false)
@@ -105,7 +105,7 @@ export default function EmailMarketingPanel() {
     setPreviewing(true)
     setPreviewCounts(null)
     const params = new URLSearchParams({ preview: 'true' })
-    if (audience === 'leads') params.set('only', 'leads')
+    if (audience !== 'all') params.set('only', audience)
     const res = await fetch(`/api/admin/run-weekly-reminders?${params.toString()}`)
     if (res.ok) {
       const data = await res.json()
@@ -172,11 +172,12 @@ export default function EmailMarketingPanel() {
   }
 
   const handleSendNow = async () => {
-    if (!confirm(`Send one live batch right now to "${audience === 'leads' ? 'leads only' : 'everyone due'}"? This is a real send, not a test.`)) return
+    const audienceLabel = audience === 'leads' ? 'leads only' : audience === 'invite' ? 'invite (non-subscribers) only' : 'everyone due'
+    if (!confirm(`Send one live batch right now to "${audienceLabel}"? This is a real send, not a test.`)) return
     setSendingNow(true)
     setSendNowMessage(null)
     try {
-      const params = audience === 'leads' ? '?only=leads' : ''
+      const params = audience !== 'all' ? `?only=${audience}` : ''
       await fetch(`/api/admin/run-weekly-reminders${params}`)
       setSendNowMessage(`Batch sent — check the History tab for details.`)
       await loadHistory()
@@ -232,7 +233,12 @@ export default function EmailMarketingPanel() {
       setTextSendMessage('Add a subject and a message first.')
       return
     }
-    if (!confirm(`Send this plain-text message to "${textAudience === 'leads' ? 'leads only' : 'everyone'}"? This is a real send.`)) return
+    const audienceLabel =
+      textAudience === 'leads' ? 'leads only'
+      : textAudience === 'subscribers' ? 'active subscribers only'
+      : textAudience === 'non_subscribers' ? 'non-subscribers only'
+      : 'everyone'
+    if (!confirm(`Send this plain-text message to "${audienceLabel}"? This is a real send.`)) return
     setTextSending(true)
     setTextSendMessage(null)
     const res = await fetch('/api/admin/send-plain-text-broadcast', {
@@ -355,6 +361,9 @@ export default function EmailMarketingPanel() {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                   <button onClick={() => { setAudience('all'); setPreviewCounts(null) }} style={btnStyle(audience === 'all')}>
                     Everyone due
+                  </button>
+                  <button onClick={() => { setAudience('invite'); setPreviewCounts(null) }} style={btnStyle(audience === 'invite')}>
+                    Invite only (non-subscribers)
                   </button>
                   <button onClick={() => { setAudience('leads'); setPreviewCounts(null) }} style={btnStyle(audience === 'leads')}>
                     Leads only
@@ -487,12 +496,18 @@ export default function EmailMarketingPanel() {
             <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 10 }}>
               Who this goes to
             </h3>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               <button onClick={() => { setTextAudience('leads'); setTextPreview(null) }} style={btnStyle(textAudience === 'leads')}>
                 Leads only
               </button>
+              <button onClick={() => { setTextAudience('subscribers'); setTextPreview(null) }} style={btnStyle(textAudience === 'subscribers')}>
+                Active subscribers only
+              </button>
+              <button onClick={() => { setTextAudience('non_subscribers'); setTextPreview(null) }} style={btnStyle(textAudience === 'non_subscribers')}>
+                Non-subscribers only
+              </button>
               <button onClick={() => { setTextAudience('all'); setTextPreview(null) }} style={btnStyle(textAudience === 'all')}>
-                Everyone (leads + customers)
+                Everyone
               </button>
             </div>
             <button
@@ -541,7 +556,12 @@ export default function EmailMarketingPanel() {
                       {new Date(h.triggered_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                       {' — '}
                       <span style={{ color: '#888' }}>
-                        plain text, {h.mode === 'leads' ? 'leads only' : 'everyone'}
+                        plain text, {
+                          h.mode === 'leads' ? 'leads only'
+                          : h.mode === 'subscribers' ? 'subscribers only'
+                          : h.mode === 'non_subscribers' ? 'non-subscribers only'
+                          : 'everyone'
+                        }
                         {typeof r?.sentThisRun === 'number' ? ` — ${r.sentThisRun} sent` : ''}
                       </span>
                     </div>
@@ -564,7 +584,7 @@ export default function EmailMarketingPanel() {
                     {' — '}
                     <span style={{ color: '#888' }}>
                       image campaign, {h.trigger_type === 'scheduled' ? 'scheduled' : 'manual'}
-                      {h.mode === 'leads' ? ', leads only' : ''}
+                      {h.mode === 'leads' ? ', leads only' : h.mode === 'invite' ? ', invite only' : ''}
                       {typeof sentThisRun === 'number' ? ` — ${sentThisRun} sent` : ''}
                     </span>
                   </div>

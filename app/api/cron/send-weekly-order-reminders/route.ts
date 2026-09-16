@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
   // Wednesday-only timing, own weekly cadence via last_invite_sent_at
   // since there's no per-window log for a table with no customer_id.
   let leadQueue: any[] = []
-  if (effectiveDay === 3 && !onlyLeadsPayday && !onlySubscribersNewDish) {
+  if (effectiveDay === 3 && !onlyLeadsPayday && !onlySubscribersNewDish && !onlyInvite) {
     const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
     const { data: leads } = await supabase
       .from('marketing_leads')

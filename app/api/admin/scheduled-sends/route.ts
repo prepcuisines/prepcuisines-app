@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('scheduled_email_sends')
-    .insert({ scheduled_at: body.scheduledAt, audience: body.audience === 'leads' ? 'leads' : 'all' })
+    .insert({ scheduled_at: body.scheduledAt, audience: ['leads', 'invite'].includes(body.audience) ? body.audience : 'all' })
     .select()
     .single()
 

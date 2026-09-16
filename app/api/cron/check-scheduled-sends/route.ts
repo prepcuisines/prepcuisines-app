@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
             Authorization: `Bearer ${process.env.CRON_SECRET}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(entry.audience === 'leads' ? { only: 'leads' } : {}),
+          body: JSON.stringify(entry.audience && entry.audience !== 'all' ? { only: entry.audience } : {}),
         }
       )
       const body = await res.json()
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
         .eq('id', entry.id)
       await supabase.from('email_send_log').insert({
         trigger_type: 'scheduled',
-        mode: entry.audience === 'leads' ? 'leads' : 'today',
+        mode: entry.audience || 'today',
         result: body,
       })
       results.push({ id: entry.id, scheduled_at: entry.scheduled_at, result: body })

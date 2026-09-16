@@ -14,18 +14,33 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
-async function getRecipients(audience: 'leads' | 'all'): Promise<string[]> {
+async function getRecipients(audience: 'leads' | 'all' | 'subscribers' | 'non_subscribers'): Promise<string[]> {
   const emails = new Set<string>()
 
-  const { data: leads } = await supabase.from('marketing_leads').select('email').not('email', 'is', null)
-  for (const l of leads || []) if (l.email) emails.add(l.email)
+  if (audience === 'leads' || audience === 'all') {
+    const { data: leads } = await supabase.from('marketing_leads').select('email').not('email', 'is', null)
+    for (const l of leads || []) if (l.email) emails.add(l.email)
+  }
 
-  if (audience === 'all') {
-    const { data: customers } = await supabase
+  if (audience === 'subscribers' || audience === 'all') {
+    const { data: subs } = await supabase
       .from('customer_profiles')
       .select('email')
+      .eq('subscription_status', 'active')
+      .not('standing_plan_size', 'is', null)
       .not('email', 'is', null)
-    for (const c of customers || []) if (c.email) emails.add(c.email)
+    for (const c of subs || []) if (c.email) emails.add(c.email)
+  }
+
+  if (audience === 'non_subscribers' || audience === 'all') {
+    const { data: nonSubs } = await supabase
+      .from('customer_profiles')
+      .select('email, subscription_status, standing_plan_size')
+      .not('email', 'is', null)
+    for (const c of nonSubs || []) {
+      const isActiveSubscriber = c.subscription_status === 'active' && !!c.standing_plan_size
+      if (!isActiveSubscriber && c.email) emails.add(c.email)
+    }
   }
 
   return Array.from(emails)
@@ -45,8 +60,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { subject, body: messageBody, audience, preview } = body || {}
 
-  if (audience !== 'leads' && audience !== 'all') {
-    return NextResponse.json({ error: 'audience must be "leads" or "all"' }, { status: 400 })
+  if (!['leads', 'all', 'subscribers', 'non_subscribers'].includes(audience)) {
+    return NextResponse.json({ error: 'Invalid audience' }, { status: 400 })
   }
 
   const recipients = await getRecipients(audience)
