@@ -5,6 +5,7 @@ import Papa from 'papaparse'
 import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
 import CostsPanel from '../../components/admin/CostsPanel'
 import BillsPanel from '../../components/admin/BillsPanel'
+import EmailMarketingPanel from '../../components/admin/EmailMarketingPanel'
 
 type Overview = {
   range?: {
@@ -202,6 +203,7 @@ export default function AdminDashboard() {
     | 'ops-hub'
     | 'costs'
     | 'bills'
+    | 'email-marketing'
   >('overview')
   const [analyticsView, setAnalyticsView] = useState<'business' | 'product'>('business')
   const [showEmailMarketing, setShowEmailMarketing] = useState(false)
@@ -3384,6 +3386,7 @@ Bukr / prepcuisines`
               { key: 'cook-sheet', label: 'Kitchen' },
               { key: 'costs', label: 'Costs' },
               { key: 'bills', label: 'Bills' },
+              { key: 'email-marketing', label: 'Email Marketing' },
               { key: 'menu', label: 'Products' },
               { key: 'customers', label: 'Customers' },
               { key: 'insights', label: 'Analytics' },
@@ -5008,6 +5011,12 @@ Bukr / prepcuisines`
         {tab === 'bills' && (
           <section>
             <BillsPanel />
+          </section>
+        )}
+
+        {tab === 'email-marketing' && (
+          <section>
+            <EmailMarketingPanel />
           </section>
         )}
 

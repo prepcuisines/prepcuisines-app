@@ -85,6 +85,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // The invite/leadInvite hero image and subject are stored in the
+  // database (edited from the Email Marketing admin tab) rather than
+  // hardcoded here, so they can be changed without a code deploy.
+  const { data: campaignSettings } = await supabase
+    .from('email_campaign_settings')
+    .select('image_url, subject')
+    .eq('id', 'current')
+    .single()
+  const campaignImageUrl = campaignSettings?.image_url || ''
+  const campaignSubject = campaignSettings?.subject || 'Chef-made meals'
+
   // Vercel Cron never sends a body, so this stays empty for real scheduled
   // runs. The admin catch-up trigger (run-weekly-reminders) can pass
   // forceDeliveryDay to replay a specific delivery day's reminder run that
@@ -361,8 +372,8 @@ export async function POST(req: NextRequest) {
     } else if (person.kind === 'invite') {
       await sendFlattenedHeroEmailToCustomer(
         person.email,
-        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%2016,%202026,%2009_22_53%20AM.png',
-        'New: Protein Pancakes with Strawberries - £1.99, ends in 4 days'
+        campaignImageUrl,
+        campaignSubject
       )
       // Logged against subscriberWindow like group 1 — once this window's
       // cutoff passes, they surface again the following week with the
@@ -373,8 +384,8 @@ export async function POST(req: NextRequest) {
     } else if (person.kind === 'leadInvite') {
       await sendFlattenedHeroEmailToCustomer(
         person.email,
-        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%2016,%202026,%2009_22_53%20AM.png',
-        'New: Protein Pancakes with Strawberries - £1.99, ends in 4 days'
+        campaignImageUrl,
+        campaignSubject
       )
       await supabase
         .from('marketing_leads')

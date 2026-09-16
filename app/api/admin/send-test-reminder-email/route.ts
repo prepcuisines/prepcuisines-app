@@ -34,10 +34,15 @@ export async function GET(req: NextRequest) {
 
   if (kind === 'flattened') {
     try {
+      const { data: campaignSettings } = await supabase
+        .from('email_campaign_settings')
+        .select('image_url, subject')
+        .eq('id', 'current')
+        .single()
       await sendFlattenedHeroEmailToCustomer(
         to,
-        'https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%2016,%202026,%2009_22_53%20AM.png',
-        'New: Protein Pancakes with Strawberries - £1.99, ends in 4 days'
+        campaignSettings?.image_url || '',
+        campaignSettings?.subject || 'Chef-made meals'
       )
       return NextResponse.json({ success: true, sentTo: to, kind })
     } catch (err: any) {
