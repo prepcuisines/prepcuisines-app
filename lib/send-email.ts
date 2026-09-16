@@ -762,6 +762,36 @@ export async function sendCancelledRetentionEmailToCustomer(
   )
 }
 
+// A genuinely plain-text style message - just a subject and body,
+// simply formatted, not the flattened-image marketing template. For
+// quick text-only announcements rather than a designed campaign.
+export async function sendPlainTextBroadcastEmail(
+  toEmail: string,
+  subject: string,
+  bodyText: string
+) {
+  const paragraphs = bodyText
+    .split('\n')
+    .map((line) => (line.trim() ? `<p style="margin:0 0 14px;">${line}</p>` : ''))
+    .join('')
+
+  await sendEmailViaNeo(
+    toEmail,
+    subject,
+    `
+    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+      <tr><td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:8px;padding:32px;" width="520">
+          <tr><td style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1a2e1a;">
+            ${paragraphs}
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+    `
+  )
+}
+
 // One-off: the whole hero is a single flattened image (built directly,
 // not via HTML) - wrapped entirely in one link to the menu page, so
 // tapping anywhere on the image takes them there. No separate clickable
