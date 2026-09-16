@@ -10,6 +10,14 @@ type ScheduledSend = {
   result: any
 }
 
+type HistoryEntry = {
+  id: string
+  triggered_at: string
+  trigger_type: string
+  mode: string
+  result: any
+}
+
 export default function EmailMarketingPanel() {
   const [imageUrl, setImageUrl] = useState('')
   const [subject, setSubject] = useState('')
@@ -17,6 +25,10 @@ export default function EmailMarketingPanel() {
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+
+  const [audience, setAudience] = useState<'all' | 'leads'>('all')
+  const [previewCounts, setPreviewCounts] = useState<any>(null)
+  const [previewing, setPreviewing] = useState(false)
 
   const [testEmail, setTestEmail] = useState('')
   const [sendingTest, setSendingTest] = useState(false)
@@ -29,6 +41,8 @@ export default function EmailMarketingPanel() {
   const [newScheduleDate, setNewScheduleDate] = useState('')
   const [newScheduleTime, setNewScheduleTime] = useState('')
   const [addingSchedule, setAddingSchedule] = useState(false)
+
+  const [history, setHistory] = useState<HistoryEntry[]>([])
 
   const loadSettings = async () => {
     setLoading(true)
@@ -49,9 +63,31 @@ export default function EmailMarketingPanel() {
     }
   }
 
+  const loadHistory = async () => {
+    const res = await fetch('/api/admin/email-send-history')
+    if (res.ok) {
+      const data = await res.json()
+      setHistory(data.history || [])
+    }
+  }
+
+  const handlePreview = async () => {
+    setPreviewing(true)
+    setPreviewCounts(null)
+    const params = new URLSearchParams({ preview: 'true' })
+    if (audience === 'leads') params.set('only', 'leads')
+    const res = await fetch(`/api/admin/run-weekly-reminders?${params.toString()}`)
+    if (res.ok) {
+      const data = await res.json()
+      setPreviewCounts(data.result)
+    }
+    setPreviewing(false)
+  }
+
   useEffect(() => {
     loadSettings()
     loadScheduled()
+    loadHistory()
   }, [])
 
   const handleImageUpload = async (file: File) => {
@@ -106,15 +142,18 @@ export default function EmailMarketingPanel() {
   }
 
   const handleSendNow = async () => {
-    if (!confirm('Send one live batch right now, to everyone currently due? This is a real send, not a test.')) return
+    if (!confirm(`Send one live batch right now to "${audience === 'leads' ? 'leads only' : 'everyone due'}"? This is a real send, not a test.`)) return
     setSendingNow(true)
     setSendNowMessage(null)
     try {
-      const res = await fetch('/api/admin/run-weekly-reminders')
+      const params = audience === 'leads' ? '?only=leads' : ''
+      const res = await fetch(`/api/admin/run-weekly-reminders${params}`)
       const data = await res.json()
-      setSendNowMessage(`Batch sent. ${JSON.stringify(data.results ? data.results.length : data)} — check the numbers below shortly.`)
+      setSendNowMessage(`Batch sent — check the history below for details.`)
+      await loadHistory()
     } catch {
-      setSendNowMessage('Request sent, but no confirmation came back — check with your team before sending again to avoid double-sending.')
+      setSendNowMessage('Request sent, but no confirmation came back — check the history below before sending again, to avoid double-sending.')
+      await loadHistory()
     }
     setSendingNow(false)
   }
@@ -129,7 +168,7 @@ export default function EmailMarketingPanel() {
     const res = await fetch('/api/admin/scheduled-sends', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scheduledAt: localDateTime.toISOString() }),
+      body: JSON.stringify({ scheduledAt: localDateTime.toISOString(), audience }),
     })
     if (res.ok) {
       await loadScheduled()
@@ -230,6 +269,44 @@ export default function EmailMarketingPanel() {
 
           <div style={{ marginBottom: 32, paddingTop: 20, borderTop: '1px solid #eee' }}>
             <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 10 }}>
+              Who this goes to
+            </h3>
+            <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>
+              Applies to both Send Now and Schedule a batch below.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button
+                onClick={() => { setAudience('all'); setPreviewCounts(null) }}
+                style={{ padding: '8px 16px', fontSize: 13.5, borderRadius: 20, border: audience === 'all' ? '1px solid #2d3510' : '1px solid #ccc', background: audience === 'all' ? '#2d3510' : '#fff', color: audience === 'all' ? '#fff' : '#333', cursor: 'pointer' }}
+              >
+                Everyone due
+              </button>
+              <button
+                onClick={() => { setAudience('leads'); setPreviewCounts(null) }}
+                style={{ padding: '8px 16px', fontSize: 13.5, borderRadius: 20, border: audience === 'leads' ? '1px solid #2d3510' : '1px solid #ccc', background: audience === 'leads' ? '#2d3510' : '#fff', color: audience === 'leads' ? '#fff' : '#333', cursor: 'pointer' }}
+              >
+                Leads only
+              </button>
+            </div>
+            <button
+              onClick={handlePreview}
+              disabled={previewing}
+              style={{ padding: '8px 16px', fontSize: 13.5, background: '#fff', border: '1px solid #888', color: '#555', borderRadius: 6, cursor: 'pointer' }}
+            >
+              {previewing ? 'Checking…' : 'Preview recipient count'}
+            </button>
+            {previewCounts && (
+              <p style={{ fontSize: 13, color: '#333', marginTop: 10 }}>
+                <strong>{previewCounts.totalEligible}</strong> eligible right now.{' '}
+                {previewCounts.totalEligible > previewCounts.wouldSendThisRun
+                  ? `A single batch would send to ${previewCounts.wouldSendThisRun} of them (400 cap) — the rest would need another run.`
+                  : `A single batch would cover all of them.`}
+              </p>
+            )}
+          </div>
+
+          <div style={{ marginBottom: 32, paddingTop: 20, borderTop: '1px solid #eee' }}>
+            <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 10 }}>
               Send now
             </h3>
             <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>
@@ -298,6 +375,48 @@ export default function EmailMarketingPanel() {
                   )}
                 </div>
               ))
+            )}
+          </div>
+
+          <div style={{ paddingTop: 20, marginTop: 32, borderTop: '1px solid #eee' }}>
+            <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 10 }}>
+              Send history
+            </h3>
+            <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>
+              Every real send triggered from this tab — manual or scheduled — with a breakdown of
+              who it went to. Test sends aren't logged here.
+            </p>
+            {history.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#888' }}>No sends yet.</p>
+            ) : (
+              history.map((h) => {
+                const results = h.result?.result?.results
+                const sentThisRun = h.result?.result?.sentThisRun
+                const byKind: Record<string, number> = {}
+                if (Array.isArray(results)) {
+                  for (const r of results) {
+                    if (r.sent) byKind[r.kind] = (byKind[r.kind] || 0) + 1
+                  }
+                }
+                return (
+                  <div key={h.id} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                    <div style={{ fontSize: 14 }}>
+                      {new Date(h.triggered_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {' — '}
+                      <span style={{ color: '#888' }}>
+                        {h.trigger_type === 'scheduled' ? 'scheduled' : 'manual'}
+                        {h.mode === 'leads' ? ', leads only' : ''}
+                        {typeof sentThisRun === 'number' ? ` — ${sentThisRun} sent` : ''}
+                      </span>
+                    </div>
+                    {Object.keys(byKind).length > 0 && (
+                      <div style={{ fontSize: 12.5, color: '#555', marginTop: 2 }}>
+                        {Object.entries(byKind).map(([kind, count]) => `${kind}: ${count}`).join(' · ')}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
             )}
           </div>
         </>

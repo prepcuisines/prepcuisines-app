@@ -353,6 +353,28 @@ export async function POST(req: NextRequest) {
     ...accountPaydayQueue,
     ...subscribersNewDishQueue,
   ]
+
+  // Read-only: for the Email Marketing tab's recipient-count preview.
+  // Computes the exact same queue as a real send would, but never sends
+  // or writes anything - safe to call as often as needed.
+  if (req.nextUrl.searchParams.get('preview') === 'true') {
+    const counts = {
+      subscriber: subscriberQueue.length,
+      invite: inviteQueue.length,
+      leadInvite: leadQueue.length,
+      winback: winbackQueue.length,
+      leadsPayday: leadsPaydayQueue.length,
+      accountPayday: accountPaydayQueue.length,
+      subscriberNewDish: subscribersNewDishQueue.length,
+    }
+    return NextResponse.json({
+      preview: true,
+      totalEligible: combinedQueue.length,
+      wouldSendThisRun: Math.min(combinedQueue.length, MAX_PER_RUN),
+      byKind: counts,
+    })
+  }
+
   const batch = combinedQueue.slice(0, MAX_PER_RUN)
   const results: any[] = []
 

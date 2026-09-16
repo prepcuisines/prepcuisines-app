@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
   const { data: due } = await supabase
     .from('scheduled_email_sends')
-    .select('id, scheduled_at')
+    .select('id, scheduled_at, audience')
     .eq('sent', false)
     .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
@@ -35,13 +35,25 @@ export async function POST(req: NextRequest) {
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/cron/send-weekly-order-reminders`,
-        { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } }
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.CRON_SECRET}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(entry.audience === 'leads' ? { only: 'leads' } : {}),
+        }
       )
       const body = await res.json()
       await supabase
         .from('scheduled_email_sends')
         .update({ sent: true, sent_at: new Date().toISOString(), result: body })
         .eq('id', entry.id)
+      await supabase.from('email_send_log').insert({
+        trigger_type: 'scheduled',
+        mode: entry.audience === 'leads' ? 'leads' : 'today',
+        result: body,
+      })
       results.push({ id: entry.id, scheduled_at: entry.scheduled_at, result: body })
     } catch (err: any) {
       await supabase

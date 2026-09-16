@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('scheduled_email_sends')
-    .select('id, scheduled_at, sent, sent_at, result')
+    .select('id, scheduled_at, sent, sent_at, result, audience')
     .order('scheduled_at', { ascending: true })
 
   if (error) {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ scheduled: data || [] })
 }
 
-// Body: { scheduledAt: string (ISO) }
+// Body: { scheduledAt: string (ISO), audience?: 'all' | 'leads' }
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('scheduled_email_sends')
-    .insert({ scheduled_at: body.scheduledAt })
+    .insert({ scheduled_at: body.scheduledAt, audience: body.audience === 'leads' ? 'leads' : 'all' })
     .select()
     .single()
 
