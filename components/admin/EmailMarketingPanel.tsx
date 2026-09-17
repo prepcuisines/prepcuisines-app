@@ -290,7 +290,7 @@ export default function EmailMarketingPanel() {
     const res = await fetch('/api/admin/send-plain-text-broadcast', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audience: textAudience, preview: true }),
+      body: JSON.stringify({ audience: textAudience, subject: textSubject, preview: true }),
     })
     if (res.ok) {
       setTextPreview(await res.json())
@@ -340,7 +340,7 @@ export default function EmailMarketingPanel() {
     const previewRes = await fetch('/api/admin/send-plain-text-broadcast', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audience: textAudience, preview: true }),
+      body: JSON.stringify({ audience: textAudience, subject: textSubject, preview: true }),
     })
     if (!previewRes.ok) {
       setSendTextBatchesMessage('Could not check recipient count — try again.')
@@ -688,6 +688,11 @@ export default function EmailMarketingPanel() {
             >
               {textPreviewing ? 'Checking…' : 'Preview recipient count'}
             </button>
+            <p style={{ fontSize: 12, color: '#999', marginTop: 6 }}>
+              This count is specific to the exact subject text above — it already excludes anyone
+              who's received this same message before, so it'll go down as batches go out. Changing
+              the subject starts a fresh count, since it's treated as a different message.
+            </p>
             {textPreview && (
               <p style={{ fontSize: 13, color: '#333', marginTop: 10 }}>
                 <strong>{textPreview.totalEligible}</strong> people.{' '}

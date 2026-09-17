@@ -16,7 +16,10 @@ function isAuthorized(req: NextRequest) {
   return authHeader === `Bearer ${process.env.CRON_SECRET}`
 }
 
-async function getRecipients(audience: 'leads' | 'all' | 'subscribers' | 'non_subscribers'): Promise<string[]> {
+async function getRecipients(
+  audience: 'leads' | 'all' | 'subscribers' | 'non_subscribers',
+  subjectKey: string
+): Promise<string[]> {
   const emails = new Set<string>()
 
   if (audience === 'leads' || audience === 'all') {
@@ -45,7 +48,25 @@ async function getRecipients(audience: 'leads' | 'all' | 'subscribers' | 'non_su
     }
   }
 
+  // Exclude anyone who's already received THIS specific message (same
+  // subject) - without this, a second batch (or checking the count later)
+  // would show the exact same full list every time, and a multi-batch
+  // send would just keep re-emailing the same people instead of reaching
+  // the rest.
+  if (subjectKey) {
+    const { data: alreadySent } = await supabase
+      .from('plain_text_send_log')
+      .select('recipient_email')
+      .eq('subject_key', subjectKey)
+      .in('recipient_email', Array.from(emails))
+    for (const row of alreadySent || []) emails.delete(row.recipient_email)
+  }
+
   return Array.from(emails)
+}
+
+function normaliseSubjectKey(subject: string | undefined): string {
+  return (subject || '').trim().toLowerCase().slice(0, 500)
 }
 
 // Body: { subject, body, audience: 'leads' | 'all', preview?: boolean }
@@ -66,7 +87,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid audience' }, { status: 400 })
   }
 
-  const recipients = await getRecipients(audience)
+  const subjectKey = normaliseSubjectKey(subject)
+  const recipients = await getRecipients(audience, subjectKey)
 
   if (preview) {
     return NextResponse.json({
@@ -86,8 +108,12 @@ export async function POST(req: NextRequest) {
     try {
       await sendPlainTextBroadcastEmail(email, subject, messageBody)
       sent += 1
+      await supabase
+        .from('plain_text_send_log')
+        .insert({ recipient_email: email, subject_key: subjectKey })
     } catch {
-      // Individual failures don't stop the rest of the batch.
+      // Individual failures don't stop the rest of the batch, and aren't
+      // logged as sent - they'll be retried on the next batch/attempt.
     }
   }
 
