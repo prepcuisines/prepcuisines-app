@@ -114,6 +114,73 @@ export default function EmailMarketingPanel() {
     setPreviewing(false)
   }
 
+  const [sendingBatches, setSendingBatches] = useState(false)
+  const [sendBatchesMessage, setSendBatchesMessage] = useState<string | null>(null)
+
+  const handleSendInBatches = async () => {
+    setSendingBatches(true)
+    setSendBatchesMessage(null)
+
+    const params = new URLSearchParams({ preview: 'true' })
+    if (audience !== 'all') params.set('only', audience)
+    const previewRes = await fetch(`/api/admin/run-weekly-reminders?${params.toString()}`)
+    if (!previewRes.ok) {
+      setSendBatchesMessage('Could not check recipient count — try again.')
+      setSendingBatches(false)
+      return
+    }
+    const previewData = await previewRes.json()
+    const totalEligible = previewData.result?.totalEligible ?? 0
+    const batchesNeeded = Math.max(1, Math.ceil(totalEligible / 400))
+
+    if (totalEligible === 0) {
+      setSendBatchesMessage('Nobody is currently eligible — nothing to send.')
+      setSendingBatches(false)
+      return
+    }
+
+    const audienceLabel = audience === 'leads' ? 'leads only' : audience === 'invite' ? 'invite only' : 'everyone due'
+    if (
+      !confirm(
+        `${totalEligible} people eligible for "${audienceLabel}" — this needs ${batchesNeeded} batch${batchesNeeded === 1 ? '' : 'es'} of up to 400, one per hour. The first batch sends right now. Continue?`
+      )
+    ) {
+      setSendingBatches(false)
+      return
+    }
+
+    // First batch fires immediately, same as Send Now.
+    try {
+      const sendParams = audience !== 'all' ? `?only=${audience}` : ''
+      await fetch(`/api/admin/run-weekly-reminders${sendParams}`)
+    } catch {
+      // Falls through to scheduling the rest regardless - the first batch
+      // may still have gone through server-side even if this response
+      // didn't come back cleanly.
+    }
+
+    // Remaining batches are queued an hour apart via the existing
+    // scheduler, so they respect the same 400/hour sending limit.
+    const now = Date.now()
+    for (let i = 1; i < batchesNeeded; i++) {
+      const scheduledAt = new Date(now + i * 60 * 60 * 1000).toISOString()
+      await fetch('/api/admin/scheduled-sends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt, audience }),
+      })
+    }
+
+    await loadScheduled()
+    await loadHistory()
+    setSendBatchesMessage(
+      batchesNeeded === 1
+        ? 'Sent — one batch covered everyone.'
+        : `First batch sent now. ${batchesNeeded - 1} more batch${batchesNeeded - 1 === 1 ? '' : 'es'} queued, one per hour — check Schedule a batch below for the exact times.`
+    )
+    setSendingBatches(false)
+  }
+
   useEffect(() => {
     loadSettings()
     loadScheduled()
@@ -402,6 +469,22 @@ export default function EmailMarketingPanel() {
                   {sendingNow ? 'Sending…' : 'Send one batch now'}
                 </button>
                 {sendNowMessage && <p style={{ fontSize: 13, color: '#333', marginTop: 8 }}>{sendNowMessage}</p>}
+
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #ddd' }}>
+                  <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>
+                    If more than 400 people are eligible, one batch won't reach everyone. This sends
+                    the first batch right now, then automatically queues however many more are
+                    needed, one per hour, until everyone's covered.
+                  </p>
+                  <button
+                    onClick={handleSendInBatches}
+                    disabled={sendingBatches}
+                    style={{ padding: '10px 22px', background: '#2d3510', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+                  >
+                    {sendingBatches ? 'Working…' : 'Send in batches until everyone\u2019s covered'}
+                  </button>
+                  {sendBatchesMessage && <p style={{ fontSize: 13, color: '#333', marginTop: 8 }}>{sendBatchesMessage}</p>}
+                </div>
               </div>
 
               <div style={{ paddingTop: 20, borderTop: '1px solid #eee' }}>
