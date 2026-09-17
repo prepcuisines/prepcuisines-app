@@ -8,6 +8,9 @@ type ScheduledSend = {
   sent: boolean
   sent_at: string | null
   result: any
+  audience?: string
+  send_type?: string
+  text_subject?: string | null
 }
 
 type HistoryEntry = {
@@ -323,6 +326,88 @@ export default function EmailMarketingPanel() {
     setTextSending(false)
   }
 
+  const [sendingTextBatches, setSendingTextBatches] = useState(false)
+  const [sendTextBatchesMessage, setSendTextBatchesMessage] = useState<string | null>(null)
+
+  const handleSendTextInBatches = async () => {
+    if (!textSubject || !textBody) {
+      setSendTextBatchesMessage('Add a subject and a message first.')
+      return
+    }
+    setSendingTextBatches(true)
+    setSendTextBatchesMessage(null)
+
+    const previewRes = await fetch('/api/admin/send-plain-text-broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audience: textAudience, preview: true }),
+    })
+    if (!previewRes.ok) {
+      setSendTextBatchesMessage('Could not check recipient count — try again.')
+      setSendingTextBatches(false)
+      return
+    }
+    const previewData = await previewRes.json()
+    const totalEligible = previewData.totalEligible ?? 0
+    const batchesNeeded = Math.max(1, Math.ceil(totalEligible / 400))
+
+    if (totalEligible === 0) {
+      setSendTextBatchesMessage('Nobody is currently eligible — nothing to send.')
+      setSendingTextBatches(false)
+      return
+    }
+
+    const audienceLabel =
+      textAudience === 'leads' ? 'leads only'
+      : textAudience === 'subscribers' ? 'active subscribers only'
+      : textAudience === 'non_subscribers' ? 'non-subscribers only'
+      : 'everyone'
+    if (
+      !confirm(
+        `${totalEligible} people for "${audienceLabel}" — this needs ${batchesNeeded} batch${batchesNeeded === 1 ? '' : 'es'} of up to 400, one per hour. The first batch sends right now. Continue?`
+      )
+    ) {
+      setSendingTextBatches(false)
+      return
+    }
+
+    try {
+      await fetch('/api/admin/send-plain-text-broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: textSubject, body: textBody, audience: textAudience }),
+      })
+    } catch {
+      // May still have gone through server-side even if this response
+      // didn't come back cleanly - the remaining batches queue regardless.
+    }
+
+    const now = Date.now()
+    for (let i = 1; i < batchesNeeded; i++) {
+      const scheduledAt = new Date(now + i * 60 * 60 * 1000).toISOString()
+      await fetch('/api/admin/scheduled-sends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scheduledAt,
+          sendType: 'plain_text',
+          audience: textAudience,
+          textSubject,
+          textBody,
+        }),
+      })
+    }
+
+    await loadScheduled()
+    await loadHistory()
+    setSendTextBatchesMessage(
+      batchesNeeded === 1
+        ? 'Sent — one batch covered everyone.'
+        : `First batch sent now. ${batchesNeeded - 1} more batch${batchesNeeded - 1 === 1 ? '' : 'es'} queued, one per hour.`
+    )
+    setSendingTextBatches(false)
+  }
+
   return (
     <div style={{ maxWidth: 700, padding: '0 0 60px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 12 }}>Email Marketing</h1>
@@ -524,6 +609,9 @@ export default function EmailMarketingPanel() {
                     <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #eee' }}>
                       <span style={{ fontSize: 14 }}>
                         {new Date(s.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                        {' — '}
+                        {s.send_type === 'plain_text' ? `text: "${s.text_subject}"` : 'image campaign'}
+                        {s.audience && s.audience !== 'all' ? ` (${s.audience})` : ''}
                         {s.sent ? ' — sent ✓' : ' — pending'}
                       </span>
                       {!s.sent && (
@@ -618,6 +706,22 @@ export default function EmailMarketingPanel() {
             {textSending ? 'Sending…' : 'Send message'}
           </button>
           {textSendMessage && <p style={{ fontSize: 13, color: '#333', marginTop: 8 }}>{textSendMessage}</p>}
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #ddd' }}>
+            <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>
+              If more than 400 people are eligible, one send won't reach everyone. This sends the
+              first batch right now, then automatically queues however many more are needed, one
+              per hour, until everyone's covered.
+            </p>
+            <button
+              onClick={handleSendTextInBatches}
+              disabled={sendingTextBatches}
+              style={{ padding: '10px 22px', background: '#2d3510', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+            >
+              {sendingTextBatches ? 'Working…' : 'Send in batches until everyone\u2019s covered'}
+            </button>
+            {sendTextBatchesMessage && <p style={{ fontSize: 13, color: '#333', marginTop: 8 }}>{sendTextBatchesMessage}</p>}
+          </div>
         </>
       )}
 

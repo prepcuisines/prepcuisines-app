@@ -11,7 +11,9 @@ const MAX_PER_RUN = 400
 
 function isAuthorized(req: NextRequest) {
   const session = req.cookies.get('pc_admin_session')?.value
-  return !!session && session === process.env.ADMIN_SESSION_SECRET
+  if (session && session === process.env.ADMIN_SESSION_SECRET) return true
+  const authHeader = req.headers.get('authorization')
+  return authHeader === `Bearer ${process.env.CRON_SECRET}`
 }
 
 async function getRecipients(audience: 'leads' | 'all' | 'subscribers' | 'non_subscribers'): Promise<string[]> {

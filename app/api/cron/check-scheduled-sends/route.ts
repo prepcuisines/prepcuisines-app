@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
   const { data: due } = await supabase
     .from('scheduled_email_sends')
-    .select('id, scheduled_at, audience')
+    .select('id, scheduled_at, audience, send_type, text_subject, text_body')
     .eq('sent', false)
     .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
@@ -33,15 +33,24 @@ export async function POST(req: NextRequest) {
   const results: any[] = []
   for (const entry of due) {
     try {
+      const isPlainText = entry.send_type === 'plain_text'
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/cron/send-weekly-order-reminders`,
+        `${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/${
+          isPlainText ? 'admin/send-plain-text-broadcast' : 'cron/send-weekly-order-reminders'
+        }`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${process.env.CRON_SECRET}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(entry.audience && entry.audience !== 'all' ? { only: entry.audience } : {}),
+          body: JSON.stringify(
+            isPlainText
+              ? { subject: entry.text_subject, body: entry.text_body, audience: entry.audience }
+              : entry.audience && entry.audience !== 'all'
+                ? { only: entry.audience }
+                : {}
+          ),
         }
       )
       const body = await res.json()
@@ -50,7 +59,7 @@ export async function POST(req: NextRequest) {
         .update({ sent: true, sent_at: new Date().toISOString(), result: body })
         .eq('id', entry.id)
       await supabase.from('email_send_log').insert({
-        trigger_type: 'scheduled',
+        trigger_type: isPlainText ? 'plain_text' : 'scheduled',
         mode: entry.audience || 'today',
         result: body,
       })
