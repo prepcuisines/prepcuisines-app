@@ -173,11 +173,14 @@ export async function POST(req: NextRequest) {
     // no delivery item made correct charges look wrong in the admin (and
     // broke the edit page's discount inference).
     const orderItemsSnapshot = [
-      ...items.map((item) => ({
-        name: item.name,
-        price: Math.round(item.price * discountRate * 100) / 100,
-        qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
-      })),
+      ...items.map((item) => {
+        const itemRate = item.discount_exempt ? 1 : discountRate
+        return {
+          name: item.name,
+          price: Math.round(item.price * itemRate * 100) / 100,
+          qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
+        }
+      }),
       { name: 'Delivery', price: deliveryFee, qty: 1 },
     ]
     // Hard floor: an order must contain items and a real amount. Nothing

@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
 
     const { data: items } = await supabase
       .from('menu_items')
-      .select('id, name, price')
+      .select('id, name, price, discount_exempt')
       .in('id', allIds)
 
     if (!items) {
@@ -166,7 +166,8 @@ export async function GET(req: NextRequest) {
 
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
-      return sum + item.price * qty * discountRate
+      const itemRate = item.discount_exempt ? 1 : discountRate
+      return sum + item.price * qty * itemRate
     }, 0)
 
     const normalisedPostcode = (profile.postcode || '').trim().toUpperCase().replace(/\s/g, '')
@@ -175,11 +176,14 @@ export async function GET(req: NextRequest) {
 
     const totalAmount = Math.round((foodTotal + deliveryFee) * 100)
 
-    const orderItemsSnapshot = items.map((item) => ({
-      name: item.name,
-      price: item.price,
-      qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
-    }))
+    const orderItemsSnapshot = items.map((item) => {
+      const itemRate = item.discount_exempt ? 1 : discountRate
+      return {
+        name: item.name,
+        price: Math.round(item.price * itemRate * 100) / 100,
+        qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
+      }
+    })
 
     let paymentIntent: Stripe.PaymentIntent
     try {
