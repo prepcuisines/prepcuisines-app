@@ -6,8 +6,8 @@ import { NextRequest, NextResponse } from 'next/server'
 // is EXACTLY the scheduled run: same guards (existing orders, skips,
 // cancelled subs), same idempotency — safe to click twice.
 export async function GET(req: NextRequest) {
-  // TEMP: disabled for one catchup trigger (cutoff mismatch fix) - restoring immediately after.
-  if (false) {
+  const session = req.cookies.get('pc_admin_session')?.value
+  if (!session || session !== process.env.ADMIN_SESSION_SECRET) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
