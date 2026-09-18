@@ -101,16 +101,45 @@ export async function POST(req: NextRequest) {
       // retry charge this card again for a payment that already went
       // through. A save failure here is a bookkeeping problem to fix by
       // hand, never a reason to retry the charge.
+      //
+      // auto-fill-orders creates an on_hold placeholder row (customer_id,
+      // menu_window_id) the moment a charge first fails, so that slot is
+      // already taken by the time a retry succeeds here - a plain insert
+      // hits the unique (customer_id, menu_window_id) constraint and
+      // fails every time. Update that existing row if there is one,
+      // insert only if there genuinely isn't.
       try {
-        await supabase.from('customer_window_orders').insert({
-          customer_id: failure.customer_id,
-          menu_window_id: failure.menu_window_id,
-          status: 'manually_ordered',
-          items: failure.items,
-          total_amount: failure.amount,
-          delivery_day: failure.delivery_day,
-          ship_full_name: profile.full_name || null,
-        })
+        const { data: existingHold } = await supabase
+          .from('customer_window_orders')
+          .select('id')
+          .eq('customer_id', failure.customer_id)
+          .eq('menu_window_id', failure.menu_window_id)
+          .maybeSingle()
+
+        if (existingHold) {
+          const { error: updateErr } = await supabase
+            .from('customer_window_orders')
+            .update({
+              status: 'manually_ordered',
+              items: failure.items,
+              total_amount: failure.amount,
+              delivery_day: failure.delivery_day,
+              ship_full_name: profile.full_name || null,
+            })
+            .eq('id', existingHold.id)
+          if (updateErr) throw updateErr
+        } else {
+          const { error: insertErr } = await supabase.from('customer_window_orders').insert({
+            customer_id: failure.customer_id,
+            menu_window_id: failure.menu_window_id,
+            status: 'manually_ordered',
+            items: failure.items,
+            total_amount: failure.amount,
+            delivery_day: failure.delivery_day,
+            ship_full_name: profile.full_name || null,
+          })
+          if (insertErr) throw insertErr
+        }
       } catch (saveErr: any) {
         await sendAdminAlertEmail(
           `URGENT: customer charged but order not saved (retry) — ${profile.full_name || failure.customer_id}`,
