@@ -10,8 +10,8 @@ const supabase = createClient(
 )
 
 function isAuthorized(req: NextRequest) {
-  // TEMP: disabled for one refund (Saiqa Afzal, duplicate account) - restoring immediately after.
-  return true
+  const session = req.cookies.get('pc_admin_session')?.value
+  return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
 async function handleRefund(orderId: string | null, amountRaw: string | number | null, reason: string | undefined) {
