@@ -24,6 +24,7 @@ type HistoryEntry = {
 const SUBTABS = [
   { key: 'image', label: 'Image Campaign' },
   { key: 'text', label: 'Text Message' },
+  { key: 'delivery', label: 'Delivery Update' },
   { key: 'history', label: 'History' },
 ] as const
 type SubTab = (typeof SUBTABS)[number]['key']
@@ -77,6 +78,15 @@ export default function EmailMarketingPanel() {
   // --- History ---
   const [history, setHistory] = useState<HistoryEntry[]>([])
 
+  // --- Delivery update email tool ---
+  const [deliveryDate, setDeliveryDate] = useState('')
+  const [deliveryStartTime, setDeliveryStartTime] = useState('')
+  const [deliveryEndTime, setDeliveryEndTime] = useState('')
+  const [stokeEmails, setStokeEmails] = useState<string[]>([])
+  const [loadingStokeEmails, setLoadingStokeEmails] = useState(false)
+  const [stokeEmailsMessage, setStokeEmailsMessage] = useState<string | null>(null)
+  const [copyMessage, setCopyMessage] = useState<string | null>(null)
+
   const loadSettings = async () => {
     setLoading(true)
     const res = await fetch('/api/admin/email-campaign')
@@ -102,6 +112,54 @@ export default function EmailMarketingPanel() {
       const data = await res.json()
       setHistory(data.history || [])
     }
+  }
+
+  const formatDateUK = (isoDate: string) => {
+    const [y, m, d] = isoDate.split('-')
+    return `${d}/${m}/${y}`
+  }
+
+  const loadStokeEmails = async (date?: string) => {
+    setLoadingStokeEmails(true)
+    setStokeEmailsMessage(null)
+    const params = date ? `?date=${date}` : ''
+    const res = await fetch(`/api/admin/stoke-delivery-emails${params}`)
+    if (res.ok) {
+      const data = await res.json()
+      setStokeEmails(data.emails || [])
+      setDeliveryDate(data.weekStartDate)
+      setStokeEmailsMessage(`${data.emails.length} Stoke customer${data.emails.length === 1 ? '' : 's'} for ${data.deliveryDay} ${formatDateUK(data.weekStartDate)}.`)
+    } else {
+      setStokeEmailsMessage('Could not find a matching delivery window.')
+    }
+    setLoadingStokeEmails(false)
+  }
+
+  const deliveryTemplateSubject = deliveryDate
+    ? `Your prepcuisines delivery — Sunday, ${formatDateUK(deliveryDate)}`
+    : 'Your prepcuisines delivery'
+
+  const deliveryTemplateBody = `Hi,
+
+A quick update on your prepcuisines order: your meals are out for delivery on Sunday, ${deliveryDate ? formatDateUK(deliveryDate) : '[DATE]'} and should arrive between ${deliveryStartTime || '[START TIME]'} and ${deliveryEndTime || '[END TIME]'}.
+
+Everything is cooked fresh the day before and delivered chilled - pop your meals straight into the fridge when they arrive. If you won't be in, just reply to this email and let us know a safe place to leave your box.
+
+Any questions at all, reply to this email and we'll sort it.
+
+Thanks,
+Bukr / prepcuisines`
+
+  const handleCopyTemplate = async () => {
+    await navigator.clipboard.writeText(`Subject: ${deliveryTemplateSubject}\n\n${deliveryTemplateBody}`)
+    setCopyMessage('Template copied.')
+    setTimeout(() => setCopyMessage(null), 3000)
+  }
+
+  const handleCopyStokeEmails = async () => {
+    await navigator.clipboard.writeText(stokeEmails.join(', '))
+    setCopyMessage(`${stokeEmails.length} email${stokeEmails.length === 1 ? '' : 's'} copied.`)
+    setTimeout(() => setCopyMessage(null), 3000)
   }
 
   const handlePreview = async () => {
@@ -188,6 +246,7 @@ export default function EmailMarketingPanel() {
     loadSettings()
     loadScheduled()
     loadHistory()
+    loadStokeEmails()
   }, [])
 
   const handleImageUpload = async (file: File) => {
@@ -730,9 +789,94 @@ export default function EmailMarketingPanel() {
         </>
       )}
 
-      {subTab === 'history' && (
+      {subTab === 'delivery' && (
         <>
-          <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
+          <p style={{ color: '#666', fontSize: 14, marginBottom: 24 }}>
+            For letting Stoke-on-Trent customers know their delivery is on its way, when you're
+            handling drop-offs yourself rather than through DPD. Pulls the customer list straight
+            from the current delivery window - copy it into BCC, never To or CC.
+          </p>
+
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 8 }}>
+              Delivery window
+            </h3>
+            <p style={{ fontSize: 13, color: '#333' }}>
+              {loadingStokeEmails
+                ? 'Loading…'
+                : deliveryDate
+                  ? `${formatDateUK(deliveryDate)}`
+                  : 'No upcoming window found'}
+            </p>
+            {stokeEmailsMessage && <p style={{ fontSize: 12.5, color: '#888', marginTop: 4 }}>{stokeEmailsMessage}</p>}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            <div>
+              <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 8 }}>
+                Start time
+              </h3>
+              <input
+                type="time"
+                value={deliveryStartTime}
+                onChange={(e) => setDeliveryStartTime(e.target.value)}
+                style={{ padding: 10, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+              />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 8 }}>
+                End time
+              </h3>
+              <input
+                type="time"
+                value={deliveryEndTime}
+                onChange={(e) => setDeliveryEndTime(e.target.value)}
+                style={{ padding: 10, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 8 }}>
+              Delivery update email template
+            </h3>
+            <div style={{ background: '#faf8f2', border: '1px solid #eee', borderRadius: 8, padding: 16, fontSize: 13.5, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+              <strong>Subject:</strong> {deliveryTemplateSubject}
+              {'\n\n'}
+              {deliveryTemplateBody}
+            </div>
+            <button
+              onClick={handleCopyTemplate}
+              style={{ marginTop: 10, padding: '10px 20px', background: '#fff', border: '1px solid #2d3510', color: '#2d3510', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+            >
+              Copy template
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 8 }}>
+              Stoke-on-Trent customers ({stokeEmails.length})
+            </h3>
+            <button
+              onClick={handleCopyStokeEmails}
+              disabled={stokeEmails.length === 0}
+              style={{ padding: '10px 20px', background: '#2d3510', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+            >
+              Copy Stoke customer emails
+            </button>
+          </div>
+
+          {copyMessage && <p style={{ fontSize: 13, color: '#2d3510', marginBottom: 16 }}>{copyMessage}</p>}
+
+          <p style={{ fontSize: 13, color: '#a03030', fontWeight: 600 }}>
+            Paste the copied emails into BCC (never To/CC), fill the two times, send from
+            info@prepcuisines.co.uk.
+          </p>
+        </>
+      )}
+
+      {subTab === 'history' && (
+        <>          <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
             Every real send triggered from this tab — image campaign or plain text, manual or
             scheduled — with a breakdown of who it went to. Test sends aren't logged here.
           </p>
