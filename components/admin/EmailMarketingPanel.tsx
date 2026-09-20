@@ -80,6 +80,10 @@ export default function EmailMarketingPanel() {
 
   // --- Delivery update email tool ---
   const [deliveryDate, setDeliveryDate] = useState('')
+  const [deliveryDayLabel, setDeliveryDayLabel] = useState('')
+  const [dateInput, setDateInput] = useState('')
+  const [sendingDeliveryUpdate, setSendingDeliveryUpdate] = useState(false)
+  const [deliveryUpdatePreview, setDeliveryUpdatePreview] = useState<any>(null)
   const [deliveryStartTime, setDeliveryStartTime] = useState('')
   const [deliveryEndTime, setDeliveryEndTime] = useState('')
   const [stokeEmails, setStokeEmails] = useState<string[]>([])
@@ -122,26 +126,57 @@ export default function EmailMarketingPanel() {
   const loadStokeEmails = async (date?: string) => {
     setLoadingStokeEmails(true)
     setStokeEmailsMessage(null)
+    setDeliveryUpdatePreview(null)
     const params = date ? `?date=${date}` : ''
     const res = await fetch(`/api/admin/stoke-delivery-emails${params}`)
     if (res.ok) {
       const data = await res.json()
       setStokeEmails(data.emails || [])
       setDeliveryDate(data.weekStartDate)
+      setDeliveryDayLabel(data.deliveryDay)
+      setDateInput(data.weekStartDate)
       setStokeEmailsMessage(`${data.emails.length} Stoke customer${data.emails.length === 1 ? '' : 's'} for ${data.deliveryDay} ${formatDateUK(data.weekStartDate)}.`)
     } else {
-      setStokeEmailsMessage('Could not find a matching delivery window.')
+      setStokeEmailsMessage('No delivery window found for that date.')
+      setStokeEmails([])
     }
     setLoadingStokeEmails(false)
   }
 
+  const handleSendDeliveryUpdate = async () => {
+    if (!deliveryDate || !deliveryStartTime || !deliveryEndTime) {
+      setStokeEmailsMessage('Pick a date and fill in both times first.')
+      return
+    }
+    if (
+      !confirm(
+        `Send the delivery update email to ${stokeEmails.length} Stoke customer${stokeEmails.length === 1 ? '' : 's'} for ${formatDateUK(deliveryDate)}? This is a real send.`
+      )
+    )
+      return
+    setSendingDeliveryUpdate(true)
+    const res = await fetch('/api/admin/send-delivery-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: deliveryDate, startTime: deliveryStartTime, endTime: deliveryEndTime }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setStokeEmailsMessage(`Sent to ${data.sentThisRun} of ${data.totalEligible} Stoke customers.`)
+      await loadHistory()
+    } else {
+      setStokeEmailsMessage('Send failed — try again.')
+    }
+    setSendingDeliveryUpdate(false)
+  }
+
   const deliveryTemplateSubject = deliveryDate
-    ? `Your prepcuisines delivery — Sunday, ${formatDateUK(deliveryDate)}`
+    ? `Your prepcuisines delivery — ${deliveryDayLabel || 'Delivery'}, ${formatDateUK(deliveryDate)}`
     : 'Your prepcuisines delivery'
 
   const deliveryTemplateBody = `Hi,
 
-A quick update on your prepcuisines order: your meals are out for delivery on Sunday, ${deliveryDate ? formatDateUK(deliveryDate) : '[DATE]'} and should arrive between ${deliveryStartTime || '[START TIME]'} and ${deliveryEndTime || '[END TIME]'}.
+A quick update on your prepcuisines order: your meals are out for delivery on ${deliveryDayLabel || '[DAY]'}, ${deliveryDate ? formatDateUK(deliveryDate) : '[DATE]'} and should arrive between ${deliveryStartTime || '[START TIME]'} and ${deliveryEndTime || '[END TIME]'}.
 
 Everything is cooked fresh the day before and delivered chilled - pop your meals straight into the fridge when they arrive. If you won't be in, just reply to this email and let us know a safe place to leave your box.
 
@@ -801,14 +836,22 @@ Bukr / prepcuisines`
             <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 8 }}>
               Delivery window
             </h3>
-            <p style={{ fontSize: 13, color: '#333' }}>
-              {loadingStokeEmails
-                ? 'Loading…'
-                : deliveryDate
-                  ? `${formatDateUK(deliveryDate)}`
-                  : 'No upcoming window found'}
-            </p>
-            {stokeEmailsMessage && <p style={{ fontSize: 12.5, color: '#888', marginTop: 4 }}>{stokeEmailsMessage}</p>}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <input
+                type="date"
+                value={dateInput}
+                onChange={(e) => setDateInput(e.target.value)}
+                style={{ padding: 10, border: '1px solid #ccc', borderRadius: 6, fontSize: 14 }}
+              />
+              <button
+                onClick={() => loadStokeEmails(dateInput)}
+                disabled={loadingStokeEmails || !dateInput}
+                style={{ padding: '10px 20px', background: '#fff', border: '1px solid #888', color: '#555', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+              >
+                {loadingStokeEmails ? 'Loading…' : 'Pull customers for this date'}
+              </button>
+            </div>
+            {stokeEmailsMessage && <p style={{ fontSize: 12.5, color: '#888', marginTop: 8 }}>{stokeEmailsMessage}</p>}
           </div>
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
@@ -857,20 +900,30 @@ Bukr / prepcuisines`
             <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 8 }}>
               Stoke-on-Trent customers ({stokeEmails.length})
             </h3>
-            <button
-              onClick={handleCopyStokeEmails}
-              disabled={stokeEmails.length === 0}
-              style={{ padding: '10px 20px', background: '#2d3510', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
-            >
-              Copy Stoke customer emails
-            </button>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={handleSendDeliveryUpdate}
+                disabled={stokeEmails.length === 0 || sendingDeliveryUpdate || !deliveryStartTime || !deliveryEndTime}
+                style={{ padding: '10px 22px', background: '#a03030', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+              >
+                {sendingDeliveryUpdate ? 'Sending…' : `Send to ${stokeEmails.length} Stoke customer${stokeEmails.length === 1 ? '' : 's'}`}
+              </button>
+              <button
+                onClick={handleCopyStokeEmails}
+                disabled={stokeEmails.length === 0}
+                style={{ padding: '10px 20px', background: '#fff', border: '1px solid #888', color: '#555', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+              >
+                Copy emails instead (for BCC)
+              </button>
+            </div>
           </div>
 
           {copyMessage && <p style={{ fontSize: 13, color: '#2d3510', marginBottom: 16 }}>{copyMessage}</p>}
 
-          <p style={{ fontSize: 13, color: '#a03030', fontWeight: 600 }}>
-            Paste the copied emails into BCC (never To/CC), fill the two times, send from
-            info@prepcuisines.co.uk.
+          <p style={{ fontSize: 13, color: '#888' }}>
+            "Send" fires the email directly from the system (dedupes automatically, so re-sending
+            for the same date won't double-email anyone). The copy option is there if you'd rather
+            send it yourself via BCC from info@prepcuisines.co.uk.
           </p>
         </>
       )}
