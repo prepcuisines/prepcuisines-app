@@ -139,6 +139,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing or invalid fields' }, { status: 400 })
   }
 
+  let originalTotal: number | null = null
+  if (payoff_type === 'total_remaining') {
+    if (id) {
+      const { data: existing } = await supabase.from('bills').select('original_total, payoff_type').eq('id', id).single()
+      // Keep the existing baseline if this bill was already tracking a
+      // total-remaining payoff - editing shouldn't reset how much
+      // progress has been made. Only set a fresh baseline if this is a
+      // brand new payoff (switching in from another type, or it never
+      // had one recorded).
+      originalTotal = existing && existing.payoff_type === 'total_remaining' && existing.original_total !== null
+        ? existing.original_total
+        : total_remaining
+    } else {
+      originalTotal = total_remaining
+    }
+  }
+
   const payload = {
     name,
     amount,
@@ -148,6 +165,7 @@ export async function POST(req: NextRequest) {
     payoff_type,
     end_date: payoff_type === 'end_date' ? end_date : null,
     total_remaining: payoff_type === 'total_remaining' ? total_remaining : null,
+    original_total: originalTotal,
     finished: false,
   }
 

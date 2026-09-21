@@ -12,6 +12,7 @@ type Bill = {
   payoff_type: 'none' | 'end_date' | 'total_remaining'
   end_date: string | null
   total_remaining: number | null
+  original_total: number | null
   finished: boolean
 }
 
@@ -130,6 +131,17 @@ export default function BillsPanel() {
   const weeklyTotal = visibleBills.filter((b) => b.frequency === 'weekly').reduce((s, b) => s + b.amount, 0)
   const monthlyTotal = visibleBills.filter((b) => b.frequency === 'monthly').reduce((s, b) => s + b.amount, 0)
 
+  // Progress across everything being paid off, not just what's currently
+  // filtered - this is a "how am I doing overall" view, not tied to the
+  // business/personal toggle above.
+  const payoffBills = bills.filter((b) => b.payoff_type === 'total_remaining' && b.original_total)
+  const totalOriginal = payoffBills.reduce((s, b) => s + (b.original_total || 0), 0)
+  const totalRemainingNow = payoffBills.reduce((s, b) => s + (b.total_remaining || 0), 0)
+  const totalPaidOff = totalOriginal - totalRemainingNow
+  const overallPercent = totalOriginal > 0 ? Math.round((totalPaidOff / totalOriginal) * 100) : 0
+  const stillPaying = payoffBills.filter((b) => !b.finished)
+  const recentlyFinished = bills.filter((b) => b.payoff_type === 'total_remaining' && b.finished)
+
   return (
     <div style={{ maxWidth: 700, padding: '0 0 40px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Bills</h1>
@@ -141,6 +153,33 @@ export default function BillsPanel() {
         Weekly total: <strong>£{weeklyTotal.toFixed(2)}</strong> · Monthly total:{' '}
         <strong>£{monthlyTotal.toFixed(2)}</strong>
       </p>
+
+      {payoffBills.length > 0 && (
+        <div style={{ background: '#f5f0e8', borderRadius: 10, padding: 18, marginBottom: 24 }}>
+          <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a7a4a', marginBottom: 10 }}>
+            Payoff progress
+          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#2d3510' }}>
+              £{totalPaidOff.toFixed(2)} paid off so far
+            </span>
+            <span style={{ fontSize: 13, color: '#888' }}>{overallPercent}%</span>
+          </div>
+          <div style={{ width: '100%', height: 10, background: '#e0dcd0', borderRadius: 5, overflow: 'hidden', marginBottom: 10 }}>
+            <div style={{ width: `${Math.min(100, overallPercent)}%`, height: '100%', background: '#2d3510' }} />
+          </div>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: recentlyFinished.length > 0 ? 12 : 0 }}>
+            £{totalRemainingNow.toFixed(2)} left across {stillPaying.length} bill{stillPaying.length === 1 ? '' : 's'} still being paid off.
+          </p>
+          {recentlyFinished.length > 0 && (
+            <div style={{ paddingTop: 10, borderTop: '1px solid #e0dcd0' }}>
+              <span style={{ fontSize: 13, color: '#2d3510', fontWeight: 600 }}>
+                🎉 Fully paid off: {recentlyFinished.map((b) => b.name).join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {(['all', 'business', 'personal'] as const).map((f) => (
@@ -227,8 +266,37 @@ export default function BillsPanel() {
                     </div>
                   )}
                   {bill.payoff_type === 'total_remaining' && bill.total_remaining !== null && (
-                    <div style={{ fontSize: 12.5, color: '#888' }}>
-                      £{bill.total_remaining.toFixed(2)} left to pay off
+                    <div style={{ marginTop: 4 }}>
+                      <div style={{ fontSize: 12.5, color: '#888' }}>
+                        £{bill.total_remaining.toFixed(2)} left to pay off
+                        {bill.original_total ? (
+                          <>
+                            {' '}
+                            (
+                            {Math.round(
+                              ((bill.original_total - bill.total_remaining) / bill.original_total) * 100
+                            )}
+                            % paid off
+                            {bill.amount > 0 && bill.total_remaining > 0
+                              ? ` · ~${Math.ceil(bill.total_remaining / bill.amount)} payment${
+                                  Math.ceil(bill.total_remaining / bill.amount) === 1 ? '' : 's'
+                                } left`
+                              : ''}
+                            )
+                          </>
+                        ) : null}
+                      </div>
+                      {bill.original_total ? (
+                        <div style={{ width: '100%', maxWidth: 220, height: 6, background: '#eee', borderRadius: 4, marginTop: 4, overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${Math.min(100, Math.round(((bill.original_total - bill.total_remaining) / bill.original_total) * 100))}%`,
+                              height: '100%',
+                              background: '#2d3510',
+                            }}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
