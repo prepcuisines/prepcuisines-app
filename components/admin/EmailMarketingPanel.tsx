@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import CampaignBatchesPanel from './CampaignBatchesPanel'
 import SubscriberRemindersPanel from './SubscriberRemindersPanel'
+import MenuTextPanel from './MenuTextPanel'
 
 type ScheduledSend = {
   id: string
@@ -26,6 +27,7 @@ type HistoryEntry = {
 const SUBTABS = [
   { key: 'campaigns', label: 'Campaigns' },
   { key: 'subscribers', label: 'Subscribers' },
+  { key: 'menu', label: 'Menu Text' },
   { key: 'image', label: 'Image Campaign' },
   { key: 'text', label: 'Text Message' },
   { key: 'delivery', label: 'Delivery Update' },
@@ -521,6 +523,8 @@ Bukr / prepcuisines`
       {subTab === 'campaigns' && <CampaignBatchesPanel />}
 
       {subTab === 'subscribers' && <SubscriberRemindersPanel />}
+
+      {subTab === 'menu' && <MenuTextPanel />}
 
       {subTab === 'image' && (
         <>
