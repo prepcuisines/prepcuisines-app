@@ -8,10 +8,11 @@ import { sendAdminAlertEmail } from '@/lib/send-email'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 // Grace window for auto-filled orders ONLY: on cutoff night the subscription
-// fills at 9pm UK and the customer can self-cancel until 9:30pm UK.
+// fills at 8pm UK and the customer can self-cancel until 8:30pm UK.
 // Customer-placed orders never see this — they chose their meals themselves.
-// Deadline is stored-clock based: 20:30 UTC on the order's creation day
-// (= 9:30pm UK in summer, matching the 8pm-stored/9pm-actual cutoff skew).
+// Deadline is the order's actual menu_window cutoff_datetime + 30 minutes —
+// cutoff_datetime is a real timestamptz now, so this is correct year-round
+// regardless of BST/GMT (no more hardcoded UTC offset).
 
 export async function POST(req: Request) {
   const cookieStore = await cookies()
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
 
   const { data: order } = await supabase
     .from('customer_window_orders')
-    .select('id, order_number, customer_id, status, total_amount, fulfilled, cancelled, created_at, ship_full_name, ship_email, stripe_payment_intent_id')
+    .select('id, order_number, customer_id, status, total_amount, fulfilled, cancelled, created_at, ship_full_name, ship_email, stripe_payment_intent_id, menu_window_id, menu_windows(cutoff_datetime)')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -51,9 +52,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'This order has already been delivered.' }, { status: 400 })
   }
 
-  // Until 9pm UK on the night the order was created (21:00 UTC in summer).
-  const c = new Date(order.created_at)
-  const deadline = new Date(Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate(), 20, 0, 0))
+  // Until 30 minutes after the real cutoff (menu_windows.cutoff_datetime is
+  // a true timestamptz, so this is correct whether it's BST or GMT).
+  // Falls back to created_at + 3h if the window is ever missing, rather
+  // than failing the cancellation outright.
+  const cutoffRaw = (order as any).menu_windows?.cutoff_datetime
+  const deadline = cutoffRaw
+    ? new Date(new Date(cutoffRaw).getTime() + 30 * 60 * 1000)
+    : new Date(new Date(order.created_at).getTime() + 3 * 60 * 60 * 1000)
   if (Date.now() > deadline.getTime()) {
     return NextResponse.json(
       { error: 'The cancellation window for this order has closed \u2014 it\u2019s being prepared.' },
