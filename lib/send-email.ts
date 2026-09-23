@@ -280,14 +280,6 @@ export function buildOrderConfirmationEmailHtml(o: {
     )
     .join('')
 
-  const graceNote = o.graceCancelUntil
-    ? `<tr><td style="padding:0 36px 24px;">
-        <p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.7;color:${G};background:${CREAM};border-left:3px solid ${GOLD};padding:12px 16px;">
-          Plans changed? You can cancel this order free of charge until <strong>${o.graceCancelUntil} tonight</strong> for a full refund — open your <a href="${siteUrl}/order-history" style="color:${G};">Order History</a> and tap "Cancel this order".
-        </p>
-      </td></tr>`
-    : ''
-
   // Subscribing benefits — pulled from the How It Works page so the email
   // never promises anything the site doesn't. Delivery line follows their day.
   const benefits = [
@@ -389,7 +381,6 @@ export function buildOrderConfirmationEmailHtml(o: {
       </tr>
     </table>
   </td></tr>
-  ${graceNote}
 
   <!-- Timeline -->
   <tr><td class="pc-pad" style="background:${G};padding:40px 36px;">
