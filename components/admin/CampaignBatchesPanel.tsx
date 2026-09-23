@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import CampaignList from './CampaignList'
 
 type Template = { key: string; name: string; defaultSubject: string; intendedFor: string }
 type Audience = { key: string; label: string; hint: string }
@@ -75,7 +76,7 @@ const toLocalInput = (d: Date) => {
 export default function CampaignBatchesPanel() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [audiences, setAudiences] = useState<Audience[]>([])
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
   const [loading, setLoading] = useState(true)
 
   const [templateKey, setTemplateKey] = useState('')
@@ -89,10 +90,6 @@ export default function CampaignBatchesPanel() {
   const [testTo, setTestTo] = useState('')
   const [testMessage, setTestMessage] = useState<string | null>(null)
 
-  const [sendingBatchId, setSendingBatchId] = useState<string | null>(null)
-  const [batchMessage, setBatchMessage] = useState<Record<string, string>>({})
-  const [scheduleFor, setScheduleFor] = useState<Record<string, string>>({})
-  const stopRef = useRef(false)
 
   const load = async () => {
     const res = await fetch('/api/admin/campaigns', { cache: 'no-store' })
@@ -100,7 +97,6 @@ export default function CampaignBatchesPanel() {
     if (res.ok) {
       setTemplates(data.templates || [])
       setAudiences(data.audiences || [])
-      setCampaigns(data.campaigns || [])
       if (!templateKey && data.templates?.[0]) {
         setTemplateKey(data.templates[0].key)
         setSubject(data.templates[0].defaultSubject)
@@ -111,20 +107,8 @@ export default function CampaignBatchesPanel() {
 
   useEffect(() => {
     load()
-    return () => {
-      stopRef.current = true
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Keep statuses fresh while anything is scheduled or sending.
-  const anyActive = campaigns.some((c) => c.email_campaign_batches.some((b) => b.status !== 'sent' && b.status !== 'ready'))
-  useEffect(() => {
-    if (!anyActive) return
-    const t = setInterval(load, 20_000)
-    return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anyActive])
 
   const template = templates.find((t) => t.key === templateKey)
   const audienceMismatch =
@@ -159,7 +143,7 @@ export default function CampaignBatchesPanel() {
     }
     setAudience('')
     setCountInfo(null)
-    await load()
+    setRefreshKey((k) => k + 1)
   }
 
   const sendTest = async () => {
@@ -171,65 +155,6 @@ export default function CampaignBatchesPanel() {
     })
     const data = await res.json()
     setTestMessage(res.ok ? `Test sent to ${testTo}` : data.error || 'Send failed')
-  }
-
-  const sendNow = async (b: Batch) => {
-    if (!confirm(`Send batch ${b.batch_number} to ${b.recipient_count} people now? This is a real send.`)) return
-    setSendingBatchId(b.id)
-    setBatchMessage((m) => ({ ...m, [b.id]: 'Starting…' }))
-    stopRef.current = false
-    // Each call sends ~45 seconds' worth; keep going until the batch is done.
-    for (let i = 0; i < 30 && !stopRef.current; i++) {
-      const res = await fetch('/api/admin/campaigns/send-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batchId: b.id }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setBatchMessage((m) => ({ ...m, [b.id]: data.error || 'Send stopped' }))
-        break
-      }
-      await load()
-      if (data.status === 'sent') {
-        setBatchMessage((m) => ({ ...m, [b.id]: '' }))
-        break
-      }
-      setBatchMessage((m) => ({ ...m, [b.id]: `Sending… ${data.remaining} left` }))
-    }
-    setSendingBatchId(null)
-    load()
-  }
-
-  const schedule = async (b: Batch, when: string | null) => {
-    const res = await fetch('/api/admin/campaigns/schedule-batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ batchId: b.id, scheduledAt: when ? new Date(when).toISOString() : null }),
-    })
-    const data = await res.json()
-    setBatchMessage((m) => ({ ...m, [b.id]: res.ok ? '' : data.error || 'Could not schedule' }))
-    if (res.ok) setScheduleFor((s) => ({ ...s, [b.id]: '' }))
-    load()
-  }
-
-  // Default schedule time: an hour after the latest batch that's booked or gone out.
-  const suggestTime = () => {
-    let latest = Date.now()
-    for (const c of campaigns)
-      for (const b of c.email_campaign_batches) {
-        const t = b.status === 'scheduled' ? b.scheduled_at : b.started_at
-        if (t) latest = Math.max(latest, new Date(t).getTime())
-      }
-    const d = new Date(latest + 60 * 60_000)
-    d.setSeconds(0, 0)
-    return toLocalInput(d)
-  }
-
-  const deleteCampaign = async (c: Campaign) => {
-    if (!confirm('Delete this campaign and its batches? Nothing has been sent.')) return
-    await fetch(`/api/admin/campaigns?id=${c.id}`, { method: 'DELETE' })
-    load()
   }
 
   if (loading) return <p>Loading…</p>
@@ -316,97 +241,7 @@ export default function CampaignBatchesPanel() {
         </div>
       </div>
 
-      {/* Campaigns and their batches */}
-      {campaigns.map((c) => {
-        const batches = c.email_campaign_batches
-        const total = batches.reduce((n, b) => n + b.recipient_count, 0)
-        const sentTotal = batches.reduce((n, b) => n + (b.sent_count || 0), 0)
-        const untouched = batches.every((b) => !b.started_at)
-        return (
-          <div key={c.id} style={card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
-              <h3 style={{ fontSize: 16, margin: 0 }}>{c.name}</h3>
-              <span style={{ fontSize: 13, color: '#777' }}>
-                {sentTotal.toLocaleString()} of {total.toLocaleString()} sent
-              </span>
-            </div>
-            <p style={{ fontSize: 13, color: '#777', margin: '4px 0 14px' }}>Subject: {c.subject}</p>
-
-            {batches.map((b) => {
-              const busy = sendingBatchId === b.id
-              const msg = batchMessage[b.id]
-              return (
-                <div key={b.id} style={{ borderTop: '1px solid #f0ebe0', padding: '12px 0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: 14 }}>
-                      <strong>Batch {b.batch_number}</strong>
-                      <span style={{ color: '#777' }}> · {b.recipient_count} people</span>
-                    </div>
-
-                    {b.status === 'sent' && (
-                      <span style={{ fontSize: 14, color: GREEN, fontWeight: 600 }}>
-                        ✓ Sent {b.sent_count}
-                        {b.failed_count ? ` (${b.failed_count} failed)` : ''}
-                        {b.sent_at ? ` · ${fmt(b.sent_at)}` : ''}
-                      </span>
-                    )}
-                    {b.status === 'sending' && !busy && (
-                      <span style={{ fontSize: 14, color: '#8a6d1a' }}>
-                        Sending… {b.sent_count || 0} of {b.recipient_count}
-                        <button style={{ ...ghost, marginLeft: 10 }} onClick={() => sendNow(b)}>
-                          Continue
-                        </button>
-                      </span>
-                    )}
-                    {b.status === 'scheduled' && b.scheduled_at && (
-                      <span style={{ fontSize: 14 }}>
-                        Scheduled {fmt(b.scheduled_at)}
-                        <button style={{ ...ghost, marginLeft: 10 }} onClick={() => schedule(b, null)}>
-                          Cancel
-                        </button>
-                      </span>
-                    )}
-                    {b.status === 'ready' && !busy && (
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button style={primary(!!sendingBatchId)} disabled={!!sendingBatchId} onClick={() => sendNow(b)}>
-                          Send now
-                        </button>
-                        <button
-                          style={ghost}
-                          onClick={() => setScheduleFor((s) => ({ ...s, [b.id]: s[b.id] ? '' : suggestTime() }))}
-                        >
-                          Schedule
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {b.status === 'ready' && scheduleFor[b.id] && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                      <input
-                        type="datetime-local"
-                        value={scheduleFor[b.id]}
-                        onChange={(e) => setScheduleFor((s) => ({ ...s, [b.id]: e.target.value }))}
-                        style={{ padding: 8, fontSize: 14, borderRadius: 8, border: '1px solid #ccc' }}
-                      />
-                      <button style={primary()} onClick={() => schedule(b, scheduleFor[b.id])}>
-                        Save
-                      </button>
-                    </div>
-                  )}
-                  {msg && <p style={{ fontSize: 13, color: busy ? '#666' : '#a33', margin: '8px 0 0' }}>{msg}</p>}
-                </div>
-              )
-            })}
-
-            {untouched && (
-              <button style={{ ...ghost, marginTop: 8, color: '#a33' }} onClick={() => deleteCampaign(c)}>
-                Delete campaign
-              </button>
-            )}
-          </div>
-        )
-      })}
+      <CampaignList kind="marketing" refreshKey={refreshKey} />
 
       <p style={{ fontSize: 12, color: '#999' }}>
         Every batch is capped at 400 people, only one batch sends at a time, and batches go at least an hour apart.

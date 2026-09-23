@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendCampaignEmailStrict } from '@/lib/send-email'
 import { buildUnsubscribeUrl } from '@/lib/unsubscribe'
 import { getCampaignTemplate, renderCampaignHtml } from '@/lib/campaign-templates'
+import { buildReminderEmailHtml } from '@/lib/reminder-email'
+import { buildSkipUrl } from '@/lib/skip-link'
 
 // Hard limits. The database enforces these too (max 400 recipients per
 // batch, only one batch sending at a time), so even a bug here can't
@@ -16,6 +18,7 @@ export type ChunkResult = {
   sentThisRun?: number
   failedThisRun?: number
   remaining?: number
+  note?: string
 }
 
 // Sends as much of ONE batch as fits in the time budget, then stops. Safe
@@ -39,11 +42,32 @@ export async function sendCampaignBatchChunk(
 
   const { data: campaign } = await supabase
     .from('email_campaigns')
-    .select('id, subject, template_key')
+    .select('id, subject, template_key, kind, menu_window_id, image_url, delivery_day, cutoff_at, reminder_type')
     .eq('id', batch.campaign_id)
     .single()
-  const template = campaign ? getCampaignTemplate(campaign.template_key) : null
-  if (!campaign || !template) return { ok: false, error: 'Campaign or email template not found' }
+  if (!campaign) return { ok: false, error: 'Campaign not found' }
+  const isReminder = campaign.kind === 'subscriber_reminder'
+  const template = isReminder ? null : getCampaignTemplate(campaign.template_key)
+  if (!isReminder && !template) return { ok: false, error: 'Email template not found' }
+
+  // A reminder after the cutoff would be wrong, so close the batch instead
+  // of sending (and so it can't hold up anything scheduled after it).
+  if (isReminder && (!campaign.cutoff_at || new Date(campaign.cutoff_at).getTime() <= Date.now())) {
+    const nowIso = new Date().toISOString()
+    await supabase
+      .from('email_campaign_recipients')
+      .update({ skipped_at: nowIso })
+      .eq('batch_id', batch.id)
+      .is('sent_at', null)
+      .is('failed_at', null)
+      .is('skipped_at', null)
+    await supabase
+      .from('email_campaign_batches')
+      .update({ status: 'sent', sent_at: nowIso, lease_until: null })
+      .eq('id', batch.id)
+      .neq('status', 'sent')
+    return { ok: true, status: 'sent', sentThisRun: 0, remaining: 0, note: 'The cutoff has passed, so this reminder was not sent.' }
+  }
 
   // Starting a fresh batch: enforce the gap since the last batch started.
   if (!batch.started_at) {
@@ -86,22 +110,56 @@ export async function sendCampaignBatchChunk(
 
   const { data: pending } = await supabase
     .from('email_campaign_recipients')
-    .select('id, email, first_name')
+    .select('id, email, first_name, customer_id')
     .eq('batch_id', batch.id)
     .is('sent_at', null)
     .is('failed_at', null)
+    .is('skipped_at', null)
     .order('id', { ascending: true })
     .limit(MAX_BATCH_SIZE)
+
+  // Reminders: re-check right before sending, so anyone who has ordered or
+  // skipped since the batch was made doesn't get a pointless reminder.
+  const noLongerNeeded = new Set<string>()
+  if (isReminder && pending && pending.length > 0) {
+    const ids = pending.map((p) => p.customer_id).filter(Boolean) as string[]
+    const [{ data: orders }, { data: skippers }] = await Promise.all([
+      supabase
+        .from('customer_window_orders')
+        .select('customer_id')
+        .eq('menu_window_id', campaign.menu_window_id)
+        .in('customer_id', ids),
+      supabase
+        .from('customer_profiles')
+        .select('id, skip_next_order, subscription_status')
+        .in('id', ids),
+    ])
+    for (const o of orders || []) noLongerNeeded.add(o.customer_id)
+    for (const p of skippers || []) if (p.skip_next_order || p.subscription_status !== 'active') noLongerNeeded.add(p.id)
+  }
 
   let sent = 0
   let failed = 0
   for (const r of pending || []) {
     if (Date.now() - started > budgetMs) break
     if (sent + failed >= MAX_BATCH_SIZE) break
-    const html = renderCampaignHtml(template.html, {
-      firstName: r.first_name,
-      unsubscribeUrl: buildUnsubscribeUrl(r.email),
-    })
+    if (isReminder && r.customer_id && noLongerNeeded.has(r.customer_id)) {
+      await supabase.from('email_campaign_recipients').update({ skipped_at: new Date().toISOString() }).eq('id', r.id)
+      continue
+    }
+    const html = isReminder
+      ? buildReminderEmailHtml({
+          imageUrl: campaign.image_url,
+          firstName: r.first_name,
+          deliveryDay: campaign.delivery_day,
+          cutoffIso: campaign.cutoff_at,
+          isLastCall: campaign.reminder_type === 'last_call',
+          skipUrl: buildSkipUrl(r.customer_id, campaign.menu_window_id),
+        })
+      : renderCampaignHtml(template!.html, {
+          firstName: r.first_name,
+          unsubscribeUrl: buildUnsubscribeUrl(r.email),
+        })
     try {
       await sendCampaignEmailStrict(r.email, campaign.subject, html)
       await supabase.from('email_campaign_recipients').update({ sent_at: new Date().toISOString() }).eq('id', r.id)
@@ -115,13 +173,14 @@ export async function sendCampaignBatchChunk(
     }
   }
 
-  const [{ count: remaining }, { count: sentTotal }, { count: failedTotal }] = await Promise.all([
+  const [{ count: remaining }, { count: sentTotal }, { count: failedTotal }, { count: skippedTotal }] = await Promise.all([
     supabase
       .from('email_campaign_recipients')
       .select('id', { count: 'exact', head: true })
       .eq('batch_id', batch.id)
       .is('sent_at', null)
-      .is('failed_at', null),
+      .is('failed_at', null)
+      .is('skipped_at', null),
     supabase
       .from('email_campaign_recipients')
       .select('id', { count: 'exact', head: true })
@@ -132,6 +191,11 @@ export async function sendCampaignBatchChunk(
       .select('id', { count: 'exact', head: true })
       .eq('batch_id', batch.id)
       .not('failed_at', 'is', null),
+    supabase
+      .from('email_campaign_recipients')
+      .select('id', { count: 'exact', head: true })
+      .eq('batch_id', batch.id)
+      .not('skipped_at', 'is', null),
   ])
 
   const done = (remaining || 0) === 0
@@ -142,6 +206,7 @@ export async function sendCampaignBatchChunk(
       sent_at: done ? new Date().toISOString() : null,
       sent_count: sentTotal || 0,
       failed_count: failedTotal || 0,
+      skipped_count: skippedTotal || 0,
       lease_until: null,
     })
     .eq('id', batch.id)
