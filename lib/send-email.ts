@@ -179,10 +179,14 @@ export async function sendOrderConfirmationEmailToCustomer(
   // The full welcome email is only for a brand-new subscriber's first order.
   // Every other order (repeat picks, auto-fills, PAYG) gets the short receipt
   // so regulars aren't sent the whole welcome pack every week.
-  if (isSubscribed && isFirstOrder) {
+  // PAYG orders also get the full email — it doubles as the pitch to
+  // subscribe, so it shouldn't be the basic receipt.
+  if ((isSubscribed && isFirstOrder) || orderType === 'payg_order') {
     await sendEmailViaNeo(
       toEmail,
-      `Welcome to the prepcuisines family${orderRef}`,
+      orderType === 'payg_order'
+        ? `Your prepcuisines order is confirmed${orderRef}`
+        : `Welcome to the prepcuisines family${orderRef}`,
       buildOrderConfirmationEmailHtml(opts)
     )
     return
@@ -356,10 +360,15 @@ export function buildOrderConfirmationEmailHtml(o: {
   const mealCount = realItems.reduce((n, i) => n + (i.qty || 0), 0)
   const isDpd = !!o.shipPostcode && !o.shipPostcode.trim().toUpperCase().startsWith('ST')
 
-  const headline = o.isFirstOrder
+  const isPayg = o.orderType === 'payg_order'
+  const headline = isPayg
+    ? `Thanks for your order, ${name}.`
+    : o.isFirstOrder
     ? `Welcome to the prepcuisines family, ${name}.`
     : `Your week's sorted, ${name}.`
-  const intro = o.isFirstOrder
+  const intro = isPayg
+    ? `Your meals arrive ${onDay} — cooked fresh by our chefs, portioned, labelled and sent out chilled. All you do is heat and eat.`
+    : o.isFirstOrder
     ? `We're so glad you're here. Your first box arrives ${onDay} — cooked fresh by our chefs, portioned, labelled and sent out chilled. All you do is heat and eat.`
     : `Thanks for ordering again. Your meals arrive ${onDay} — here's everything you need to know.`
 
@@ -441,10 +450,10 @@ export function buildOrderConfirmationEmailHtml(o: {
   const benefitsBlock = showBenefits
     ? `<tr><td class="pc-pad" style="padding:40px 36px 12px;">
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:2px solid ${GOLD};"><tr><td style="padding:28px 26px;">
-          <p style="margin:0 0 6px;font-family:${SERIF};font-size:24px;line-height:1.2;color:${G};">${o.orderType === 'payg_order' ? 'Why subscribers never go back' : "What you get as a subscriber"}</p>
-          <p style="margin:0 0 22px;font-family:${SANS};font-size:13px;line-height:1.6;color:${MUTED};">${o.orderType === 'payg_order' ? 'This was a one-off order, so nothing else will be charged. Here\'s what a subscription adds:' : "Here's what comes with your subscription from now on:"}</p>
+          <p style="margin:0 0 6px;font-family:${SERIF};font-size:24px;line-height:1.2;color:${G};">${o.orderType === 'payg_order' ? `Get this ${everyDay}, for less` : "What you get as a subscriber"}</p>
+          <p style="margin:0 0 22px;font-family:${SANS};font-size:13px;line-height:1.6;color:${MUTED};">${o.orderType === 'payg_order' ? 'This was a one-off order, so nothing else will be charged. Subscribe and here\'s what changes:' : "Here's what comes with your subscription from now on:"}</p>
           <table border="0" cellpadding="0" cellspacing="0" width="100%">${benefitRows}</table>
-          ${o.orderType === 'payg_order' ? `<p style="margin:26px 0 0;"><a href="${siteUrl}/menu" style="display:inline-block;background:${G};color:${CREAM};font-family:${SANS};font-size:14px;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:4px;">Subscribe and save</a></p>` : ''}
+          ${o.orderType === 'payg_order' ? `<p style="margin:26px 0 0;"><a href="${siteUrl}/menu" style="display:inline-block;background:${G};color:${CREAM};font-family:${SANS};font-size:14px;font-weight:700;text-decoration:none;padding:16px 30px;border-radius:4px;">Subscribe and save</a></p><p style="margin:12px 0 0;font-family:${SANS};font-size:12px;color:${MUTED};">Skip a week or cancel any time from your account.</p>` : ''}
         </td></tr></table>
       </td></tr>`
     : ''
@@ -519,6 +528,8 @@ export function buildOrderConfirmationEmailHtml(o: {
     </table>
   </td></tr>
 
+  ${isPayg ? benefitsBlock : ''}
+
   <!-- Timeline -->
   <tr><td class="pc-pad" style="background:${G};padding:40px 36px;">
     <p style="margin:0 0 6px;font-family:${SERIF};font-size:26px;color:${CREAM};">From our kitchen to your fridge</p>
@@ -526,7 +537,7 @@ export function buildOrderConfirmationEmailHtml(o: {
     <table border="0" cellpadding="0" cellspacing="0" width="100%">${stepRows}</table>
   </td></tr>
 
-  ${benefitsBlock || `<!-- Perks -->
+  ${(!isPayg && benefitsBlock) || `<!-- Perks -->
   <tr><td class="pc-pad" style="padding:40px 36px 12px;">
     <p style="margin:0 0 20px;font-family:${SERIF};font-size:22px;color:${G};">Every box, every week</p>
     <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>${perkCells}</tr></table>
