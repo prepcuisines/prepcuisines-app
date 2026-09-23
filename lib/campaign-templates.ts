@@ -11,10 +11,57 @@ export type CampaignTemplate = {
   // Which audience this email is written for, so the admin can warn if
   // it's sent to the wrong group (e.g. a 40%-off email to past customers).
   intendedFor: 'not_subscribed' | 'past_customers' | 'subscribers' | 'any'
+  // Used for {{first_name}} when we don't know someone's name.
+  nameFallback?: string
   html: string
 }
 
+// Plain, personal-looking email (like a message from Bukr) - tends to land
+// in the main inbox rather than Promotions.
+const plain = (paragraphs: string[]) => `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<div style="font-family:-apple-system,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a;max-width:480px;margin:0 auto;padding:24px 16px;">
+${paragraphs.map((p) => `  <p style="margin:0 0 16px;">${p}</p>`).join('\n')}
+  <p style="margin:24px 0 0;font-size:12px;color:#888888;">STOP: <a href="{{unsubscribe_url}}" style="color:#888888;">unsubscribe</a></p>
+</div>
+</body></html>`
+
+const CUTOFFS = 'Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: order by Sunday 8pm'
+const ORDER_LINK = 'Order here: <a href="https://prepcuisines.co.uk/menu" style="color:#1a2e1a;font-weight:600;">prepcuisines.co.uk/menu</a>'
+
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
+  {
+    key: 'payday',
+    name: 'Payday deal',
+    defaultSubject: '{{first_name}}, payday = 40% off your first box',
+    intendedFor: 'not_subscribed',
+    nameFallback: 'there',
+    html: plain([
+      'Hey {{first_name}},',
+      "Payday's here, so here's the deal:",
+      '<strong>40% off your first box.</strong> No code needed.<br/>Chef-made, high protein, from £4.80 a meal.',
+      'Treat yourself properly this month. No cooking, no washing up, no takeaway guilt.',
+      ORDER_LINK,
+      CUTOFFS,
+      '— Bukr',
+    ]),
+  },
+  {
+    key: 'payday-last-call',
+    name: 'Payday deal - last reminder',
+    defaultSubject: '{{first_name}}, last payday reminder: 40% off',
+    intendedFor: 'not_subscribed',
+    nameFallback: 'there',
+    html: plain([
+      'Hey {{first_name}},',
+      'Quick one. If payday has landed, your <strong>40% off your first box</strong> is still waiting. No code needed.',
+      'Chef-made, high protein, from £4.80 a meal. Heat, eat, done.',
+      ORDER_LINK,
+      CUTOFFS,
+      '— Bukr',
+    ]),
+  },
   {
     key: 'fired-whats-for-dinner',
     name: "You're fired - What's for dinner?",
@@ -39,8 +86,26 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 }
 
-export function renderCampaignHtml(html: string, vars: { firstName?: string | null; unsubscribeUrl: string }) {
-  const first = (vars.firstName || '').trim().split(/\s+/)[0] || 'Me'
+function firstNameOf(name?: string | null) {
+  const f = (name || '').trim().split(/\s+/)[0] || ''
+  return f ? f.charAt(0).toUpperCase() + f.slice(1).toLowerCase() : ''
+}
+
+// Subject lines can use {{first_name}} too. With no name, "{{first_name}}, "
+// is dropped and the rest starts with a capital letter.
+export function renderCampaignSubject(subject: string, firstName?: string | null) {
+  const first = firstNameOf(firstName)
+  if (first) return subject.split('{{first_name}}').join(first)
+  const s = subject.replace(/\{\{first_name\}\},?\s*/g, '').trim()
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+export function renderCampaignHtml(
+  html: string,
+  vars: { firstName?: string | null; unsubscribeUrl: string },
+  nameFallback = 'Me'
+) {
+  const first = firstNameOf(vars.firstName) || nameFallback
   return html
     .split('{{first_name}}').join(escapeHtml(first))
     .split('{{unsubscribe_url}}').join(vars.unsubscribeUrl)

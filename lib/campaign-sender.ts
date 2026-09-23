@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendCampaignEmailStrict } from '@/lib/send-email'
 import { buildUnsubscribeUrl } from '@/lib/unsubscribe'
-import { getCampaignTemplate, renderCampaignHtml } from '@/lib/campaign-templates'
+import { getCampaignTemplate, renderCampaignHtml, renderCampaignSubject } from '@/lib/campaign-templates'
 import { buildReminderEmailHtml } from '@/lib/reminder-email'
 import { buildSkipUrl } from '@/lib/skip-link'
 
@@ -156,12 +156,14 @@ export async function sendCampaignBatchChunk(
           isLastCall: campaign.reminder_type === 'last_call',
           skipUrl: buildSkipUrl(r.customer_id, campaign.menu_window_id),
         })
-      : renderCampaignHtml(template!.html, {
-          firstName: r.first_name,
-          unsubscribeUrl: buildUnsubscribeUrl(r.email),
-        })
+      : renderCampaignHtml(
+          template!.html,
+          { firstName: r.first_name, unsubscribeUrl: buildUnsubscribeUrl(r.email) },
+          template!.nameFallback
+        )
+    const subject = isReminder ? campaign.subject : renderCampaignSubject(campaign.subject, r.first_name)
     try {
-      await sendCampaignEmailStrict(r.email, campaign.subject, html)
+      await sendCampaignEmailStrict(r.email, subject, html)
       await supabase.from('email_campaign_recipients').update({ sent_at: new Date().toISOString() }).eq('id', r.id)
       sent += 1
     } catch (err: any) {

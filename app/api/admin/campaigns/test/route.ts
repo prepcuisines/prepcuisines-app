@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdminRequest } from '@/lib/admin-auth'
-import { getCampaignTemplate, renderCampaignHtml } from '@/lib/campaign-templates'
+import { getCampaignTemplate, renderCampaignHtml, renderCampaignSubject } from '@/lib/campaign-templates'
 import { sendCampaignEmailStrict } from '@/lib/send-email'
 import { buildUnsubscribeUrl } from '@/lib/unsubscribe'
 
@@ -15,8 +15,12 @@ export async function POST(req: NextRequest) {
   try {
     await sendCampaignEmailStrict(
       String(to).trim(),
-      `[TEST] ${subject || template.defaultSubject}`,
-      renderCampaignHtml(template.html, { firstName: 'Bukr', unsubscribeUrl: buildUnsubscribeUrl(String(to).trim()) })
+      `[TEST] ${renderCampaignSubject(subject || template.defaultSubject, 'Bukr')}`,
+      renderCampaignHtml(
+        template.html,
+        { firstName: 'Bukr', unsubscribeUrl: buildUnsubscribeUrl(String(to).trim()) },
+        template.nameFallback
+      )
     )
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Send failed' }, { status: 500 })
