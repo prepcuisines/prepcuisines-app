@@ -430,7 +430,9 @@ export function buildOrderConfirmationEmailHtml(o: {
   // never promises anything the site doesn't. Delivery line follows their day.
   const benefits = [
     [`A fresh box ${everyDay}`, `Chef-made meals land ${everyDay} without you having to reorder.`],
-    ['Better pricing', 'Loyalty discounts on your next orders, always shown clearly at checkout.'],
+    o.orderType === 'payg_order'
+      ? ['40% off your first box', 'Then 20% off your next 5 orders — applied automatically.']
+      : ['20% off your next 5 orders', 'Applied automatically — nothing to enter at checkout.'],
     ['Never miss a week', "Miss the cutoff and we'll fill your box from your favourites — never anything you've marked as disliked."],
     ['Total flexibility', 'Skip a week, change your plan size, switch delivery days or cancel from your account. No phone calls.'],
   ]
