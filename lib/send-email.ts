@@ -162,7 +162,7 @@ export async function sendOrderConfirmationEmailToCustomer(
   orderNumber: number | null = null,
   graceCancelUntil: string | null = null
 ) {
-  const html = buildOrderConfirmationEmailHtml({
+  const opts = {
     firstName,
     amount,
     deliveryDay,
@@ -173,9 +173,146 @@ export async function sendOrderConfirmationEmailToCustomer(
     shipPostcode,
     orderNumber,
     graceCancelUntil,
-  })
+  }
   const orderRef = orderNumber != null ? ` — #PC-${orderNumber}` : ''
-  await sendEmailViaNeo(toEmail, `Your prepcuisines order is confirmed${orderRef}`, html)
+
+  // The full welcome email is only for a brand-new subscriber's first order.
+  // Every other order (repeat picks, auto-fills, PAYG) gets the short receipt
+  // so regulars aren't sent the whole welcome pack every week.
+  if (isSubscribed && isFirstOrder) {
+    await sendEmailViaNeo(
+      toEmail,
+      `Welcome to the prepcuisines family${orderRef}`,
+      buildOrderConfirmationEmailHtml(opts)
+    )
+    return
+  }
+
+  const day = normaliseDeliveryDay(deliveryDay)
+  const subject =
+    orderType === 'auto_filled'
+      ? `We've filled your box${day ? ` for ${day}` : ''}${orderRef}`
+      : `Your prepcuisines order is confirmed${orderRef}`
+  await sendEmailViaNeo(toEmail, subject, buildOrderReceiptEmailHtml(opts))
+}
+
+function normaliseDeliveryDay(raw: string) {
+  const d = (raw || '').toLowerCase()
+  const sun = d.includes('sun')
+  const wed = d.includes('wed')
+  return sun && wed ? 'Sunday & Wednesday' : sun ? 'Sunday' : wed ? 'Wednesday' : ''
+}
+
+// Short receipt for repeat orders, auto-fills and PAYG: same look as the
+// welcome email, but just the essentials.
+export function buildOrderReceiptEmailHtml(o: {
+  firstName: string
+  amount: number
+  deliveryDay: string
+  items: OrderConfirmationItem[]
+  orderType: string
+  isSubscribed: boolean
+  isFirstOrder: boolean
+  shipPostcode: string
+  orderNumber: number | null
+  graceCancelUntil: string | null
+}) {
+  const G = '#1a2e1a'
+  const GOLD = '#c9a84c'
+  const CREAM = '#f5f0e8'
+  const LINE = '#e8e0d0'
+  const MUTED = '#6b7a6b'
+  const SERIF = "Georgia,'Times New Roman',serif"
+  const SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif"
+  const LOGO =
+    'https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prepcuisines.co.uk'
+
+  const name = o.firstName || 'there'
+  const day = normaliseDeliveryDay(o.deliveryDay)
+  const onDay = day ? `on ${day}` : 'on your delivery day'
+  const isDpd = !!o.shipPostcode && !o.shipPostcode.trim().toUpperCase().startsWith('ST')
+  const realItems = o.items.filter((i) => i.name && i.name !== 'Delivery')
+
+  let headline = `Your order's in, ${name}.`
+  let intro = `Thanks for ordering. Your meals arrive ${onDay}.`
+  if (o.orderType === 'auto_filled') {
+    headline = `We've filled your box, ${name}.`
+    intro = `You didn't pick this week's meals before the cutoff, so we've chosen from your favourites (never anything you've marked as disliked). They arrive ${onDay}.`
+  } else if (o.isSubscribed) {
+    headline = `Your picks are locked in, ${name}.`
+    intro = `Thanks for choosing this week's meals. They arrive ${onDay}.`
+  }
+
+  const itemRows = realItems
+    .map(
+      (i) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid ${LINE};font-family:${SANS};font-size:14px;color:${G};">
+          <span style="display:inline-block;min-width:26px;font-weight:700;color:${GOLD};">${i.qty}×</span>${i.name}
+        </td>
+        <td align="right" style="padding:10px 0;border-bottom:1px solid ${LINE};font-family:${SANS};font-size:14px;color:${G};white-space:nowrap;">
+          £${(i.price * i.qty).toFixed(2)}
+        </td>
+      </tr>`
+    )
+    .join('')
+
+  // Auto-filled boxes were chosen for them, so they keep the free-cancel
+  // window. Manual orders don't need it.
+  const autoFillNote =
+    o.orderType === 'auto_filled' && o.graceCancelUntil
+      ? `<p style="margin:20px 0 0;font-family:${SANS};font-size:13px;line-height:1.7;color:${G};background:${CREAM};border-left:3px solid ${GOLD};padding:12px 16px;">
+          Don't want this box? Cancel free until <strong>${o.graceCancelUntil} tonight</strong> for a full refund in your <a href="${siteUrl}/order-history" style="color:${G};">Order History</a>.
+        </p>`
+      : ''
+
+  const footerAction = o.isSubscribed
+    ? `<p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.9;color:${MUTED};">
+        <a href="${siteUrl}/favourites" style="color:${G};font-weight:600;">Update your favourites</a> so auto-filled boxes stay spot on, or
+        <a href="${siteUrl}/dashboard" style="color:${G};font-weight:600;">manage your account</a>.
+      </p>`
+    : `<p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.7;color:${MUTED};">
+        This was a one-off order. Want meals ${day ? `every ${day}` : 'every week'} at better prices?
+        <a href="${siteUrl}/menu" style="color:${G};font-weight:600;">Subscribe and save</a>.
+      </p>`
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>@media only screen and (max-width:520px){.pc-pad{padding-left:22px !important;padding-right:22px !important;}}</style></head>
+<body style="margin:0;padding:0;background:${CREAM};">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:${CREAM};padding:24px 12px;">
+<tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;background:#ffffff;">
+  <tr><td align="center" style="background:${G};padding:20px 32px;">
+    <img alt="prepcuisines" src="${LOGO}" width="160" style="display:block;height:auto;margin:0 auto;"/>
+  </td></tr>
+  <tr><td class="pc-pad" style="padding:36px 36px 8px;">
+    <p style="margin:0 0 12px;font-family:${SANS};font-size:13px;font-weight:700;color:${GOLD};">✓ Order confirmed${o.orderNumber != null ? ` · #PC-${o.orderNumber}` : ''}</p>
+    <h1 style="margin:0 0 12px;font-family:${SERIF};font-weight:normal;font-size:28px;line-height:1.2;color:${G};">${headline}</h1>
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.7;color:#444444;">${intro}${isDpd ? ' Your box goes out with DPD.' : ''}</p>
+  </td></tr>
+  <tr><td class="pc-pad" style="padding:20px 36px 32px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      ${itemRows}
+      <tr>
+        <td style="padding:14px 0 0;font-family:${SANS};font-size:15px;font-weight:700;color:${G};">Total paid</td>
+        <td align="right" style="padding:14px 0 0;font-family:${SANS};font-size:15px;font-weight:700;color:${G};">£${o.amount.toFixed(2)}</td>
+      </tr>
+    </table>
+    ${autoFillNote}
+  </td></tr>
+  <tr><td class="pc-pad" style="padding:0 36px 32px;">
+    <div style="border-top:1px solid ${LINE};padding-top:20px;">${footerAction}</div>
+    <p style="margin:14px 0 0;font-family:${SANS};font-size:13px;line-height:1.7;color:${MUTED};">Questions? Just reply to this email${o.orderNumber != null ? ` and quote #PC-${o.orderNumber}` : ''}.</p>
+  </td></tr>
+  <tr><td align="center" style="background:${G};padding:22px 32px;">
+    <p style="margin:0;font-family:${SANS};font-size:11px;line-height:1.7;color:rgba(245,240,232,0.45);">prepcuisines · 102A Sun Street, Stoke-on-Trent, ST1 4JR</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`
 }
 
 // Builds the order confirmation HTML on its own so it can be previewed
