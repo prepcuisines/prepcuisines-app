@@ -114,6 +114,15 @@ async function sendEmailViaNeo(to: string, subject: string, html: string) {
   }
 }
 
+// Marketing batch sends: Neo only, and it THROWS on failure (no silent
+// Resend fallback) so the batch sender knows exactly who was and wasn't
+// emailed and never double-counts.
+export async function sendCampaignEmailStrict(to: string, subject: string, html: string) {
+  const transporter = getNeoTransporter()
+  if (!transporter) throw new Error('NEO_EMAIL / NEO_EMAIL_PASSWORD not set')
+  await transporter.sendMail({ from: process.env.NEO_EMAIL, to, subject, html })
+}
+
 export async function sendPaymentFailedEmailToCustomer(
   toEmail: string,
   firstName: string,

@@ -27,5 +27,11 @@ export async function POST(req: NextRequest) {
   // state, so remove it entirely.
   await supabase.from('marketing_leads').delete().eq('email', normalisedEmail)
 
+  // Permanent do-not-email record, so campaign batches skip them even if
+  // they come back in via a future import or a Pay As You Go order.
+  await supabase
+    .from('email_suppressions')
+    .upsert({ email: normalisedEmail }, { onConflict: 'email', ignoreDuplicates: true })
+
   return NextResponse.json({ success: true })
 }

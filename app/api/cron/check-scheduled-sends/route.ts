@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendCampaignBatchChunk } from '@/lib/campaign-sender'
+
+export const maxDuration = 300
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,15 +22,40 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString()
-  const { data: due } = await supabase
+
+  // Campaign batches: work on at most ONE batch per run — finish one that's
+  // part-way through first, otherwise start the earliest one that's due.
+  let campaignResult: any = null
+  const { data: inProgress } = await supabase
+    .from('email_campaign_batches')
+    .select('id')
+    .eq('status', 'sending')
+    .limit(1)
+  let batchId = inProgress?.[0]?.id as string | undefined
+  if (!batchId) {
+    const { data: dueBatch } = await supabase
+      .from('email_campaign_batches')
+      .select('id')
+      .eq('status', 'scheduled')
+      .lte('scheduled_at', now)
+      .order('scheduled_at', { ascending: true })
+      .limit(1)
+    batchId = dueBatch?.[0]?.id
+  }
+  if (batchId) campaignResult = { batchId, ...(await sendCampaignBatchChunk(supabase, batchId, 200_000)) }
+
+  const { data: dueAll } = await supabase
     .from('scheduled_email_sends')
     .select('id, scheduled_at, audience, send_type, text_subject, text_body')
     .eq('sent', false)
     .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
 
-  if (!due || due.length === 0) {
-    return NextResponse.json({ fired: 0 })
+  // Older image/text sends: only fire ONE per run. Firing every overdue
+  // entry in a single run is what let several 400-batches go out at once.
+  const due = (dueAll || []).slice(0, 1)
+  if (due.length === 0) {
+    return NextResponse.json({ fired: 0, campaignResult })
   }
 
   const results: any[] = []
@@ -73,7 +101,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ fired: results.length, results })
+  return NextResponse.json({ fired: results.length, results, campaignResult })
 }
 
 export const GET = POST
