@@ -162,160 +162,235 @@ export async function sendOrderConfirmationEmailToCustomer(
   orderNumber: number | null = null,
   graceCancelUntil: string | null = null
 ) {
+  const html = buildOrderConfirmationEmailHtml({
+    firstName,
+    amount,
+    deliveryDay,
+    items,
+    orderType,
+    isSubscribed,
+    isFirstOrder,
+    shipPostcode,
+    orderNumber,
+    graceCancelUntil,
+  })
   const orderRef = orderNumber != null ? ` — #PC-${orderNumber}` : ''
-  const orderNumberLine =
-    orderNumber != null
-      ? `<p style="font-size:13px;color:#888888;margin:0 0 20px;">Order <strong style="color:#1a2e1a;">#PC-${orderNumber}</strong> — quote this if you ever need to get in touch about it.</p>`
-      : ''
-  const graceNote = graceCancelUntil
-    ? `<p style="font-size:14px;line-height:1.7;color:#2d3510;background:#f5f2ec;border-radius:10px;padding:12px 14px;margin:0 0 16px;">Plans changed this week? You can cancel this order free of charge until <strong>${graceCancelUntil} tonight</strong> — your card will be refunded in full. Open your <a href="https://prepcuisines.co.uk/order-history" style="color:#2d3510;">Order History</a> and tap "Cancel this order".</p>`
-    : ''
-  const realItems = items.filter((i) => i.name && i.name !== 'Delivery')
+  await sendEmailViaNeo(toEmail, `Your prepcuisines order is confirmed${orderRef}`, html)
+}
+
+// Builds the order confirmation HTML on its own so it can be previewed
+// without sending. Table-based with inline styles so it holds up in Gmail,
+// Outlook and Apple Mail.
+export function buildOrderConfirmationEmailHtml(o: {
+  firstName: string
+  amount: number
+  deliveryDay: string
+  items: OrderConfirmationItem[]
+  orderType: string
+  isSubscribed: boolean
+  isFirstOrder: boolean
+  shipPostcode: string
+  orderNumber: number | null
+  graceCancelUntil: string | null
+}) {
+  const G = '#1a2e1a' // dark green
+  const GOLD = '#c9a84c'
+  const CREAM = '#f5f0e8'
+  const LINE = '#e8e0d0'
+  const MUTED = '#6b7a6b'
+  const SERIF = "Georgia,'Times New Roman',serif"
+  const SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif"
+  const LOGO =
+    'https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prepcuisines.co.uk'
+
+  const name = o.firstName || 'there'
+  const day = o.deliveryDay || 'delivery day'
+  const realItems = o.items.filter((i) => i.name && i.name !== 'Delivery')
+  const mealCount = realItems.reduce((n, i) => n + (i.qty || 0), 0)
+  const isDpd = !!o.shipPostcode && !o.shipPostcode.trim().toUpperCase().startsWith('ST')
+
+  const headline = o.isFirstOrder ? `Welcome to the table, ${name}.` : `Your week's sorted, ${name}.`
+  const intro = o.isFirstOrder
+    ? `Your first box is booked in for ${day}. Everything is cooked fresh by our chefs, portioned, labelled and sent out chilled — all you do is heat and eat.`
+    : `Thanks for ordering again. Your meals are booked in for ${day} — here's everything you need to know.`
 
   const itemRows = realItems
     .map(
       (i) => `
-        <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #e8e0d0;font-size:14px;color:#1a2e1a;">
-            ${i.qty}× ${i.name}
-          </td>
-          <td align="right" style="padding:10px 0;border-bottom:1px solid #e8e0d0;font-size:14px;color:#1a2e1a;">
-            £${(i.price * i.qty).toFixed(2)}
-          </td>
-        </tr>`
+      <tr>
+        <td style="padding:12px 0;border-bottom:1px solid ${LINE};font-family:${SANS};font-size:14px;color:${G};">
+          <span style="display:inline-block;min-width:26px;font-weight:700;color:${GOLD};">${i.qty}×</span>${i.name}
+        </td>
+        <td align="right" style="padding:12px 0;border-bottom:1px solid ${LINE};font-family:${SANS};font-size:14px;color:${G};white-space:nowrap;">
+          £${(i.price * i.qty).toFixed(2)}
+        </td>
+      </tr>`
     )
     .join('')
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const steps = [
+    ['Order locked in', `We've got your order${o.orderNumber != null ? ` (#PC-${o.orderNumber})` : ''} and it's booked into this week's cook.`],
+    ['Cooked fresh', 'Our chefs prep every dish from fresh ingredients in our Stoke-on-Trent kitchen, then portion and label each one.'],
+    ['Delivered chilled', isDpd ? `Your box goes out with DPD for ${day} delivery.` : `Your box arrives on ${day}.`],
+    ['Fridge, heat, eat', 'Pop your meals straight in the fridge. Reheating instructions and macros are on every label.'],
+  ]
+  const stepRows = steps
+    .map(
+      ([title, body], idx) => `
+      <tr>
+        <td valign="top" width="44" style="padding:0 0 ${idx === steps.length - 1 ? 0 : 22}px;">
+          <table border="0" cellpadding="0" cellspacing="0"><tr>
+            <td align="center" valign="middle" width="30" height="30" style="width:30px;height:30px;border-radius:15px;background:${idx === 0 ? GOLD : G};border:1px solid ${GOLD};font-family:${SANS};font-size:13px;font-weight:700;color:${idx === 0 ? G : GOLD};">${idx + 1}</td>
+          </tr></table>
+        </td>
+        <td valign="top" style="padding:4px 0 ${idx === steps.length - 1 ? 0 : 22}px;">
+          <p style="margin:0 0 4px;font-family:${SERIF};font-size:18px;color:${CREAM};">${title}</p>
+          <p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.6;color:rgba(245,240,232,0.7);">${body}</p>
+        </td>
+      </tr>`
+    )
+    .join('')
 
-  // First order: pure excitement, no mention of billing/future charges at
-  // all — that's not what this moment is about. Repeat/auto orders:
-  // genuinely charged as part of their ongoing subscription, plus a
-  // reminder of what they can manage. PAYG: one-off, points them toward
-  // subscribing instead of just saying "nothing happens automatically".
-  const subscriptionNote =
-    orderType === 'payg_order'
-      ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
-          This was a one-off Pay As You Go order — you're not on a subscription, so nothing else
-          will be charged. If you'd like weekly deliveries and better pricing,
-          <a href="${siteUrl}/menu" style="color:#1a2e1a;font-weight:600;">subscribe and save here</a>.
-        </p>`
-      : isSubscribed && !isFirstOrder
-      ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
-          You're on an active subscription — this order was charged automatically as part of
-          that.
+  const perks = [
+    ['Chef-made', 'Real recipes, cooked fresh each week'],
+    ['Macros on every label', 'Calories and protein, no guesswork'],
+    ['Ready in minutes', 'Straight from the fridge to your plate'],
+  ]
+  const perkCells = perks
+    .map(
+      ([t, b], idx) => `
+      <td class="pc-stack" valign="top" width="33%" style="padding:0 ${idx === perks.length - 1 ? 0 : 12}px 0 0;">
+        <div style="border-top:3px solid ${GOLD};padding-top:12px;">
+          <p style="margin:0 0 4px;font-family:${SANS};font-size:13px;font-weight:700;color:${G};">${t}</p>
+          <p style="margin:0;font-family:${SANS};font-size:12px;line-height:1.5;color:${MUTED};">${b}</p>
+        </div>
+      </td>`
+    )
+    .join('')
+
+  const graceNote = o.graceCancelUntil
+    ? `<tr><td style="padding:0 36px 24px;">
+        <p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.7;color:${G};background:${CREAM};border-left:3px solid ${GOLD};padding:12px 16px;">
+          Plans changed? You can cancel this order free of charge until <strong>${o.graceCancelUntil} tonight</strong> for a full refund — open your <a href="${siteUrl}/order-history" style="color:${G};">Order History</a> and tap "Cancel this order".
         </p>
-        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-          <tr>
-            <td style="border-top:1px solid #e8e0d0;padding-top:20px;">
-              <p style="font-size:13px;color:#888888;line-height:1.75;margin:0 0 16px;">
-                Manage your account any time:
-              </p>
-              <p style="font-size:13px;margin:0 0 6px;">
-                <a href="${siteUrl}/dashboard" style="color:#1a2e1a;">View your account</a>
-              </p>
-              <p style="font-size:13px;margin:0 0 6px;">
-                <a href="${siteUrl}/favourites" style="color:#1a2e1a;">Choose your favourite meals</a>
-              </p>
-              <p style="font-size:13px;margin:0;">
-                <a href="${siteUrl}/change-delivery-day" style="color:#1a2e1a;">Change your delivery day</a>
-              </p>
-            </td>
-          </tr>
-        </table>`
-      : ''
-
-  const firstOrderIntro = isFirstOrder
-    ? `<p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
-        Thank you for your <em style="font-style:italic;">first order!</em>
-      </p>
-      <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
-        Hey ${firstName}, we're so glad you're here. Your first box of chef-made meals is all
-        booked in for your ${deliveryDay} delivery, and we think it's going to be one of the best
-        decisions you make this week. Fresh ingredients, real flavour, zero hassle — here's
-        what's coming your way.
-      </p>`
-    : `<p style="font-family:Georgia,serif;font-size:28px;color:#1a2e1a;margin:0 0 20px;line-height:1.2;">
-        Your order is <em style="font-style:italic;">confirmed.</em>
-      </p>
-      <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
-        Hey ${firstName},<br/><br/>
-        Thanks for your order — here's a summary of what's coming for your
-        ${deliveryDay} delivery.
-      </p>`
-
-  const isDpdDelivery = !!shipPostcode && !shipPostcode.trim().toUpperCase().startsWith('ST')
-  const dpdNote = isDpdDelivery
-    ? `<p style="font-size:13px;color:#888888;margin:0 0 16px;line-height:1.7;">
-        Your order will be delivered by DPD.
-      </p>`
+      </td></tr>`
     : ''
 
-  await sendEmailViaNeo(
-    toEmail,
-    `Your prepcuisines order is confirmed${orderRef}`,
-    `
-    <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
+  let planNote = ''
+  if (o.orderType === 'payg_order') {
+    planNote = `
+      <p style="margin:0 0 16px;font-family:${SERIF};font-size:22px;color:${G};">Want this every week?</p>
+      <p style="margin:0 0 20px;font-family:${SANS};font-size:14px;line-height:1.7;color:${MUTED};">This was a one-off order, so nothing else will be charged. Subscribers get weekly deliveries at better prices.</p>
+      <a href="${siteUrl}/menu" style="display:inline-block;background:${G};color:${CREAM};font-family:${SANS};font-size:14px;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:4px;">Subscribe and save</a>`
+  } else if (o.isSubscribed) {
+    const links = [
+      [`${siteUrl}/dashboard`, 'View your account'],
+      [`${siteUrl}/favourites`, 'Choose your favourite meals'],
+      [`${siteUrl}/change-delivery-day`, 'Change your delivery day'],
+    ]
+      .map(
+        ([href, label]) =>
+          `<tr><td style="padding:12px 0;border-bottom:1px solid ${LINE};"><a href="${href}" style="font-family:${SANS};font-size:14px;font-weight:600;color:${G};text-decoration:none;">${label}</a></td><td align="right" style="padding:12px 0;border-bottom:1px solid ${LINE};font-family:${SANS};font-size:14px;color:${GOLD};">›</td></tr>`
+      )
+      .join('')
+    planNote = `
+      <p style="margin:0 0 6px;font-family:${SERIF};font-size:22px;color:${G};">Your subscription</p>
+      <p style="margin:0 0 12px;font-family:${SANS};font-size:13px;line-height:1.7;color:${MUTED};">${o.isFirstOrder ? 'Manage everything from your account, any time.' : 'This order was charged automatically as part of your subscription.'}</p>
+      <table border="0" cellpadding="0" cellspacing="0" width="100%">${links}</table>`
+  }
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  @media only screen and (max-width:520px){
+    .pc-pad{padding-left:22px !important;padding-right:22px !important;}
+    .pc-h1{font-size:32px !important;}
+    .pc-stack{display:block !important;width:100% !important;padding:0 0 16px !important;}
+  }
+</style></head>
+<body style="margin:0;padding:0;background:${CREAM};">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:${CREAM};padding:24px 12px;">
+<tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;background:#ffffff;">
+
+  <!-- Header -->
+  <tr><td align="center" style="background:${G};padding:22px 32px;">
+    <img alt="prepcuisines" src="${LOGO}" width="180" style="display:block;height:auto;margin:0 auto;"/>
+  </td></tr>
+
+  <!-- Hero -->
+  <tr><td class="pc-pad" style="background:${G};padding:28px 36px 44px;">
+    <p style="margin:0 0 18px;font-family:${SANS};font-size:13px;font-weight:700;color:${GOLD};">✓ Order confirmed${o.orderNumber != null ? ` · #PC-${o.orderNumber}` : ''}</p>
+    <h1 class="pc-h1" style="margin:0 0 18px;font-family:${SERIF};font-weight:normal;font-size:40px;line-height:1.1;color:${CREAM};">${headline}</h1>
+    <p style="margin:0;font-family:${SANS};font-size:15px;line-height:1.7;color:rgba(245,240,232,0.78);">${intro}</p>
+  </td></tr>
+
+  <!-- Gold strip: key facts -->
+  <tr><td style="background:${GOLD};padding:0;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>
+      <td align="center" width="50%" style="padding:16px 10px;border-right:1px solid rgba(26,46,26,0.2);">
+        <p style="margin:0;font-family:${SANS};font-size:12px;color:${G};">Delivery</p>
+        <p style="margin:2px 0 0;font-family:${SERIF};font-size:20px;color:${G};">${day}</p>
+      </td>
+      <td align="center" width="50%" style="padding:16px 10px;">
+        <p style="margin:0;font-family:${SANS};font-size:12px;color:${G};">In your box</p>
+        <p style="margin:2px 0 0;font-family:${SERIF};font-size:20px;color:${G};">${mealCount} meal${mealCount === 1 ? '' : 's'}</p>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <!-- Order summary -->
+  <tr><td class="pc-pad" style="padding:40px 36px 28px;">
+    <p style="margin:0 0 14px;font-family:${SERIF};font-size:22px;color:${G};">What's coming</p>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      ${itemRows}
       <tr>
-        <td align="center">
-          <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
-            <tr>
-              <td align="center" style="background:#1a2e1a;padding:20px 32px;">
-                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="background:#c9a84c;padding:12px 20px;">
-                <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">
-                  ✅ ORDER CONFIRMED
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:40px 36px 32px;">
-                <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#c9a84c;font-weight:600;margin:0 0 8px;">
-                  ${orderTypeLabel(orderType, isSubscribed)}
-                </p>
-                ${firstOrderIntro}
-                ${orderNumberLine}
-
-                <table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #e8e0d0;border-radius:8px;" width="100%">
-                  <tr>
-                    <td style="padding:20px 24px;">
-                      <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                        ${itemRows}
-                        <tr>
-                          <td style="padding:14px 0 0;font-size:15px;font-weight:700;color:#1a2e1a;">
-                            Total
-                          </td>
-                          <td align="right" style="padding:14px 0 0;font-size:15px;font-weight:700;color:#1a2e1a;">
-                            £${amount.toFixed(2)}
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                </table>
-
-                ${graceNote}${dpdNote}
-                ${subscriptionNote}
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="background:#1a2e1a;padding:24px 32px;">
-                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
-                <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">
-                  Chef-made · Fresh · Delivered
-                </p>
-              </td>
-            </tr>
-          </table>
-        </td>
+        <td style="padding:16px 0 0;font-family:${SANS};font-size:15px;font-weight:700;color:${G};">Total paid</td>
+        <td align="right" style="padding:16px 0 0;font-family:${SANS};font-size:15px;font-weight:700;color:${G};">£${o.amount.toFixed(2)}</td>
       </tr>
     </table>
-    `
-  )
+  </td></tr>
+  ${graceNote}
+
+  <!-- Timeline -->
+  <tr><td class="pc-pad" style="background:${G};padding:40px 36px;">
+    <p style="margin:0 0 6px;font-family:${SERIF};font-size:26px;color:${CREAM};">From our kitchen to your fridge</p>
+    <p style="margin:0 0 28px;font-family:${SANS};font-size:13px;color:rgba(245,240,232,0.6);">Here's what happens between now and ${day}.</p>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">${stepRows}</table>
+  </td></tr>
+
+  <!-- Perks -->
+  <tr><td class="pc-pad" style="padding:40px 36px 12px;">
+    <p style="margin:0 0 20px;font-family:${SERIF};font-size:22px;color:${G};">Every box, every week</p>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>${perkCells}</tr></table>
+  </td></tr>
+
+  ${planNote ? `<tr><td class="pc-pad" style="padding:28px 36px 12px;">${planNote}</td></tr>` : ''}
+
+  <!-- Help -->
+  <tr><td class="pc-pad" style="padding:32px 36px 40px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:${CREAM};"><tr>
+      <td style="padding:24px;">
+        <p style="margin:0 0 6px;font-family:${SERIF};font-size:20px;color:${G};">Need a hand?</p>
+        <p style="margin:0 0 16px;font-family:${SANS};font-size:13px;line-height:1.7;color:${MUTED};">Questions about your order, delivery or ingredients — just reply to this email${o.orderNumber != null ? ` and quote #PC-${o.orderNumber}` : ''}.</p>
+        <a href="mailto:info@prepcuisines.co.uk" style="display:inline-block;background:${G};color:${CREAM};font-family:${SANS};font-size:13px;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:4px;">Contact us</a>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td align="center" style="background:${G};padding:28px 32px;">
+    <img alt="prepcuisines" src="${LOGO}" width="130" style="display:block;height:auto;margin:0 auto 12px;"/>
+    <p style="margin:0;font-family:${SANS};font-size:11px;line-height:1.7;color:rgba(245,240,232,0.45);">102A Sun Street, Stoke-on-Trent, ST1 4JR</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>`
 }
+
 
 // Sent when the admin marks an order as fulfilled — this is where the
 // account-management links live now, since it's more useful once someone
