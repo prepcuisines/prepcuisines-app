@@ -205,15 +205,26 @@ export function buildOrderConfirmationEmailHtml(o: {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prepcuisines.co.uk'
 
   const name = o.firstName || 'there'
-  const day = o.deliveryDay || 'delivery day'
+  // Callers pass 'Sunday', 'Wednesday', or a fallback like 'your' when the
+  // day isn't known — normalise so every line of copy matches the day they
+  // actually picked, and reads naturally when we don't know it.
+  const rawDay = (o.deliveryDay || '').toLowerCase()
+  const hasSun = rawDay.includes('sun')
+  const hasWed = rawDay.includes('wed')
+  const dayKnown = hasSun || hasWed
+  const day = hasSun && hasWed ? 'Sunday & Wednesday' : hasSun ? 'Sunday' : hasWed ? 'Wednesday' : ''
+  const onDay = dayKnown ? `on ${day}` : 'on your delivery day'
+  const everyDay = hasSun && hasWed ? 'every Sunday and Wednesday' : dayKnown ? `every ${day}` : 'every week'
   const realItems = o.items.filter((i) => i.name && i.name !== 'Delivery')
   const mealCount = realItems.reduce((n, i) => n + (i.qty || 0), 0)
   const isDpd = !!o.shipPostcode && !o.shipPostcode.trim().toUpperCase().startsWith('ST')
 
-  const headline = o.isFirstOrder ? `Welcome to the table, ${name}.` : `Your week's sorted, ${name}.`
+  const headline = o.isFirstOrder
+    ? `Welcome to the prepcuisines family, ${name}.`
+    : `Your week's sorted, ${name}.`
   const intro = o.isFirstOrder
-    ? `Your first box is booked in for ${day}. Everything is cooked fresh by our chefs, portioned, labelled and sent out chilled — all you do is heat and eat.`
-    : `Thanks for ordering again. Your meals are booked in for ${day} — here's everything you need to know.`
+    ? `We're so glad you're here. Your first box arrives ${onDay} — cooked fresh by our chefs, portioned, labelled and sent out chilled. All you do is heat and eat.`
+    : `Thanks for ordering again. Your meals arrive ${onDay} — here's everything you need to know.`
 
   const itemRows = realItems
     .map(
@@ -232,7 +243,7 @@ export function buildOrderConfirmationEmailHtml(o: {
   const steps = [
     ['Order locked in', `We've got your order${o.orderNumber != null ? ` (#PC-${o.orderNumber})` : ''} and it's booked into this week's cook.`],
     ['Cooked fresh', 'Our chefs prep every dish from fresh ingredients in our Stoke-on-Trent kitchen, then portion and label each one.'],
-    ['Delivered chilled', isDpd ? `Your box goes out with DPD for ${day} delivery.` : `Your box arrives on ${day}.`],
+    ['Delivered chilled', isDpd ? `Your box goes out with DPD and arrives ${onDay}.` : `Your box arrives ${onDay}.`],
     ['Fridge, heat, eat', 'Pop your meals straight in the fridge. Reheating instructions and macros are on every label.'],
   ]
   const stepRows = steps
@@ -277,13 +288,40 @@ export function buildOrderConfirmationEmailHtml(o: {
       </td></tr>`
     : ''
 
+  // Subscribing benefits — pulled from the How It Works page so the email
+  // never promises anything the site doesn't. Delivery line follows their day.
+  const benefits = [
+    [`A fresh box ${everyDay}`, `Chef-made meals land ${everyDay} without you having to reorder.`],
+    ['Better pricing', 'Loyalty discounts on your next orders, always shown clearly at checkout.'],
+    ['Never miss a week', "Miss the cutoff and we'll fill your box from your favourites — never anything you've marked as disliked."],
+    ['Total flexibility', 'Skip a week, change your plan size, switch delivery days or cancel from your account. No phone calls.'],
+  ]
+  const benefitRows = benefits
+    .map(
+      ([t, b], idx) => `
+      <tr>
+        <td valign="top" width="30" style="padding:${idx === 0 ? 0 : 16}px 0 0;font-family:${SANS};font-size:16px;font-weight:700;color:${GOLD};">✓</td>
+        <td valign="top" style="padding:${idx === 0 ? 0 : 16}px 0 0;">
+          <p style="margin:0 0 3px;font-family:${SANS};font-size:14px;font-weight:700;color:${G};">${t}</p>
+          <p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.6;color:${MUTED};">${b}</p>
+        </td>
+      </tr>`
+    )
+    .join('')
+  const showBenefits = o.orderType === 'payg_order' || (o.isSubscribed && o.isFirstOrder)
+  const benefitsBlock = showBenefits
+    ? `<tr><td class="pc-pad" style="padding:40px 36px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:2px solid ${GOLD};"><tr><td style="padding:28px 26px;">
+          <p style="margin:0 0 6px;font-family:${SERIF};font-size:24px;line-height:1.2;color:${G};">${o.orderType === 'payg_order' ? 'Why subscribers never go back' : "What you get as a subscriber"}</p>
+          <p style="margin:0 0 22px;font-family:${SANS};font-size:13px;line-height:1.6;color:${MUTED};">${o.orderType === 'payg_order' ? 'This was a one-off order, so nothing else will be charged. Here\'s what a subscription adds:' : "Here's what comes with your subscription from now on:"}</p>
+          <table border="0" cellpadding="0" cellspacing="0" width="100%">${benefitRows}</table>
+          ${o.orderType === 'payg_order' ? `<p style="margin:26px 0 0;"><a href="${siteUrl}/menu" style="display:inline-block;background:${G};color:${CREAM};font-family:${SANS};font-size:14px;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:4px;">Subscribe and save</a></p>` : ''}
+        </td></tr></table>
+      </td></tr>`
+    : ''
+
   let planNote = ''
-  if (o.orderType === 'payg_order') {
-    planNote = `
-      <p style="margin:0 0 16px;font-family:${SERIF};font-size:22px;color:${G};">Want this every week?</p>
-      <p style="margin:0 0 20px;font-family:${SANS};font-size:14px;line-height:1.7;color:${MUTED};">This was a one-off order, so nothing else will be charged. Subscribers get weekly deliveries at better prices.</p>
-      <a href="${siteUrl}/menu" style="display:inline-block;background:${G};color:${CREAM};font-family:${SANS};font-size:14px;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:4px;">Subscribe and save</a>`
-  } else if (o.isSubscribed) {
+  if (o.isSubscribed) {
     const links = [
       [`${siteUrl}/dashboard`, 'View your account'],
       [`${siteUrl}/favourites`, 'Choose your favourite meals'],
@@ -331,7 +369,7 @@ export function buildOrderConfirmationEmailHtml(o: {
     <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>
       <td align="center" width="50%" style="padding:16px 10px;border-right:1px solid rgba(26,46,26,0.2);">
         <p style="margin:0;font-family:${SANS};font-size:12px;color:${G};">Delivery</p>
-        <p style="margin:2px 0 0;font-family:${SERIF};font-size:20px;color:${G};">${day}</p>
+        <p style="margin:2px 0 0;font-family:${SERIF};font-size:20px;color:${G};">${dayKnown ? day : 'Booked in'}</p>
       </td>
       <td align="center" width="50%" style="padding:16px 10px;">
         <p style="margin:0;font-family:${SANS};font-size:12px;color:${G};">In your box</p>
@@ -356,15 +394,15 @@ export function buildOrderConfirmationEmailHtml(o: {
   <!-- Timeline -->
   <tr><td class="pc-pad" style="background:${G};padding:40px 36px;">
     <p style="margin:0 0 6px;font-family:${SERIF};font-size:26px;color:${CREAM};">From our kitchen to your fridge</p>
-    <p style="margin:0 0 28px;font-family:${SANS};font-size:13px;color:rgba(245,240,232,0.6);">Here's what happens between now and ${day}.</p>
+    <p style="margin:0 0 28px;font-family:${SANS};font-size:13px;color:rgba(245,240,232,0.6);">Here's what happens between now and ${dayKnown ? day : 'your delivery'}.</p>
     <table border="0" cellpadding="0" cellspacing="0" width="100%">${stepRows}</table>
   </td></tr>
 
-  <!-- Perks -->
+  ${benefitsBlock || `<!-- Perks -->
   <tr><td class="pc-pad" style="padding:40px 36px 12px;">
     <p style="margin:0 0 20px;font-family:${SERIF};font-size:22px;color:${G};">Every box, every week</p>
     <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>${perkCells}</tr></table>
-  </td></tr>
+  </td></tr>`}
 
   ${planNote ? `<tr><td class="pc-pad" style="padding:28px 36px 12px;">${planNote}</td></tr>` : ''}
 
