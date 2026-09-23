@@ -5,18 +5,30 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // Buttons sit outside the image so they still work when an inbox hides
 // images.
 
+// UK time worked out by hand (BST = last Sunday of March 01:00 UTC to last
+// Sunday of October 01:00 UTC) rather than relying on the server's time
+// zone data, which showed an 8pm cutoff as 9pm on the live site.
+function lastSundayUtc(year: number, month: number) {
+  const d = new Date(Date.UTC(year, month + 1, 0, 1, 0, 0))
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay())
+  return d.getTime()
+}
+export function toUkTime(iso: string) {
+  const t = new Date(iso).getTime()
+  const y = new Date(t).getUTCFullYear()
+  const bst = t >= lastSundayUtc(y, 2) && t < lastSundayUtc(y, 9)
+  return new Date(t + (bst ? 3600_000 : 0)) // read with getUTC* methods
+}
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
 export function formatCutoff(iso: string) {
-  const d = new Date(iso)
-  const day = d.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/London' })
-  const time = d
-    .toLocaleTimeString('en-GB', {
-      hour: 'numeric',
-      minute: d.getMinutes() === 0 ? undefined : '2-digit',
-      hour12: true,
-      timeZone: 'Europe/London',
-    })
-    .replace(' ', '')
-    .toLowerCase()
+  const uk = toUkTime(iso)
+  const day = DAYS[uk.getUTCDay()]
+  const h = uk.getUTCHours()
+  const m = uk.getUTCMinutes()
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  const time = `${h12}${m ? `:${String(m).padStart(2, '0')}` : ''}${h < 12 ? 'am' : 'pm'}`
   return { day, time, text: `${day} at ${time}` }
 }
 
@@ -58,6 +70,9 @@ export function buildReminderEmailHtml(o: {
 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:${CREAM};padding:20px 10px;">
 <tr><td align="center">
 <table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;background:#ffffff;">
+  <tr><td align="center" style="background:${G};padding:22px 28px;">
+    <a href="${siteUrl}" style="display:inline-block;"><img src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" alt="prepcuisines" width="170" style="display:block;height:auto;border:0;margin:0 auto;color:#f5f0e8;font-family:Georgia,serif;font-size:22px;"/></a>
+  </td></tr>
   ${image}
   <tr><td align="center" style="padding:32px 28px 8px;">
     <h1 style="margin:0 0 12px;font-family:${SERIF};font-weight:normal;font-size:28px;line-height:1.2;color:${G};">${headline}</h1>
