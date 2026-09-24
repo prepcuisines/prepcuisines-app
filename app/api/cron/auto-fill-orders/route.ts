@@ -114,6 +114,28 @@ export async function POST(req: NextRequest) {
         }
         const reservedOrderId = reserved.id
 
+        // A redo/resend already covers this customer for this window (e.g.
+        // their delivery this week was damaged and support sent a
+        // replacement) — they're already getting a box, so don't also
+        // auto-fill and charge them for a second one.
+        const { data: existingRedo } = await supabase
+          .from('customer_window_orders')
+          .select('id')
+          .eq('menu_window_id', window.id)
+          .eq('redo_for_customer_id', sub.id)
+          .neq('cancelled', true)
+          .limit(1)
+          .maybeSingle()
+
+        if (existingRedo) {
+          await supabase
+            .from('customer_window_orders')
+            .update({ status: 'covered_by_redo' })
+            .eq('id', reservedOrderId)
+          results.push({ customer: sub.id, status: 'covered_by_redo' })
+          continue
+        }
+
         if (sub.skip_next_order) {
           await supabase
             .from('customer_profiles')

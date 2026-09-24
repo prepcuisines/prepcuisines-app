@@ -111,6 +111,26 @@ export async function POST(req: NextRequest) {
       }
 
       if (ro.repeat_mode === 'auto_charge') {
+        // Same guard as auto-fill-orders: don't charge if a redo/resend
+        // already covers this customer for this window.
+        const { data: existingRedo } = await supabase
+          .from('customer_window_orders')
+          .select('id')
+          .eq('menu_window_id', window.id)
+          .eq('redo_for_customer_id', ro.matched_customer_id)
+          .neq('cancelled', true)
+          .limit(1)
+          .maybeSingle()
+
+        if (existingRedo) {
+          await supabase
+            .from('recurring_manual_orders')
+            .update({ last_processed_window_id: previousProcessedWindowId })
+            .eq('id', ro.id)
+          results.push({ id: ro.id, skipped: 'covered by redo' })
+          continue
+        }
+
         const orderItems = ro.any_meals
           ? await selectAnyMeals(supabase, window.id, ro.meal_count || 0, ro.breakfast_count || 0)
           : ro.items

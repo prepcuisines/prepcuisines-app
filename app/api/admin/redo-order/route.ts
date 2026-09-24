@@ -8,11 +8,18 @@ const supabase = createClient(
 
 // Redo / resend an order after transit damage or a courier mix-up.
 // Creates a fresh £0 order in the chosen delivery window carrying the
-// selected items and the same shipping details, with NO customer account
-// linkage: customer_id stays null so the redo can never charge anyone,
-// never consumes the customer's real one-order-per-window slot, and never
-// interferes with auto-fill. It simply appears in that date's cook sheet,
-// packing slips, and DPD label run like any other box to send.
+// selected items and the same shipping details, with NO customer_id
+// linkage: customer_id stays null so the redo can never charge anyone
+// and never collides with that customer's own live order for the same
+// window (very often the SAME window as the damaged original) under the
+// customer_id+menu_window_id uniqueness constraints.
+//
+// It DOES record redo_for_customer_id (the real customer this covers),
+// purely so auto-fill-orders and process-recurring-manual-orders can see
+// "this customer is already getting a box for this window" and skip
+// charging them again — without that, a subscriber whose damaged order
+// gets redone would still get auto-filled and charged a second time for
+// the same delivery.
 // Target windows are filtered by DELIVERY date, not cutoff — redos are an
 // operational decision and deliberately ignore cutoffs.
 
@@ -51,7 +58,7 @@ export async function POST(req: NextRequest) {
   const { data: source } = await supabase
     .from('customer_window_orders')
     .select(
-      'id, order_number, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, delivery_instructions'
+      'id, order_number, customer_id, items, ship_full_name, ship_phone, ship_house_number, ship_street, ship_postcode, ship_email, delivery_instructions'
     )
     .eq('id', orderId)
     .maybeSingle()
@@ -78,6 +85,7 @@ export async function POST(req: NextRequest) {
     .from('customer_window_orders')
     .insert({
       customer_id: null,
+      redo_for_customer_id: source.customer_id,
       menu_window_id: window.id,
       delivery_day: window.delivery_day,
       status: 'redo',
