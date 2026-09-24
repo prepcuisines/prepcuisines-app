@@ -20,6 +20,13 @@ const supabase = createClient(
 // charge was declined) — "no card on file" failures have nothing to
 // replay and aren't handled here; those customers were told to add a
 // card and place the order themselves.
+//
+// Only picks up TODAY's failures (see the date filter below) — this is a
+// same-evening retry, not an ongoing daily sweep. An admin can set
+// retry_ok = false on a failure (via the admin payment-issues panel) any
+// time before this runs to stop it being auto-charged tonight; it stays
+// on hold either way until they resolve it or the customer fixes their
+// card and orders themselves.
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -33,6 +40,7 @@ export async function POST(req: NextRequest) {
     .from('payment_failures')
     .select('id, customer_id, menu_window_id, amount, items, delivery_day')
     .eq('resolved', false)
+    .eq('retry_ok', true)
     .not('items', 'is', null)
     .not('amount', 'is', null)
     .gte('created_at', startOfToday.toISOString())

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const { data: failures, error } = await supabase
     .from('payment_failures')
-    .select('id, customer_id, context, amount, error_message, delivery_day, resolved, created_at')
+    .select('id, customer_id, context, amount, error_message, delivery_day, resolved, retry_ok, created_at')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -48,14 +48,21 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const { id, resolved } = await req.json()
+  const { id, resolved, retry_ok } = await req.json()
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 })
   }
+  if (resolved === undefined && retry_ok === undefined) {
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  }
+
+  const update: { resolved?: boolean; retry_ok?: boolean } = {}
+  if (resolved !== undefined) update.resolved = !!resolved
+  if (retry_ok !== undefined) update.retry_ok = !!retry_ok
 
   const { error } = await supabase
     .from('payment_failures')
-    .update({ resolved: !!resolved })
+    .update(update)
     .eq('id', id)
 
   if (error) {

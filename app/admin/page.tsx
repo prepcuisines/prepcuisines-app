@@ -493,6 +493,9 @@ export default function AdminDashboard() {
   const leafletInstanceRef = useRef<any>(null)
 
   const [topAlertsCount, setTopAlertsCount] = useState(0)
+  const [paymentFailures, setPaymentFailures] = useState<any[]>([])
+  const [paymentFailuresLoaded, setPaymentFailuresLoaded] = useState(false)
+  const [paymentFailureUpdating, setPaymentFailureUpdating] = useState<string | null>(null)
 
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
@@ -513,6 +516,8 @@ export default function AdminDashboard() {
         const failData = await failRes.json()
         const unresolved = (failData.failures || []).filter((f: any) => !f.resolved).length
         setTopAlertsCount(unresolved)
+        setPaymentFailures(failData.failures || [])
+        setPaymentFailuresLoaded(true)
       }
     } catch {
       // Non-critical — the bell just shows 0 if this fails.
@@ -1228,6 +1233,29 @@ export default function AdminDashboard() {
       }
     } finally {
       setSkipNextLoading(false)
+    }
+  }
+
+  const handlePaymentFailureUpdate = async (
+    id: string,
+    patch: { retry_ok?: boolean; resolved?: boolean }
+  ) => {
+    setPaymentFailureUpdating(id)
+    try {
+      const res = await fetch('/api/admin/payment-failures', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...patch }),
+      })
+      if (res.ok) {
+        setPaymentFailures((prev) => {
+          const next = prev.map((f) => (f.id === id ? { ...f, ...patch } : f))
+          setTopAlertsCount(next.filter((f: any) => !f.resolved).length)
+          return next
+        })
+      }
+    } finally {
+      setPaymentFailureUpdating(null)
     }
   }
 
@@ -6211,6 +6239,67 @@ Bukr / prepcuisines`
                           <div className="alert-card-label">Low stock (not tracked yet)</div>
                         </div>
                       </div>
+
+                      {(() => {
+                        const openFailures = paymentFailures.filter((f: any) => !f.resolved)
+                        if (!paymentFailuresLoaded) return null
+                        if (openFailures.length === 0) return null
+                        return (
+                          <>
+                            <h3 className="ops-subtitle">
+                              Payment issues ({openFailures.length}) — the nightly retry only
+                              charges the ones still allowed below
+                            </h3>
+                            <div className="table-wrap">
+                              <table className="data-table">
+                                <thead>
+                                  <tr>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Reason</th>
+                                    <th>Delivery day</th>
+                                    <th>Tonight's retry</th>
+                                    <th></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {openFailures.map((f: any) => (
+                                    <tr key={f.id}>
+                                      <td>
+                                        {f.customer_name}
+                                        <div style={{ fontSize: 12, opacity: 0.7 }}>{f.customer_email}</div>
+                                      </td>
+                                      <td>{f.amount != null ? money(f.amount) : '—'}</td>
+                                      <td>{f.error_message || '—'}</td>
+                                      <td>{f.delivery_day || '—'}</td>
+                                      <td>
+                                        <button
+                                          className="segment-pill"
+                                          disabled={paymentFailureUpdating === f.id}
+                                          onClick={() =>
+                                            handlePaymentFailureUpdate(f.id, { retry_ok: !f.retry_ok })
+                                          }
+                                        >
+                                          {f.retry_ok ? 'Will retry tonight' : "Won't retry — click to allow"}
+                                        </button>
+                                      </td>
+                                      <td>
+                                        <button
+                                          className="segment-pill"
+                                          disabled={paymentFailureUpdating === f.id}
+                                          onClick={() => handlePaymentFailureUpdate(f.id, { resolved: true })}
+                                        >
+                                          Mark resolved
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </>
+                        )
+                      })()}
 
                       {opsHub.customerNotes.length > 0 && (
                         <>
