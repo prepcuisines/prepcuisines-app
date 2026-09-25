@@ -279,9 +279,9 @@ export const RECIPES: Recipe[] = [
     name: 'Chicken Koftas With Mediterranean Rice',
     cat: 'low',
     stickerColour: 'light green',
-    meat: { name: 'Chicken Mince (70/30 Breast/Thigh)', raw: 195, cookedWeight: 150 },
+    meat: { name: 'Chicken Mince (70/30 Breast/Thigh)', raw: 200, cookedWeight: 150 },
     ingredients: [
-      { name: 'Chicken Mince (70/30 Breast/Thigh)', raw: 195, isMeat: true },
+      { name: 'Chicken Mince (70/30 Breast/Thigh)', raw: 200, isMeat: true },
       { name: 'Laila Gold Basmati Rice (dry)', raw: 51 },
       { name: 'Lemon Juice', raw: 13 },
       { name: 'Garlic Granules', raw: 2 },
