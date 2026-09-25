@@ -245,6 +245,8 @@ html, body { margin: 0; padding: 0; }
 .pc-allergen-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 14px; }
 .pc-allergen-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(45,53,16,0.4); margin-right: 2px; }
 .pc-allergen-pill { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: rgba(192,57,43,0.1); color: #b5432f; padding: 3px 9px; border-radius: 100px; }
+.pc-macro-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.pc-macro-pill { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: rgba(45,53,16,0.08); color: #2d3510; padding: 3px 9px; border-radius: 100px; }
 .pc-meal-macros { font-family: var(--font-cormorant), Georgia, serif; font-size: 13px; font-style: italic; color: rgba(45,53,16,0.55); margin-bottom: 10px; }
 
 .pc-stepper { display: flex; align-items: center; gap: 10px; }

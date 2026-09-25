@@ -22,6 +22,10 @@ type MenuItem = {
   image_url: string
   compare_at_price: number | null
   promo_label: string | null
+  calories: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
 }
 
 type WindowItem = {
@@ -71,6 +75,32 @@ function AllergenPills({ allergens }: { allergens: string }) {
       <span className="pc-allergen-label">Contains:</span>
       {list.map((a) => (
         <span className="pc-allergen-pill" key={a}>{a}</span>
+      ))}
+    </div>
+  )
+}
+
+function MacroPills({
+  calories,
+  protein_g,
+  carbs_g,
+  fat_g,
+}: {
+  calories: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+}) {
+  if (calories == null && protein_g == null && carbs_g == null && fat_g == null) return null
+  const parts: string[] = []
+  if (calories != null) parts.push(`${calories} kcal`)
+  if (protein_g != null) parts.push(`${protein_g}g protein`)
+  if (carbs_g != null) parts.push(`${carbs_g}g carbs`)
+  if (fat_g != null) parts.push(`${fat_g}g fat`)
+  return (
+    <div className="pc-macro-row">
+      {parts.map((p) => (
+        <span className="pc-macro-pill" key={p}>{p}</span>
       ))}
     </div>
   )
@@ -190,6 +220,12 @@ function DishCard({
       <div className="pc-meal-body">
         <h3 className="pc-meal-name">{item.name}</h3>
         {item.description && <p className="pc-meal-macros">{item.description}</p>}
+        <MacroPills
+          calories={item.calories}
+          protein_g={item.protein_g}
+          carbs_g={item.carbs_g}
+          fat_g={item.fat_g}
+        />
         <AllergenPills allergens={item.allergens} />
         <div className="pc-meal-footer">
           <Stepper value={qty} onChange={onChange} disabled={disabled} disableIncrement={disableIncrement} />
