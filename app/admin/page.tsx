@@ -6254,6 +6254,7 @@ Bukr / prepcuisines`
                               <table className="data-table">
                                 <thead>
                                   <tr>
+                                    <th>Date</th>
                                     <th>Customer</th>
                                     <th>Amount</th>
                                     <th>Reason</th>
@@ -6265,6 +6266,15 @@ Bukr / prepcuisines`
                                 <tbody>
                                   {openFailures.map((f: any) => (
                                     <tr key={f.id}>
+                                      <td>
+                                        {new Date(f.created_at).toLocaleString('en-GB', {
+                                          day: '2-digit',
+                                          month: '2-digit',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          timeZone: 'Europe/London',
+                                        })}
+                                      </td>
                                       <td>
                                         {f.customer_name}
                                         <div style={{ fontSize: 12, opacity: 0.7 }}>{f.customer_email}</div>
