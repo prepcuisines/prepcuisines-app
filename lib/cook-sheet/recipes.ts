@@ -95,7 +95,7 @@ export const RECIPES: Recipe[] = [
     stickerColour: 'pink',
     meat: { name: 'Chicken Breast', raw: 225, cookedWeight: 180 },
     ingredients: [
-      { name: 'Chicken Breast', raw: 210, isMeat: true },
+      { name: 'Chicken Breast', raw: 225, isMeat: true },
       { name: 'Pasta', raw: 210, cookedWeight: 180 },
       { name: 'Broccoli', raw: 20 },
       { name: 'Light Cream Sauce', raw: 30 },
