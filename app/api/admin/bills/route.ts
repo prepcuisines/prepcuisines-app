@@ -15,6 +15,20 @@ function todayDateOnly(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+// True once it's 8am or later, UK local time, today — DST-aware (matches
+// the approach used for menu_windows.cutoff_datetime), so this doesn't
+// need manual adjustment across the BST/GMT change.
+function isPast8amUK(): boolean {
+  const ukHour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London',
+      hour: 'numeric',
+      hour12: false,
+    }).format(new Date())
+  )
+  return ukHour >= 8
+}
+
 function addPeriod(d: Date, frequency: 'weekly' | 'monthly') {
   if (frequency === 'weekly') d.setUTCDate(d.getUTCDate() + 7)
   else d.setUTCMonth(d.getUTCMonth() + 1)
@@ -101,7 +115,28 @@ export async function GET(req: NextRequest) {
       .eq('id', r.id)
   }
 
-  return NextResponse.json({ bills })
+  // A bill due today counts as already paid from 8am UK onward (direct
+  // debits/standing orders for today's date have gone out by then) - it
+  // shouldn't still sit in "what's outstanding" or wait until tomorrow's
+  // roll-forward to count toward payoff progress. This is display-only:
+  // the real next_due_date/total_remaining still only advance via
+  // rollForward the day after, so nothing here double-counts once that
+  // happens.
+  const today = todayDateOnly()
+  const pastCutoff = isPast8amUK()
+  const billsWithToday = bills.map((bill) => {
+    const effectivelyPaidToday = !bill.finished && bill.next_due_date === today && pastCutoff
+    return {
+      ...bill,
+      effectively_paid_today: effectivelyPaidToday,
+      display_total_remaining:
+        effectivelyPaidToday && bill.total_remaining !== null
+          ? Math.max(0, bill.total_remaining - bill.amount)
+          : bill.total_remaining,
+    }
+  })
+
+  return NextResponse.json({ bills: billsWithToday })
 }
 
 // Body: { id?: string, name, amount, frequency, next_due_date, category,

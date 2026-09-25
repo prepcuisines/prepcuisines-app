@@ -14,6 +14,8 @@ type Bill = {
   total_remaining: number | null
   original_total: number | null
   finished: boolean
+  effectively_paid_today: boolean
+  display_total_remaining: number | null
 }
 
 const emptyForm = {
@@ -128,15 +130,21 @@ export default function BillsPanel() {
   }
 
   const visibleBills = bills.filter((b) => filter === 'all' || b.category === filter)
-  const weeklyTotal = visibleBills.filter((b) => b.frequency === 'weekly').reduce((s, b) => s + b.amount, 0)
-  const monthlyTotal = visibleBills.filter((b) => b.frequency === 'monthly').reduce((s, b) => s + b.amount, 0)
+  const weeklyTotal = visibleBills
+    .filter((b) => b.frequency === 'weekly' && !b.effectively_paid_today)
+    .reduce((s, b) => s + b.amount, 0)
+  const monthlyTotal = visibleBills
+    .filter((b) => b.frequency === 'monthly' && !b.effectively_paid_today)
+    .reduce((s, b) => s + b.amount, 0)
 
   // Progress across everything being paid off, not just what's currently
   // filtered - this is a "how am I doing overall" view, not tied to the
-  // business/personal toggle above.
+  // business/personal toggle above. Uses display_total_remaining so a
+  // bill due today (from 8am) already counts as paid here, ahead of
+  // tomorrow's real roll-forward.
   const payoffBills = bills.filter((b) => b.payoff_type === 'total_remaining' && b.original_total)
   const totalOriginal = payoffBills.reduce((s, b) => s + (b.original_total || 0), 0)
-  const totalRemainingNow = payoffBills.reduce((s, b) => s + (b.total_remaining || 0), 0)
+  const totalRemainingNow = payoffBills.reduce((s, b) => s + (b.display_total_remaining ?? b.total_remaining ?? 0), 0)
   const totalPaidOff = totalOriginal - totalRemainingNow
   const overallPercent = totalOriginal > 0 ? Math.round((totalPaidOff / totalOriginal) * 100) : 0
   const stillPaying = payoffBills.filter((b) => !b.finished)
@@ -208,8 +216,15 @@ export default function BillsPanel() {
         <div style={{ marginBottom: 20 }}>
           {visibleBills.length === 0 && <p style={{ color: '#888', fontSize: 14 }}>No bills here.</p>}
           {visibleBills.map((bill) => {
+            const displayRemaining = bill.display_total_remaining ?? bill.total_remaining
             const days = daysUntil(bill.next_due_date)
-            const label = days === 0 ? 'Due today' : days < 0 ? `${Math.abs(days)}d overdue` : `in ${days}d`
+            const label = bill.effectively_paid_today
+              ? 'Paid today'
+              : days === 0
+                ? 'Due today'
+                : days < 0
+                  ? `${Math.abs(days)}d overdue`
+                  : `in ${days}d`
             return (
               <div
                 key={bill.id}
@@ -265,21 +280,21 @@ export default function BillsPanel() {
                       {bill.finished ? 'Ended' : 'Ends'} {bill.end_date}
                     </div>
                   )}
-                  {bill.payoff_type === 'total_remaining' && bill.total_remaining !== null && (
+                  {bill.payoff_type === 'total_remaining' && displayRemaining !== null && (
                     <div style={{ marginTop: 4 }}>
                       <div style={{ fontSize: 12.5, color: '#888' }}>
-                        £{bill.total_remaining.toFixed(2)} left to pay off
+                        £{displayRemaining.toFixed(2)} left to pay off
                         {bill.original_total ? (
                           <>
                             {' '}
                             (
                             {Math.round(
-                              ((bill.original_total - bill.total_remaining) / bill.original_total) * 100
+                              ((bill.original_total - displayRemaining) / bill.original_total) * 100
                             )}
                             % paid off
-                            {bill.amount > 0 && bill.total_remaining > 0
-                              ? ` · ~${Math.ceil(bill.total_remaining / bill.amount)} payment${
-                                  Math.ceil(bill.total_remaining / bill.amount) === 1 ? '' : 's'
+                            {bill.amount > 0 && displayRemaining > 0
+                              ? ` · ~${Math.ceil(displayRemaining / bill.amount)} payment${
+                                  Math.ceil(displayRemaining / bill.amount) === 1 ? '' : 's'
                                 } left`
                               : ''}
                             )
@@ -290,7 +305,7 @@ export default function BillsPanel() {
                         <div style={{ width: '100%', maxWidth: 220, height: 6, background: '#eee', borderRadius: 4, marginTop: 4, overflow: 'hidden' }}>
                           <div
                             style={{
-                              width: `${Math.min(100, Math.round(((bill.original_total - bill.total_remaining) / bill.original_total) * 100))}%`,
+                              width: `${Math.min(100, Math.round(((bill.original_total - displayRemaining) / bill.original_total) * 100))}%`,
                               height: '100%',
                               background: '#2d3510',
                             }}
