@@ -204,6 +204,7 @@ export default function AdminDashboard() {
     | 'costs'
     | 'bills'
     | 'email-marketing'
+    | 'payment-issues'
   >('overview')
   const [analyticsView, setAnalyticsView] = useState<'business' | 'product'>('business')
   const [showEmailMarketing, setShowEmailMarketing] = useState(false)
@@ -496,6 +497,9 @@ export default function AdminDashboard() {
   const [paymentFailures, setPaymentFailures] = useState<any[]>([])
   const [paymentFailuresLoaded, setPaymentFailuresLoaded] = useState(false)
   const [paymentFailureUpdating, setPaymentFailureUpdating] = useState<string | null>(null)
+  const [paymentFailureCharging, setPaymentFailureCharging] = useState<string | null>(null)
+  const [paymentFailureDeleting, setPaymentFailureDeleting] = useState<string | null>(null)
+  const [paymentFailureMessage, setPaymentFailureMessage] = useState<Record<string, string>>({})
 
   const checkAuthAndLoad = async () => {
     setCheckingAuth(true)
@@ -510,18 +514,7 @@ export default function AdminDashboard() {
     const data = await res.json()
     setOverview(data)
 
-    try {
-      const failRes = await fetch('/api/admin/payment-failures', { cache: 'no-store' })
-      if (failRes.ok) {
-        const failData = await failRes.json()
-        const unresolved = (failData.failures || []).filter((f: any) => !f.resolved).length
-        setTopAlertsCount(unresolved)
-        setPaymentFailures(failData.failures || [])
-        setPaymentFailuresLoaded(true)
-      }
-    } catch {
-      // Non-critical — the bell just shows 0 if this fails.
-    }
+    await refetchPaymentFailures()
   }
 
   const loadOverview = async (from?: string, to?: string) => {
@@ -1236,6 +1229,21 @@ export default function AdminDashboard() {
     }
   }
 
+  const refetchPaymentFailures = async () => {
+    try {
+      const failRes = await fetch('/api/admin/payment-failures', { cache: 'no-store' })
+      if (failRes.ok) {
+        const failData = await failRes.json()
+        const unresolved = (failData.failures || []).filter((f: any) => !f.resolved).length
+        setTopAlertsCount(unresolved)
+        setPaymentFailures(failData.failures || [])
+        setPaymentFailuresLoaded(true)
+      }
+    } catch {
+      // Non-critical — the bell/tab badge just won't update this time.
+    }
+  }
+
   const handlePaymentFailureUpdate = async (
     id: string,
     patch: { retry_ok?: boolean; resolved?: boolean }
@@ -1256,6 +1264,54 @@ export default function AdminDashboard() {
       }
     } finally {
       setPaymentFailureUpdating(null)
+    }
+  }
+
+  const handleChargeFailureNow = async (id: string) => {
+    if (!confirm('Charge this card right now for the failed amount?')) return
+    setPaymentFailureCharging(id)
+    try {
+      const res = await fetch('/api/admin/payment-failures/charge-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.outcome === 'succeeded') {
+        setPaymentFailureMessage((prev) => ({ ...prev, [id]: 'Charged successfully.' }))
+      } else if (data.outcome === 'skipped') {
+        setPaymentFailureMessage((prev) => ({ ...prev, [id]: `Not charged: ${data.reason}` }))
+      } else {
+        setPaymentFailureMessage((prev) => ({ ...prev, [id]: `Still declined: ${data.reason || 'unknown error'}` }))
+      }
+      await refetchPaymentFailures()
+    } finally {
+      setPaymentFailureCharging(null)
+    }
+  }
+
+  const handleDeleteFailure = async (id: string) => {
+    if (
+      !confirm(
+        "Delete this? This removes their on-hold order so they can place a fresh order (with a sent link or on the site) without being told they've already ordered. It does NOT charge them."
+      )
+    )
+      return
+    setPaymentFailureDeleting(id)
+    try {
+      const res = await fetch(`/api/admin/payment-failures?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setPaymentFailures((prev) => {
+          const next = prev.map((f) => (f.id === id ? { ...f, resolved: true } : f))
+          setTopAlertsCount(next.filter((f: any) => !f.resolved).length)
+          return next
+        })
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'Delete failed — try again.')
+      }
+    } finally {
+      setPaymentFailureDeleting(null)
     }
   }
 
@@ -3384,7 +3440,7 @@ Bukr / prepcuisines`
                     className="pc-topbar-notif-item"
                     onClick={() => {
                       setShowNotifications(false)
-                      setTab('ops-hub')
+                      setTab('payment-issues')
                     }}
                   >
                     {topAlertsCount} unresolved failed payment{topAlertsCount !== 1 ? 's' : ''}
@@ -3415,6 +3471,7 @@ Bukr / prepcuisines`
               { key: 'costs', label: 'Costs' },
               { key: 'bills', label: 'Bills' },
               { key: 'email-marketing', label: 'Email Marketing' },
+              { key: 'payment-issues', label: 'Payment issues' },
               { key: 'menu', label: 'Products' },
               { key: 'customers', label: 'Customers' },
               { key: 'insights', label: 'Analytics' },
@@ -3430,6 +3487,11 @@ Bukr / prepcuisines`
               aria-current={tab === t.key ? 'page' : undefined}
             >
               {t.label}
+              {t.key === 'payment-issues' && topAlertsCount > 0 && (
+                <span className="pc-topbar-badge" style={{ marginLeft: 6 }}>
+                  {topAlertsCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -3545,7 +3607,7 @@ Bukr / prepcuisines`
                 <span className="pc-home-tile-value">{overview.range?.newCustomers ?? 0}</span>
                 <span className="pc-home-tile-label">New customers →</span>
               </button>
-              <button className="pc-home-tile pc-home-tile-action" onClick={() => setTab('ops-hub')}>
+              <button className="pc-home-tile pc-home-tile-action" onClick={() => setTab('payment-issues')}>
                 <span className="pc-home-tile-value">{topAlertsCount}</span>
                 <span className="pc-home-tile-label">Failed payments →</span>
               </button>
@@ -5042,6 +5104,105 @@ Bukr / prepcuisines`
           </section>
         )}
 
+        {tab === 'payment-issues' && (
+          <section style={{ maxWidth: 900 }}>
+            <h1 style={{ fontSize: 22, marginBottom: 4 }}>Payment issues</h1>
+            <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>
+              Customers whose card was declined when their subscription tried to charge. Each one
+              gets ONE automatic retry the same evening — only for the rows still saying "Will
+              retry tonight" below. You can also charge or delete any of them yourself, any time.
+            </p>
+
+            {!paymentFailuresLoaded ? (
+              <p style={{ color: '#888' }}>Loading…</p>
+            ) : (() => {
+              const openFailures = paymentFailures.filter((f: any) => !f.resolved)
+              if (openFailures.length === 0) {
+                return <p style={{ color: '#888', fontSize: 14 }}>No open payment issues right now.</p>
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {openFailures.map((f: any) => (
+                    <div
+                      key={f.id}
+                      style={{ border: '1px solid #eee', borderRadius: 10, padding: 16 }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: 15, fontWeight: 700 }}>{f.customer_name}</div>
+                          <div style={{ fontSize: 13, color: '#888' }}>{f.customer_email}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 15, fontWeight: 700 }}>
+                            {f.amount != null ? money(f.amount) : '—'}
+                          </div>
+                          <div style={{ fontSize: 12.5, color: '#888' }}>
+                            {f.delivery_day || '—'} ·{' '}
+                            {new Date(f.created_at).toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              timeZone: 'Europe/London',
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 13.5, color: '#a03030', marginBottom: 12 }}>
+                        {f.error_message || 'No reason recorded'}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button
+                          className="segment-pill"
+                          disabled={paymentFailureUpdating === f.id}
+                          onClick={() => handlePaymentFailureUpdate(f.id, { retry_ok: !f.retry_ok })}
+                        >
+                          {f.retry_ok ? '✓ Will retry tonight' : "✗ Won't retry — click to allow"}
+                        </button>
+                        <button
+                          className="segment-pill segment-pill-active"
+                          disabled={paymentFailureCharging === f.id}
+                          onClick={() => handleChargeFailureNow(f.id)}
+                        >
+                          {paymentFailureCharging === f.id ? 'Charging…' : 'Charge again now'}
+                        </button>
+                        <button
+                          style={{
+                            padding: '6px 14px',
+                            fontSize: 13,
+                            borderRadius: 20,
+                            border: '1px solid #e0b0b0',
+                            color: '#a03030',
+                            background: '#fff',
+                            cursor: 'pointer',
+                          }}
+                          disabled={paymentFailureDeleting === f.id}
+                          onClick={() => handleDeleteFailure(f.id)}
+                        >
+                          {paymentFailureDeleting === f.id ? 'Deleting…' : 'Delete — let them re-order'}
+                        </button>
+                      </div>
+                      {paymentFailureMessage[f.id] && (
+                        <div style={{ fontSize: 13, color: '#555', marginTop: 8 }}>
+                          {paymentFailureMessage[f.id]}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+          </section>
+        )}
+
         {tab === 'email-marketing' && (
           <section>
             <EmailMarketingPanel />
@@ -6230,86 +6391,19 @@ Bukr / prepcuisines`
                     <div className="insights-block">
                       <h2 className="insights-block-title">Tasks & alerts</h2>
                       <div className="alerts-grid">
-                        <div className="alert-card">
+                        <button
+                          className="alert-card"
+                          style={{ cursor: 'pointer', border: 'none', textAlign: 'left' }}
+                          onClick={() => setTab('payment-issues')}
+                        >
                           <div className="alert-card-value">{opsHub.tasks.failedPaymentsCount}</div>
-                          <div className="alert-card-label">Failed payments</div>
-                        </div>
+                          <div className="alert-card-label">Failed payments →</div>
+                        </button>
                         <div className="alert-card alert-card-muted">
                           <div className="alert-card-value">—</div>
                           <div className="alert-card-label">Low stock (not tracked yet)</div>
                         </div>
                       </div>
-
-                      {(() => {
-                        const openFailures = paymentFailures.filter((f: any) => !f.resolved)
-                        if (!paymentFailuresLoaded) return null
-                        if (openFailures.length === 0) return null
-                        return (
-                          <>
-                            <h3 className="ops-subtitle">
-                              Payment issues ({openFailures.length}) — the nightly retry only
-                              charges the ones still allowed below
-                            </h3>
-                            <div className="table-wrap">
-                              <table className="data-table">
-                                <thead>
-                                  <tr>
-                                    <th>Date</th>
-                                    <th>Customer</th>
-                                    <th>Amount</th>
-                                    <th>Reason</th>
-                                    <th>Delivery day</th>
-                                    <th>Tonight's retry</th>
-                                    <th></th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {openFailures.map((f: any) => (
-                                    <tr key={f.id}>
-                                      <td>
-                                        {new Date(f.created_at).toLocaleString('en-GB', {
-                                          day: '2-digit',
-                                          month: '2-digit',
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                          timeZone: 'Europe/London',
-                                        })}
-                                      </td>
-                                      <td>
-                                        {f.customer_name}
-                                        <div style={{ fontSize: 12, opacity: 0.7 }}>{f.customer_email}</div>
-                                      </td>
-                                      <td>{f.amount != null ? money(f.amount) : '—'}</td>
-                                      <td>{f.error_message || '—'}</td>
-                                      <td>{f.delivery_day || '—'}</td>
-                                      <td>
-                                        <button
-                                          className="segment-pill"
-                                          disabled={paymentFailureUpdating === f.id}
-                                          onClick={() =>
-                                            handlePaymentFailureUpdate(f.id, { retry_ok: !f.retry_ok })
-                                          }
-                                        >
-                                          {f.retry_ok ? 'Will retry tonight' : "Won't retry — click to allow"}
-                                        </button>
-                                      </td>
-                                      <td>
-                                        <button
-                                          className="segment-pill"
-                                          disabled={paymentFailureUpdating === f.id}
-                                          onClick={() => handlePaymentFailureUpdate(f.id, { resolved: true })}
-                                        >
-                                          Mark resolved
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </>
-                        )
-                      })()}
 
                       {opsHub.customerNotes.length > 0 && (
                         <>
