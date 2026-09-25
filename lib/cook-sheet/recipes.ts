@@ -295,6 +295,23 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
+    name: 'Lebanese Garlic Herb Chicken Bowl',
+    cat: 'low',
+    stickerColour: 'dark green',
+    // Confirmed per-portion weights from spec: 250g raw chicken thigh
+    // (boneless, skinless, trimmed) -> 150g cooked. Rice, salad and sauce
+    // aren't individually broken down in the spec, so they're each one
+    // shopping-list line at the given combined weight — see chat note if
+    // itemising them separately is wanted later.
+    meat: { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 250, cookedWeight: 150 },
+    ingredients: [
+      { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 250, isMeat: true },
+      { name: 'Basmati Rice (dry)', raw: 52, cookedWeight: 150 },
+      { name: 'Fresh Salad (Cucumber, Tomato, Lettuce, Red Onion)', raw: 50 },
+      { name: 'Spicy Garlic Sauce (Yoghurt, Mayo, Chilli Garlic Sauce, Evaporated Milk, Tomato Paste, Aromatics)', raw: 50 },
+    ],
+  },
+  {
     name: 'Crispy Chickpeas & Hot Honey Halloumi Salad',
     cat: 'low',
     stickerColour: 'pink',
