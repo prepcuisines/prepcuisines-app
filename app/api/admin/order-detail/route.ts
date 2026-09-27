@@ -61,11 +61,11 @@ export async function GET(req: NextRequest) {
 
   // That week's actual menu, so the admin can pick items rather than
   // free-typing them — names must match exactly for cook-sheet tallying.
-  let windowMenuItems: { name: string; price: number; category: string | null; image_url?: string | null }[] = []
+  let windowMenuItems: { name: string; price: number; category: string | null; image_url?: string | null; discount_exempt?: boolean }[] = []
   if (order.menu_window_id) {
     const { data: windowItems } = await supabase
       .from('menu_window_items')
-      .select('menu_items(name, price, category, image_url)')
+      .select('menu_items(name, price, category, image_url, discount_exempt)')
       .eq('menu_window_id', order.menu_window_id)
     windowMenuItems = (windowItems || [])
       .map((wi: any) => wi.menu_items)

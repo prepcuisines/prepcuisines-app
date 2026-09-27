@@ -10,6 +10,7 @@ type Info = {
   cutoff: string
   cutoffPassed: boolean
   alreadyOrdered: boolean
+  existingOrderId: string | null
   skipped: boolean
   active: boolean
 }
@@ -61,7 +62,7 @@ function SkipContent() {
   if (!c || !w || !t) body = 'This link looks incomplete or invalid.'
   else if (error && !info) body = error
   else if (!info) body = 'Loading…'
-  else if (info.alreadyOrdered) body = "You've already placed an order for this delivery. You can cancel it from your Order History."
+  else if (info.alreadyOrdered) body = "You've already placed an order for this delivery. You can add, remove or swap meals on it below."
   else if (info.cutoffPassed) body = 'The cutoff for this delivery has passed, so it can no longer be skipped here.'
   else if (info.skipped) {
     title = 'This week is skipped'
@@ -78,6 +79,11 @@ function SkipContent() {
           <h1 className="pc-mp-title">{title}</h1>
           <p className="pc-mp-subtitle">{body}</p>
         </div>
+        {info?.alreadyOrdered && info.existingOrderId && (
+          <a className="pc-checkout-btn primary" href={`/edit-order?id=${info.existingOrderId}`}>
+            Edit that order
+          </a>
+        )}
         {canAct && !info!.skipped && (
           <button className="pc-checkout-btn primary" disabled={saving} onClick={() => setSkip(true)}>
             {saving ? 'Saving…' : 'Yes, skip this week'}

@@ -32,6 +32,7 @@ export default function CheckoutPage() {
   const [postcode, setPostcode] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [existingOrderId, setExistingOrderId] = useState<string | null>(null)
   const [subscriberUserId, setSubscriberUserId] = useState<string | null>(null)
   const [standingDeliveryDay, setStandingDeliveryDay] = useState<string | null>(null)
   const [secondDeliveryDay, setSecondDeliveryDay] = useState<string | null>(null)
@@ -170,6 +171,7 @@ export default function CheckoutPage() {
     if (!order || !subscriberUserId) return
     setCheckoutLoading(true)
     setCheckoutError(null)
+    setExistingOrderId(null)
     try {
       // Reactivation (if needed) happens server-side, atomically with a
       // successful charge — never here client-side, and never before we
@@ -236,6 +238,7 @@ export default function CheckoutPage() {
           }
         }
         setCheckoutError(data.error || 'Something went wrong placing your order.')
+        setExistingOrderId(data.existingOrderId || null)
         setCheckoutLoading(false)
         return
       }
@@ -496,7 +499,20 @@ export default function CheckoutPage() {
             </div>
 
             {checkoutError && (
-              <div className="pc-account-error" style={{ marginBottom: 20 }}>{checkoutError}</div>
+              <div className="pc-account-error" style={{ marginBottom: 20 }}>
+                {checkoutError}
+                {existingOrderId && (
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="segment-pill"
+                      onClick={() => router.push(`/edit-order?id=${existingOrderId}`)}
+                    >
+                      Edit that order
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="pc-subscriber-breakdown">
@@ -597,7 +613,22 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {checkoutError && <div className="pc-account-error pc-checkout-error-banner">{checkoutError}</div>}
+          {checkoutError && (
+            <div className="pc-account-error pc-checkout-error-banner">
+              {checkoutError}
+              {existingOrderId && (
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="segment-pill"
+                    onClick={() => router.push(`/edit-order?id=${existingOrderId}`)}
+                  >
+                    Edit that order
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="pc-checkout-grid">
             {/* Full price option */}

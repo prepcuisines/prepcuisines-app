@@ -7036,6 +7036,28 @@ Bukr / prepcuisines`
                           No menu on file for that delivery date — type item names by hand.
                         </p>
                       )}
+                      {(() => {
+                        if (!orderDetail?.windowMenuItems?.length) return null
+                        let paidSum = 0
+                        let menuSum = 0
+                        for (const line of editingItems) {
+                          const lineMenu = orderDetail.windowMenuItems.find((m: any) => m.name === line.name)
+                          if (lineMenu && line.qty > 0 && !lineMenu.discount_exempt) {
+                            paidSum += line.price * line.qty
+                            menuSum += lineMenu.price * line.qty
+                          }
+                        }
+                        if (menuSum === 0) return null
+                        let rate = paidSum / menuSum
+                        rate = rate < 0.7 ? 0.6 : rate < 0.9 ? 0.8 : 1
+                        if (rate === 1) return null
+                        return (
+                          <p className="map-intro">
+                            This order's at {Math.round((1 - rate) * 100)}% off — picking an item from
+                            the dropdown below applies that same rate automatically.
+                          </p>
+                        )
+                      })()}
                       {editingItems.map((item, idx) => (
                         <div key={idx} className="pc-modal-item-row">
                           {orderDetail?.windowMenuItems?.length ? (
@@ -7059,10 +7081,35 @@ Bukr / prepcuisines`
                                   const menuItem = orderDetail.windowMenuItems.find(
                                     (m: any) => m.name === e.target.value
                                   )
+                                  // Infer this order's discount rate from its
+                                  // OTHER existing lines (paid price vs full
+                                  // menu price), the same way the customer's
+                                  // own self-service edit-order does — so
+                                  // swapping/adding an item here never
+                                  // silently charges someone full price on an
+                                  // otherwise-discounted order.
+                                  let paidSum = 0
+                                  let menuSum = 0
+                                  for (const line of editingItems) {
+                                    const lineMenu = orderDetail.windowMenuItems.find(
+                                      (m: any) => m.name === line.name
+                                    )
+                                    if (lineMenu && line.qty > 0 && !lineMenu.discount_exempt) {
+                                      paidSum += line.price * line.qty
+                                      menuSum += lineMenu.price * line.qty
+                                    }
+                                  }
+                                  let rate = menuSum > 0 ? paidSum / menuSum : 1
+                                  rate = rate < 0.7 ? 0.6 : rate < 0.9 ? 0.8 : 1
+                                  const price = menuItem?.discount_exempt
+                                    ? menuItem.price
+                                    : menuItem
+                                      ? Math.round(menuItem.price * rate * 100) / 100
+                                      : next[idx].price
                                   next[idx] = {
                                     ...next[idx],
                                     name: e.target.value,
-                                    price: menuItem?.price ?? next[idx].price,
+                                    price,
                                   }
                                 }
                                 setEditingItems(next)

@@ -119,7 +119,11 @@ export async function POST(req: NextRequest) {
 
       if (existingOrder) {
         return NextResponse.json(
-          { error: "You've already placed an order for this delivery — it can't be placed twice." },
+          {
+            error:
+              "You've already placed an order for this delivery — it can't be placed twice. You can add, remove or swap meals on it instead.",
+            existingOrderId: existingOrder.id,
+          },
           { status: 400 }
         )
       }

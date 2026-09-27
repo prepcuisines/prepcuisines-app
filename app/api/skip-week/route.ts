@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
     cutoff: window.cutoff_datetime,
     cutoffPassed: new Date(window.cutoff_datetime).getTime() < Date.now(),
     alreadyOrdered: !!existingOrder && existingOrder.status !== 'skipped',
+    existingOrderId: existingOrder && existingOrder.status !== 'skipped' ? existingOrder.id : null,
     skipped: !!profile.skip_next_order || existingOrder?.status === 'skipped',
     active: profile.subscription_status === 'active',
   })
@@ -51,7 +52,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'The cutoff for this delivery has passed, so it can no longer be changed here.' }, { status: 400 })
   if (existingOrder && existingOrder.status !== 'skipped')
     return NextResponse.json(
-      { error: "You've already placed an order for this delivery. You can cancel it from your Order History." },
+      {
+        error:
+          "You've already placed an order for this delivery. You can add, remove or swap meals on it instead of cancelling.",
+        existingOrderId: existingOrder.id,
+      },
       { status: 400 }
     )
 
