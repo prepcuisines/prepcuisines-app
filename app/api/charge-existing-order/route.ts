@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
+import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer, sendAdminAlertEmail } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
 import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+
+// Every declined checkout click logs its own payment_failures row. Without
+// this, three clicks left three live rows for the SAME order and the night
+// retry charged each of them. Only the newest attempt should stay
+// retry-eligible - older open rows for the same order are switched off.
+async function supersedeOpenFailures(customerId: string, windowId: string | null) {
+  if (!windowId) return
+  await supabase
+    .from('payment_failures')
+    .update({ retry_ok: false })
+    .eq('customer_id', customerId)
+    .eq('menu_window_id', windowId)
+    .eq('resolved', false)
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -212,6 +226,7 @@ export async function POST(req: NextRequest) {
       // The card was declined (or some other Stripe-side failure). Log it
       // so it shows up in the admin failures list, and let the customer
       // know right away with a link to update their card.
+      await supersedeOpenFailures(userId, matchedWindowId)
       await supabase.from('payment_failures').insert({
         customer_id: userId,
         menu_window_id: matchedWindowId,
@@ -276,24 +291,68 @@ export async function POST(req: NextRequest) {
         .eq('id', userId)
 
       if (matchedWindowId) {
-        const { data: insertedOrder } = await supabase
+        // The customer has now paid for this order themselves, so any
+        // earlier declined attempts for it must never be retried tonight -
+        // that would charge them a second time for the same meals.
+        await supabase
+          .from('payment_failures')
+          .update({ resolved: true, retry_ok: false })
+          .eq('customer_id', userId)
+          .eq('menu_window_id', matchedWindowId)
+          .eq('resolved', false)
+
+        const orderFields = {
+          status: 'manually_ordered',
+          items: orderItemsSnapshot,
+          total_amount: totalAmount / 100,
+          delivery_day: deliveryDay || null,
+          stripe_payment_intent_id: paymentIntent.id,
+          ship_full_name: profile.full_name || null,
+          ship_phone: profile.phone || null,
+          ship_house_number: profile.house_number || null,
+          ship_street: profile.street || null,
+          ship_postcode: profile.postcode || null,
+          delivery_instructions: effectiveInstructions || null,
+        }
+
+        // An earlier failed auto-fill leaves an on_hold placeholder in this
+        // (customer, window) slot. A plain insert collides with it, and the
+        // error used to be ignored - the customer paid and no order was
+        // saved. Take over the placeholder if there is one.
+        let insertedOrder: { order_number: number | null } | null = null
+        let saveError: any = null
+        const { data: existingSlot } = await supabase
           .from('customer_window_orders')
-          .insert({
-            customer_id: userId,
-            menu_window_id: matchedWindowId,
-            status: 'manually_ordered',
-            items: orderItemsSnapshot,
-            total_amount: totalAmount / 100,
-            delivery_day: deliveryDay || null,
-            ship_full_name: profile.full_name || null,
-            ship_phone: profile.phone || null,
-            ship_house_number: profile.house_number || null,
-            ship_street: profile.street || null,
-            ship_postcode: profile.postcode || null,
-            delivery_instructions: effectiveInstructions || null,
-          })
-          .select('order_number')
-          .single()
+          .select('id')
+          .eq('customer_id', userId)
+          .eq('menu_window_id', matchedWindowId)
+          .maybeSingle()
+
+        if (existingSlot) {
+          const { data, error } = await supabase
+            .from('customer_window_orders')
+            .update(orderFields)
+            .eq('id', existingSlot.id)
+            .select('order_number')
+            .single()
+          insertedOrder = data
+          saveError = error
+        } else {
+          const { data, error } = await supabase
+            .from('customer_window_orders')
+            .insert({ customer_id: userId, menu_window_id: matchedWindowId, ...orderFields })
+            .select('order_number')
+            .single()
+          insertedOrder = data
+          saveError = error
+        }
+
+        if (saveError) {
+          await sendAdminAlertEmail(
+            `URGENT: customer charged but order not saved (checkout) - ${profile.full_name || userId}`,
+            `Stripe payment_intent ${paymentIntent.id} succeeded (£${(totalAmount / 100).toFixed(2)}) for customer ${userId}, but saving the order failed: ${saveError.message || saveError}. Reconcile manually.`
+          ).catch(() => {})
+        }
 
         if (profile.email) {
           await sendOrderConfirmationEmailToCustomer(
@@ -338,6 +397,7 @@ export async function POST(req: NextRequest) {
 
     // Payment intent came back but didn't succeed (e.g. requires_action) —
     // treat the same as a decline for our purposes here.
+    await supersedeOpenFailures(userId, matchedWindowId)
     await supabase.from('payment_failures').insert({
       customer_id: userId,
       menu_window_id: matchedWindowId,

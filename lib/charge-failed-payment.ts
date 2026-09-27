@@ -26,7 +26,7 @@ export type ChargeFailedPaymentResult =
 export async function chargeFailedPayment(failureId: string): Promise<ChargeFailedPaymentResult> {
   const { data: failure } = await supabase
     .from('payment_failures')
-    .select('id, customer_id, menu_window_id, amount, items, delivery_day, resolved')
+    .select('id, customer_id, menu_window_id, amount, items, delivery_day, resolved, created_at')
     .eq('id', failureId)
     .maybeSingle()
 
@@ -39,7 +39,7 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
 
   const { data: profile } = await supabase
     .from('customer_profiles')
-    .select('email, full_name, stripe_customer_id, stripe_payment_method_id, orders_completed')
+    .select('email, full_name, phone, house_number, street, postcode, standing_delivery_instructions, stripe_customer_id, stripe_payment_method_id, orders_completed, winback_discount_pending, bonus_discount_orders_remaining')
     .eq('id', failure.customer_id)
     .maybeSingle()
 
@@ -47,6 +47,50 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
   // updated their card in the meantime, this picks that up correctly.
   if (!profile?.stripe_customer_id || !profile?.stripe_payment_method_id) {
     return { outcome: 'skipped', reason: 'still no card on file' }
+  }
+
+  // One order slot per customer per window. Every declined checkout click
+  // logs its own failure row, so a customer who tries three times has
+  // three rows for the same order - and before this guard the night retry
+  // would happily charge all three. Two checks stop that:
+  //
+  // 1) If the slot already holds a paid order (they succeeded at checkout
+  //    themselves, or an earlier row was just charged), this failure is
+  //    moot - close it without touching Stripe.
+  const PAID_STATUSES = ['manually_ordered', 'auto_filled', 'signup_order', 'payg_order']
+  const { data: slot } = await supabase
+    .from('customer_window_orders')
+    .select('id, status, cancelled')
+    .eq('customer_id', failure.customer_id)
+    .eq('menu_window_id', failure.menu_window_id)
+    .maybeSingle()
+
+  if (slot && PAID_STATUSES.includes(slot.status)) {
+    await supabase
+      .from('payment_failures')
+      .update({ resolved: true, retry_ok: false })
+      .eq('id', failure.id)
+    return { outcome: 'skipped', reason: 'order already paid for this window' }
+  }
+  if (slot && (slot.cancelled || slot.status === 'skipped')) {
+    return { outcome: 'skipped', reason: 'order was skipped or cancelled - not charging' }
+  }
+
+  // 2) If a newer failure exists for the same order, only that one is the
+  //    real attempt - older ones are superseded and must never be charged.
+  const { data: newer } = await supabase
+    .from('payment_failures')
+    .select('id')
+    .eq('customer_id', failure.customer_id)
+    .eq('menu_window_id', failure.menu_window_id)
+    .eq('resolved', false)
+    .gt('created_at', failure.created_at)
+    .limit(1)
+    .maybeSingle()
+
+  if (newer) {
+    await supabase.from('payment_failures').update({ retry_ok: false }).eq('id', failure.id)
+    return { outcome: 'skipped', reason: 'superseded by a newer attempt for the same order' }
   }
 
   const { data: claimed } = await supabase
@@ -90,6 +134,24 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
     // hits the unique (customer_id, menu_window_id) constraint and fails
     // every time. Update that existing row if there is one, insert only
     // if there genuinely isn't (e.g. it was deleted since).
+    // Everything a normal successful order stores. Leaving the address and
+    // phone off meant a rescued order had no postcode, so the admin treated
+    // it as a nationwide parcel (blank address, no phone, DPD label
+    // errors) - even for Stoke customers who should be on the local route.
+    const completeOrderFields = {
+      status: 'manually_ordered',
+      items: failure.items,
+      total_amount: failure.amount,
+      delivery_day: failure.delivery_day,
+      stripe_payment_intent_id: paymentIntent.id,
+      ship_full_name: profile.full_name || null,
+      ship_phone: profile.phone || null,
+      ship_house_number: profile.house_number || null,
+      ship_street: profile.street || null,
+      ship_postcode: profile.postcode || null,
+      delivery_instructions: profile.standing_delivery_instructions || null,
+    }
+
     try {
       const { data: existingHold } = await supabase
         .from('customer_window_orders')
@@ -101,24 +163,14 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
       if (existingHold) {
         const { error: updateErr } = await supabase
           .from('customer_window_orders')
-          .update({
-            status: 'manually_ordered',
-            items: failure.items,
-            total_amount: failure.amount,
-            delivery_day: failure.delivery_day,
-            ship_full_name: profile.full_name || null,
-          })
+          .update(completeOrderFields)
           .eq('id', existingHold.id)
         if (updateErr) throw updateErr
       } else {
         const { error: insertErr } = await supabase.from('customer_window_orders').insert({
           customer_id: failure.customer_id,
           menu_window_id: failure.menu_window_id,
-          status: 'manually_ordered',
-          items: failure.items,
-          total_amount: failure.amount,
-          delivery_day: failure.delivery_day,
-          ship_full_name: profile.full_name || null,
+          ...completeOrderFields,
         })
         if (insertErr) throw insertErr
       }
@@ -128,6 +180,25 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
         `Stripe payment_intent ${paymentIntent.id} succeeded (£${(failure.amount || 0).toFixed(2)}) for customer ${failure.customer_id}, but saving the order record failed: ${saveErr.message || saveErr}. This customer has been charged — do NOT retry this payment_failures row. Reconcile manually.`
       ).catch(() => {})
       return { outcome: 'succeeded', paymentIntentId: paymentIntent.id }
+    }
+
+    // Same bookkeeping as auto-fill and checkout: without it a rescued
+    // order never counted towards the customer's discount tier, so they
+    // kept getting the early-order rate for longer than intended.
+    try {
+      const ordersCompleted = profile.orders_completed || 0
+      await supabase
+        .from('customer_profiles')
+        .update({
+          orders_completed: ordersCompleted + 1,
+          ...(profile.winback_discount_pending ? { winback_discount_pending: false } : {}),
+          ...(ordersCompleted > 5 && (profile.bonus_discount_orders_remaining || 0) > 0
+            ? { bonus_discount_orders_remaining: (profile.bonus_discount_orders_remaining || 0) - 1 }
+            : {}),
+        })
+        .eq('id', failure.customer_id)
+    } catch {
+      // Non-critical - the charge and the order both already succeeded.
     }
 
     try {
