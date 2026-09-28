@@ -42,7 +42,19 @@ export async function GET(req: NextRequest) {
     .order('week_start_date', { ascending: true })
     .limit(6)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ windows: windows || [] })
+
+  // Earlier dates, most recent first - only used by "Move order", so an
+  // order can be moved BACK to a date that has already passed. The
+  // upcoming list above is unchanged, so redo/resend and the recurring
+  // order filler still only offer future dates.
+  const { data: pastWindows } = await supabase
+    .from('menu_windows')
+    .select('id, delivery_day, week_start_date')
+    .lt('week_start_date', today.toISOString().slice(0, 10))
+    .order('week_start_date', { ascending: false })
+    .limit(8)
+
+  return NextResponse.json({ windows: windows || [], pastWindows: pastWindows || [] })
 }
 
 export async function POST(req: NextRequest) {
