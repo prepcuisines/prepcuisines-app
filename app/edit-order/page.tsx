@@ -63,7 +63,13 @@ function EditOrderInner() {
       }
       setOrder(normalised)
       const initial: Record<string, number> = {}
-      for (const it of normalised.items || []) initial[it.name] = it.qty
+      // The order snapshot also holds the "Delivery" fee line - that isn't a
+      // meal and isn't on the menu, so it must never be sent back as an item
+      // (the server rejected it as "Delivery isn't on this week's menu",
+      // which blocked every edit) or counted as a meal.
+      for (const it of normalised.items || []) {
+        if (it.name !== 'Delivery') initial[it.name] = it.qty
+      }
       setQty(initial)
 
       const { data: windowItems } = await supabase
@@ -115,6 +121,10 @@ function EditOrderInner() {
   const isStoke = (order?.ship_postcode || '').trim().toUpperCase().replace(/\s/g, '').startsWith('ST')
   const deliveryFee = isStoke ? 2.99 : 7.95
   const totalMeals = Object.values(qty).reduce((s, n) => s + n, 0)
+  // Main meals only (not breakfast/dessert extras). We only sell meals in
+  // even numbers (4, 6, 8 ...), same as the plan sizes when ordering.
+  const mainMeals = menu.reduce((s, m) => s + (m.category === 'meal' ? qty[m.name] || 0 : 0), 0)
+  const oddMeals = mainMeals % 2 !== 0
   const newTotal = useMemo(() => {
     const food = menu.reduce((s, m) => {
       const itemRate = m.discount_exempt ? 1 : rate
@@ -275,12 +285,18 @@ function EditOrderInner() {
                       ? `— £${Math.abs(delta).toFixed(2)} will be refunded to your card`
                       : '— no price change'}
                 </div>
+                {oddMeals && (
+                  <p className="error-text">
+                    You have {mainMeals} meals. We only offer meals in even numbers (for example 6 or
+                    8), so please add or remove one to save.
+                  </p>
+                )}
                 {error && <p className="error-text">{error}</p>}
                 <button
                   className="btn-primary"
                   style={{ marginTop: 14 }}
                   onClick={save}
-                  disabled={saving || totalMeals === 0}
+                  disabled={saving || totalMeals === 0 || oddMeals}
                 >
                   {saving ? 'Saving…' : 'Save changes'}
                 </button>

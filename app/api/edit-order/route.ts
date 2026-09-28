@@ -22,7 +22,11 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null)
   const orderId: string | undefined = body?.orderId
-  const requested: { name: string; qty: number }[] = Array.isArray(body?.items) ? body.items : []
+  // Delivery is a fee line, not a menu item - ignore it if a client sends it
+  // (it's re-added below from the postcode).
+  const requested: { name: string; qty: number }[] = (Array.isArray(body?.items) ? body.items : []).filter(
+    (it: any) => it?.name !== 'Delivery'
+  )
   if (!orderId || requested.length === 0) {
     return NextResponse.json({ error: 'Missing orderId or items' }, { status: 400 })
   }
@@ -77,10 +81,10 @@ export async function POST(req: Request) {
     .from('menu_window_items')
     .select('menu_items(id, name, price, category, discount_exempt)')
     .eq('menu_window_id', order.menu_window_id)
-  const menuByName = new Map<string, { name: string; price: number; discountExempt: boolean }>()
+  const menuByName = new Map<string, { name: string; price: number; discountExempt: boolean; category: string }>()
   for (const wi of windowItems || []) {
     const mi: any = (wi as any).menu_items
-    if (mi?.name) menuByName.set(mi.name, { name: mi.name, price: mi.price, discountExempt: !!mi.discount_exempt })
+    if (mi?.name) menuByName.set(mi.name, { name: mi.name, price: mi.price, discountExempt: !!mi.discount_exempt, category: mi.category })
   }
 
   for (const it of requested) {
@@ -90,6 +94,19 @@ export async function POST(req: Request) {
         { status: 400 }
       )
     }
+  }
+
+  // Meals are only sold in even numbers (matches the 4/6/8... plan sizes).
+  // Only main meals count - breakfast and dessert extras don't.
+  let mainMeals = 0
+  for (const it of requested) {
+    if (menuByName.get(it.name)?.category === 'meal') mainMeals += it.qty
+  }
+  if (mainMeals % 2 !== 0) {
+    return NextResponse.json(
+      { error: `You have ${mainMeals} meals. We only offer meals in even numbers (for example 6 or 8), so please add or remove one.` },
+      { status: 400 }
+    )
   }
 
   // Infer the discount rate this order was priced at (first-orders discount)
