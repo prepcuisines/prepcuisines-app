@@ -37,6 +37,13 @@ export async function POST(req: NextRequest) {
     .select('id')
     .eq('resolved', false)
     .eq('retry_ok', true)
+    // Only subscription auto-fill failures are retried in the background -
+    // the customer never chose to pay those. A failed order the customer
+    // placed themselves (context 'manual_order') was already answered with
+    // "update your card and try again"; charging it again overnight
+    // double-charged Sebrina (20th/21st Sept). Admins can still charge one
+    // of those on purpose with "Charge again now".
+    .eq('context', 'auto_fill')
     .not('items', 'is', null)
     .not('amount', 'is', null)
     .gte('created_at', startOfToday.toISOString())
