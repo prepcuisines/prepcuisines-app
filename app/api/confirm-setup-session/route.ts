@@ -236,20 +236,48 @@ export async function GET(req: NextRequest) {
       await supabase.from('customer_profiles').update(updates).eq('id', userId)
 
       if (matchedWindowId) {
-        await supabase.from('customer_window_orders').insert({
-          customer_id: userId,
-          menu_window_id: matchedWindowId,
+        // The customer has now paid for this order themselves, so any
+        // earlier declined attempt for it must never be retried tonight -
+        // that charged people twice for the same meals (the update-card
+        // link in the declined email lands here, and this path used to
+        // leave the old failure open with retry on).
+        await supabase
+          .from('payment_failures')
+          .update({ resolved: true, retry_ok: false })
+          .eq('customer_id', userId)
+          .eq('menu_window_id', matchedWindowId)
+          .eq('resolved', false)
+
+        const orderFields = {
           status: 'manually_ordered',
           items: orderItemsSnapshot,
           total_amount: totalAmount / 100,
           delivery_day: deliveryDay || null,
+          stripe_payment_intent_id: paymentIntent.id,
           ship_full_name: profile.full_name || null,
           ship_phone: profile.phone || null,
           ship_house_number: profile.house_number || null,
           ship_street: profile.street || null,
           ship_postcode: profile.postcode || null,
           delivery_instructions: effectiveInstructions || null,
-        })
+        }
+
+        // Take over an on_hold placeholder from an earlier failed auto-fill
+        // if there is one; a plain insert would collide with it.
+        const { data: existingSlot } = await supabase
+          .from('customer_window_orders')
+          .select('id')
+          .eq('customer_id', userId)
+          .eq('menu_window_id', matchedWindowId)
+          .maybeSingle()
+
+        if (existingSlot) {
+          await supabase.from('customer_window_orders').update(orderFields).eq('id', existingSlot.id)
+        } else {
+          await supabase
+            .from('customer_window_orders')
+            .insert({ customer_id: userId, menu_window_id: matchedWindowId, ...orderFields })
+        }
       }
 
       if (profile.email) {
