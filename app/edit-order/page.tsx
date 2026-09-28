@@ -88,13 +88,13 @@ function EditOrderInner() {
   }, [orderId])
 
   const cutoff = order?.menu_windows?.cutoff_datetime ? new Date(order.menu_windows.cutoff_datetime) : null
-  const graceCreated = order?.created_at ? new Date(order.created_at) : null
+  // Auto-filled orders can be changed for 30 minutes after the real cutoff;
+  // everything else only before it. Must match the server (api/edit-order).
   const inGrace =
     !!order &&
     order.status === 'auto_filled' &&
-    !!graceCreated &&
-    Date.now() <
-      Date.UTC(graceCreated.getUTCFullYear(), graceCreated.getUTCMonth(), graceCreated.getUTCDate(), 20, 0, 0)
+    !!cutoff &&
+    Date.now() < cutoff.getTime() + 30 * 60 * 1000
   const editable =
     !!order && !order.fulfilled && !order.cancelled &&
     ((!!cutoff && cutoff.getTime() > Date.now()) || inGrace)

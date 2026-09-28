@@ -93,13 +93,16 @@ export default function OrderHistoryPage() {
     )
   }
 
-  const cancelDeadline = (createdAt: string) => {
-    const c = new Date(createdAt)
-    return Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate(), 20, 0, 0)
+  // 30 minutes after the delivery's real cutoff (same rule as the server).
+  const cancelDeadline = (o: Order) => {
+    const cutoff = o.menu_windows?.cutoff_datetime
+    return cutoff
+      ? new Date(cutoff).getTime() + 30 * 60 * 1000
+      : new Date(o.created_at).getTime() + 3 * 60 * 60 * 1000
   }
 
   const canCancelAutofill = (o: Order) =>
-    o.status === 'auto_filled' && !o.cancelled && !o.fulfilled && Date.now() < cancelDeadline(o.created_at)
+    o.status === 'auto_filled' && !o.cancelled && !o.fulfilled && Date.now() < cancelDeadline(o)
 
   const cancelAutofill = async (o: Order) => {
     if (!window.confirm('Cancel this order? Your card will be refunded and nothing will be delivered this week.'))
