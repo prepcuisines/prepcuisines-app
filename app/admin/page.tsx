@@ -300,6 +300,9 @@ export default function AdminDashboard() {
   const [redoWindows, setRedoWindows] = useState<
     { id: string; delivery_day: string; week_start_date: string }[]
   >([])
+  const [pastWindows, setPastWindows] = useState<
+    { id: string; delivery_day: string; week_start_date: string }[]
+  >([])
   const [redoWindowId, setRedoWindowId] = useState('')
   const [moveWindowId, setMoveWindowId] = useState('')
   const [moveStatus, setMoveStatus] = useState<'idle' | 'saving' | 'done'>('idle')
@@ -1449,8 +1452,14 @@ export default function AdminDashboard() {
     setMoveResult(null)
     fetch('/api/admin/redo-order', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => setRedoWindows(d.windows || []))
-      .catch(() => setRedoWindows([]))
+      .then((d) => {
+        setRedoWindows(d.windows || [])
+        setPastWindows(d.pastWindows || [])
+      })
+      .catch(() => {
+        setRedoWindows([])
+        setPastWindows([])
+      })
     setDpdLabelHtml(null)
     try {
       const res = await fetch(`/api/admin/order-detail?id=${orderId}`, { cache: 'no-store' })
@@ -1666,7 +1675,7 @@ export default function AdminDashboard() {
 
   const moveOrderToWindow = async () => {
     if (!selectedOrderId || !moveWindowId) return
-    const target = redoWindows.find((w) => w.id === moveWindowId)
+    const target = [...redoWindows, ...pastWindows].find((w) => w.id === moveWindowId)
     setMoveStatus('saving')
     setMoveError(null)
     try {
@@ -7298,11 +7307,22 @@ Bukr / prepcuisines`
                       }}
                     >
                       <option value="">Choose delivery date…</option>
-                      {redoWindows.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
-                        </option>
-                      ))}
+                      <optgroup label="Upcoming">
+                        {redoWindows.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                          </option>
+                        ))}
+                      </optgroup>
+                      {pastWindows.length > 0 && (
+                        <optgroup label="Earlier dates">
+                          {pastWindows.map((w) => (
+                            <option key={w.id} value={w.id}>
+                              {w.delivery_day} — {new Date(w.week_start_date).toLocaleDateString('en-GB')}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                     <button
                       className="segment-pill"
@@ -7312,6 +7332,12 @@ Bukr / prepcuisines`
                       {moveStatus === 'saving' ? 'Moving…' : 'Move order'}
                     </button>
                   </div>
+                  {pastWindows.some((w) => w.id === moveWindowId) && (
+                    <p className="map-intro">
+                      That date has already passed — the order will appear on that day's cook sheet and
+                      packing slips, not on an upcoming one.
+                    </p>
+                  )}
                   {moveError && <p className="pc-error-text">{moveError}</p>}
                   {moveResult && <p className="map-intro">{moveResult}</p>}
                 </div>
