@@ -112,7 +112,17 @@ async function createImageCampaign(body: any) {
 
   const audienceLabel = CAMPAIGN_AUDIENCES.find((a) => a.key === audience)!.label
   return insertCampaignWithBatches(
-    { name: `Image campaign · ${audienceLabel}`, subject: cleanSubject, kind: 'image_campaign', audience, image_url: imageUrl },
+    {
+      name: `Image campaign · ${audienceLabel}`,
+      subject: cleanSubject,
+      // template_key is NOT NULL in the DB; image campaigns have no
+      // template, so this is a harmless placeholder never looked up
+      // (campaign-sender.ts skips template lookup entirely for this kind).
+      template_key: 'image_campaign',
+      kind: 'image_campaign',
+      audience,
+      image_url: imageUrl,
+    },
     recipients.map((r) => ({ email: r.email, first_name: r.firstName }))
   )
 }
