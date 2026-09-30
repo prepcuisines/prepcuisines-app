@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendCampaignEmailStrict } from '@/lib/send-email'
 import { buildUnsubscribeUrl } from '@/lib/unsubscribe'
-import { getCampaignTemplate, renderCampaignHtml, renderCampaignSubject } from '@/lib/campaign-templates'
+import { getCampaignTemplate, renderCampaignHtml, renderCampaignSubject, buildImageCampaignHtml } from '@/lib/campaign-templates'
 import { buildReminderEmailHtml } from '@/lib/reminder-email'
 import { buildSkipUrl } from '@/lib/skip-link'
 
@@ -47,8 +47,10 @@ export async function sendCampaignBatchChunk(
     .single()
   if (!campaign) return { ok: false, error: 'Campaign not found' }
   const isReminder = campaign.kind === 'subscriber_reminder'
-  const template = isReminder ? null : getCampaignTemplate(campaign.template_key)
-  if (!isReminder && !template) return { ok: false, error: 'Email template not found' }
+  const isImageCampaign = campaign.kind === 'image_campaign'
+  const template = isReminder || isImageCampaign ? null : getCampaignTemplate(campaign.template_key)
+  if (!isReminder && !isImageCampaign && !template) return { ok: false, error: 'Email template not found' }
+  if (isImageCampaign && !campaign.image_url) return { ok: false, error: 'This campaign has no image' }
 
   // A reminder after the cutoff would be wrong, so close the batch instead
   // of sending (and so it can't hold up anything scheduled after it).
@@ -156,11 +158,17 @@ export async function sendCampaignBatchChunk(
           isLastCall: campaign.reminder_type === 'last_call',
           skipUrl: buildSkipUrl(r.customer_id, campaign.menu_window_id),
         })
-      : renderCampaignHtml(
-          template!.html,
-          { firstName: r.first_name, unsubscribeUrl: buildUnsubscribeUrl(r.email) },
-          template!.nameFallback
-        )
+      : isImageCampaign
+        ? buildImageCampaignHtml({
+            imageUrl: campaign.image_url!,
+            firstName: r.first_name,
+            unsubscribeUrl: buildUnsubscribeUrl(r.email),
+          })
+        : renderCampaignHtml(
+            template!.html,
+            { firstName: r.first_name, unsubscribeUrl: buildUnsubscribeUrl(r.email) },
+            template!.nameFallback
+          )
     const subject = isReminder ? campaign.subject : renderCampaignSubject(campaign.subject, r.first_name)
     try {
       await sendCampaignEmailStrict(r.email, subject, html)

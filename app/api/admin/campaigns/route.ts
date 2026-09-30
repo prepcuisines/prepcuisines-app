@@ -13,7 +13,8 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 export async function GET(req: NextRequest) {
   if (!isAdminRequest(req)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
 
-  const kind = req.nextUrl.searchParams.get('kind') === 'subscriber_reminder' ? 'subscriber_reminder' : 'marketing'
+  const kindParam = req.nextUrl.searchParams.get('kind')
+  const kind = kindParam === 'subscriber_reminder' || kindParam === 'image_campaign' ? kindParam : 'marketing'
   const { data: campaigns, error } = await supabase
     .from('email_campaigns')
     .select(
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json()) || {}
   if (body.kind === 'subscriber_reminder') return createReminder(body)
+  if (body.kind === 'image_campaign') return createImageCampaign(body)
 
   const { templateKey, subject, audience } = body
   const template = getCampaignTemplate(templateKey)
@@ -92,6 +94,27 @@ async function insertCampaignWithBatches(
   }
 
   return NextResponse.json({ success: true, campaignId: campaign.id, total: recipients.length })
+}
+
+// Body: { kind: 'image_campaign', imageUrl, subject, audience } - same
+// fixed-audience-snapshot batching as a regular marketing campaign, just
+// with an image instead of a template.
+async function createImageCampaign(body: any) {
+  const { imageUrl, subject, audience } = body
+  if (!imageUrl || typeof imageUrl !== 'string') return NextResponse.json({ error: 'Upload an image first' }, { status: 400 })
+  if (!CAMPAIGN_AUDIENCES.some((a) => a.key === audience))
+    return NextResponse.json({ error: 'Pick who to send to' }, { status: 400 })
+  const cleanSubject = String(subject || '').trim().slice(0, 200)
+  if (!cleanSubject) return NextResponse.json({ error: 'Add a subject line' }, { status: 400 })
+
+  const recipients = await buildCampaignAudience(supabase, audience as CampaignAudienceKey)
+  if (recipients.length === 0) return NextResponse.json({ error: 'Nobody in that group to email' }, { status: 400 })
+
+  const audienceLabel = CAMPAIGN_AUDIENCES.find((a) => a.key === audience)!.label
+  return insertCampaignWithBatches(
+    { name: `Image campaign · ${audienceLabel}`, subject: cleanSubject, kind: 'image_campaign', audience, image_url: imageUrl },
+    recipients.map((r) => ({ email: r.email, first_name: r.firstName }))
+  )
 }
 
 // Body: { kind: 'subscriber_reminder', windowId, reminderType: 'reminder'|'last_call', subject, imageUrl }

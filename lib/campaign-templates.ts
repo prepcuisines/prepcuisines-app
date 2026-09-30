@@ -79,6 +79,33 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
 ]
 
+// Simple image + subject email for the batched Image Campaign flow - an
+// image (clickable through to the menu) with a plain subject, no template
+// picker needed. Kept next to the HTML templates since it uses the same
+// {{first_name}}/{{unsubscribe_url}} placeholders and rendering helpers.
+export function buildImageCampaignHtml(o: { imageUrl: string; firstName?: string | null; unsubscribeUrl: string }) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prepcuisines.co.uk'
+  return renderCampaignHtml(
+    `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0e8;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;padding:20px 10px;">
+<tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;background:#ffffff;">
+  <tr><td style="padding:0;"><a href="${siteUrl}/menu" style="display:block;"><img src="{{image_src}}" alt="prepcuisines" width="560" style="display:block;width:100%;height:auto;border:0;"/></a></td></tr>
+  <tr><td align="center" style="padding:24px 28px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:#999999;">
+    prepcuisines &middot; 102A Sun Street, Stoke-on-Trent, ST1 4JR<br/>
+    <a href="{{unsubscribe_url}}" style="color:#999999;">Unsubscribe</a>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`.split('{{image_src}}').join(o.imageUrl),
+    { firstName: o.firstName, unsubscribeUrl: o.unsubscribeUrl },
+    'there'
+  )
+}
+
 export function getCampaignTemplate(key: string) {
   return CAMPAIGN_TEMPLATES.find((t) => t.key === key) || null
 }

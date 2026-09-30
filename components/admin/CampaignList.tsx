@@ -73,7 +73,7 @@ const toLocalInput = (d: Date) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export default function CampaignList({ kind, refreshKey }: { kind: 'marketing' | 'subscriber_reminder'; refreshKey: number }) {
+export default function CampaignList({ kind, refreshKey }: { kind: 'marketing' | 'subscriber_reminder' | 'image_campaign'; refreshKey: number }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [sendingBatchId, setSendingBatchId] = useState<string | null>(null)
   const [batchMessage, setBatchMessage] = useState<Record<string, string>>({})
