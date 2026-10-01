@@ -21,19 +21,19 @@ const steps = [
   },
   {
     number: '03',
-    icon: '🔄',
+    icon: '📦',
     image: '/step4-delivery.jpg',
-    title: 'Never miss a delivery',
+    title: 'Your box arrives',
     description:
-      "If a cutoff passes and you haven't placed an order, we automatically fill your box from your favourite dishes (never anything you've marked as disliked) and charge your saved card, so your weekly delivery still arrives without you lifting a finger.",
+      'Your meals are chef-made fresh and delivered straight to your door on your chosen day, ready to go in the fridge.',
   },
   {
     number: '04',
-    icon: '⏰',
+    icon: '🔄',
     image: '/step3-cutoff.jpg',
-    title: 'Every week has a cutoff',
+    title: 'Never miss a delivery',
     description:
-      "Each delivery day has an ordering cutoff. Order before it and you choose exactly what goes in your box that week. If you ever miss it, don't worry — see above.",
+      "Each delivery day has an ordering cutoff — order before it and you choose exactly what goes in your box that week. If you ever miss it, don't worry: we automatically fill your box from your favourite dishes (never anything you've marked as disliked) and charge your saved card, so your weekly delivery still arrives without you lifting a finger.",
   },
   {
     number: '05',
