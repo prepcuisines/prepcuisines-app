@@ -469,6 +469,47 @@ export function buildOrderConfirmationEmailHtml(o: {
       </td></tr>`
     : ''
 
+  // FAQ: the two most common questions, per Bukr (Sept 2026) — freezer
+  // duration/defrost method are a reasonable default he should confirm,
+  // not something he dictated word for word like the microwave answer.
+  const faqs = [
+    [
+      'Can I freeze the meals?',
+      'Yes — they\'re freezer safe. Freeze on the day of delivery, in the sealed container, for up to 1 month. To defrost, move it to the fridge the night before you want it and let it defrost fully before reheating. Don\'t refreeze once it\'s been defrosted.',
+    ],
+    [
+      'Can I microwave the meals?',
+      'Yes — both the container and the lid are microwave safe, so you can heat straight from the container. No need to transfer it to a plate first.',
+    ],
+    [
+      'What if an item arrives damaged or wrong?',
+      'Contact us with the details and we\'ll sort it out for you.',
+    ],
+    [
+      'Can I change or cancel an order after placing it?',
+      'Yes, as long as it\'s before the cutoff for that delivery.',
+    ],
+    [
+      'Are meals suitable for reheating in the oven, not just microwave?',
+      'Yes — they\'re oven safe below 180°C.',
+    ],
+    [
+      'Do you cater for allergies or intolerances beyond what\'s labelled?',
+      'Unfortunately not — please check the allergen information on each meal before ordering.',
+    ],
+  ]
+  const faqRows = faqs
+    .map(
+      ([q, a], idx) => `
+      <tr>
+        <td style="padding:${idx === 0 ? 0 : 18}px 0 6px;font-family:${SANS};font-size:14px;font-weight:700;color:${G};">${q}</td>
+      </tr>
+      <tr>
+        <td style="padding:0 0 ${idx === faqs.length - 1 ? 0 : 4}px;font-family:${SANS};font-size:13px;line-height:1.7;color:${MUTED};">${a}</td>
+      </tr>`
+    )
+    .join('')
+
   let planNote = ''
   if (o.isSubscribed) {
     const links = [
@@ -511,6 +552,7 @@ export function buildOrderConfirmationEmailHtml(o: {
     <p style="margin:0 0 18px;font-family:${SANS};font-size:13px;font-weight:700;color:${GOLD};">✓ Order confirmed${o.orderNumber != null ? ` · #PC-${o.orderNumber}` : ''}</p>
     <h1 class="pc-h1" style="margin:0 0 18px;font-family:${SERIF};font-weight:normal;font-size:40px;line-height:1.1;color:${CREAM};">${headline}</h1>
     <p style="margin:0;font-family:${SANS};font-size:15px;line-height:1.7;color:rgba(245,240,232,0.78);">${intro}</p>
+    <p style="margin:16px 0 0;font-family:${SANS};font-size:13px;color:rgba(245,240,232,0.55);">Got questions? Scroll down for our most-asked ones.</p>
   </td></tr>
 
   <!-- Gold strip: key facts -->
@@ -555,6 +597,12 @@ export function buildOrderConfirmationEmailHtml(o: {
   </td></tr>`}
 
   ${planNote ? `<tr><td class="pc-pad" style="padding:28px 36px 12px;">${planNote}</td></tr>` : ''}
+
+  <!-- FAQ -->
+  <tr><td class="pc-pad" style="padding:28px 36px 12px;">
+    <p style="margin:0 0 16px;font-family:${SERIF};font-size:22px;color:${G};">A couple of things people ask</p>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">${faqRows}</table>
+  </td></tr>
 
   <!-- Help -->
   <tr><td class="pc-pad" style="padding:32px 36px 40px;">
