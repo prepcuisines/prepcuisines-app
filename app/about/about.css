@@ -41,7 +41,7 @@
 }
 .pc-about-hero-sub {
   font-family: var(--font-cormorant), Georgia, serif !important; font-size: 20px; font-weight: 300; font-style: italic;
-  color: rgba(245,242,236,0.55); margin-top: 16px; line-height: 1.6; position: relative; z-index: 1;
+  color: rgba(245,242,236,0.73); margin-top: 16px; line-height: 1.6; position: relative; z-index: 1;
 }
 
 /* STORY */
@@ -80,8 +80,8 @@
   font-family: var(--font-cormorant), Georgia, serif !important; font-style: italic; font-weight: 400; color: var(--gold);
 }
 .pc-about-story p {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 17px; font-weight: 400;
-  color: rgba(245,242,236,0.7); line-height: 1.8; margin-bottom: 18px;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 17px; font-weight: 500;
+  color: rgba(245,242,236,0.82); line-height: 1.8; margin-bottom: 18px;
 }
 
 /* VALUES */
@@ -106,7 +106,7 @@
 }
 .pc-about-section-sub {
   font-family: var(--font-cormorant), Georgia, serif !important; font-size: 17px; font-weight: 300; font-style: italic;
-  color: rgba(45,53,16,0.45); margin-top: 12px; line-height: 1.6;
+  color: rgba(45,53,16,0.67); margin-top: 12px; line-height: 1.6;
 }
 .pc-about-values-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 .pc-about-value-card {
@@ -137,7 +137,7 @@
 }
 .pc-about-value-card p {
   font-family: var(--font-cormorant), Georgia, serif !important; font-size: 16px; font-weight: 500;
-  font-style: italic; color: rgba(45,53,16,0.7); line-height: 1.65;
+  font-style: italic; color: rgba(45,53,16,0.82); line-height: 1.65;
 }
 
 /* STATS */
@@ -161,7 +161,7 @@
 }
 .pc-about-stat-label {
   font-size: 10px; font-weight: 600; letter-spacing: 0.18em;
-  text-transform: uppercase; color: rgba(245,242,236,0.45);
+  text-transform: uppercase; color: rgba(245,242,236,0.67);
 }
 
 /* PROMISE */
@@ -181,14 +181,14 @@
   font-family: var(--font-cormorant), Georgia, serif !important; font-style: italic; font-weight: 400; color: var(--gold-dark);
 }
 .pc-about-promise p {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 17px; font-weight: 400;
-  color: rgba(45,53,16,0.7); line-height: 1.8; margin-bottom: 16px;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 17px; font-weight: 500;
+  color: rgba(45,53,16,0.82); line-height: 1.8; margin-bottom: 16px;
 }
 .pc-about-promise-list { list-style: none; margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
 .pc-about-promise-list li {
   display: flex; align-items: flex-start; gap: 14px;
   font-family: var(--font-montserrat), sans-serif !important; font-size: 13px; font-weight: 500;
-  color: rgba(45,53,16,0.75); line-height: 1.5;
+  color: rgba(45,53,16,0.85); line-height: 1.5;
 }
 .pc-about-promise-list li::before {
   content: ''; width: 20px; height: 20px; border-radius: 50%;
@@ -223,7 +223,7 @@
 }
 .pc-about-cta p {
   font-family: var(--font-cormorant), Georgia, serif !important; font-size: 17px; font-style: italic;
-  color: rgba(245,242,236,0.6); margin-bottom: 36px; line-height: 1.6;
+  color: rgba(245,242,236,0.76); margin-bottom: 36px; line-height: 1.6;
 }
 .pc-about-cta-btn {
   display: inline-flex; align-items: center; gap: 10px;

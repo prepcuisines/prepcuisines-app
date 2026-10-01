@@ -40,7 +40,7 @@
 }
 .pc-how-hero-sub {
   font-family: var(--font-cormorant), Georgia, serif; font-size: 19px; font-weight: 400; font-style: italic;
-  color: rgba(245,242,236,0.6); margin: 16px auto 0; line-height: 1.6; max-width: 560px;
+  color: rgba(245,242,236,0.76); margin: 16px auto 0; line-height: 1.6; max-width: 560px;
   position: relative; z-index: 1;
 }
 
@@ -97,7 +97,7 @@
 }
 .pc-how-row-text p {
   font-family: var(--font-cormorant), Georgia, serif; font-size: 18px; line-height: 1.75;
-  color: rgba(45,53,16,0.7); max-width: 480px;
+  color: rgba(45,53,16,0.82); max-width: 480px;
 }
 
 /* CTA */
@@ -135,7 +135,7 @@
 }
 .pc-how-cta p {
   font-family: var(--font-cormorant), Georgia, serif; font-size: 17px; font-style: italic;
-  color: rgba(245,242,236,0.6); margin-bottom: 32px; line-height: 1.6;
+  color: rgba(245,242,236,0.76); margin-bottom: 32px; line-height: 1.6;
 }
 .pc-how-cta-btn {
   display: inline-flex; align-items: center; gap: 10px;
