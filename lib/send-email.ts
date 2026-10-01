@@ -280,7 +280,7 @@ export function buildOrderReceiptEmailHtml(o: {
   const autoFillNote =
     o.orderType === 'auto_filled' && o.graceCancelUntil
       ? `<p style="margin:20px 0 0;font-family:${SANS};font-size:13px;line-height:1.7;color:${G};background:${CREAM};border-left:3px solid ${GOLD};padding:12px 16px;">
-          Want to change something? <a href="${editLink}" style="color:${G};font-weight:700;">Edit your order</a> free until <strong>${o.graceCancelUntil} tonight</strong> — swap meals, change the amount, or cancel it entirely for a full refund.
+          Want to change something? <a href="${editLink}" style="color:${G};font-weight:700;">Edit your order</a> free until <strong>${o.graceCancelUntil} tonight</strong> — swap meals or change the amount.
         </p>`
       : ''
 
