@@ -181,6 +181,7 @@ html, body { margin: 0; padding: 0; }
 .pc-mp-title em { font-style: italic; font-weight: 400; color: var(--pc-gold-dark); }
 .pc-mp-subtitle { font-size: 17px; font-weight: 400; font-style: italic; color: rgba(45,53,16,0.55); }
 
+.pc-edit-sticky-summary { position: sticky; top: 72px; z-index: 30; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--pc-cream); border: 1px solid rgba(45,53,16,0.15); border-radius: 10px; padding: 12px 18px; margin: 20px 0 0; font-family: var(--font-montserrat), sans-serif; font-size: 14px; color: var(--pc-green); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .pc-mp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 .pc-meal-card { background: var(--pc-white); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(45,53,16,0.08); transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .pc-meal-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(45,53,16,0.12); }

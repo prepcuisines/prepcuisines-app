@@ -169,7 +169,8 @@ export async function sendOrderConfirmationEmailToCustomer(
   isFirstOrder: boolean = false,
   shipPostcode: string = '',
   orderNumber: number | null = null,
-  graceCancelUntil: string | null = null
+  graceCancelUntil: string | null = null,
+  orderId: string | null = null
 ) {
   const opts = {
     firstName,
@@ -182,6 +183,7 @@ export async function sendOrderConfirmationEmailToCustomer(
     shipPostcode,
     orderNumber,
     graceCancelUntil,
+    orderId,
   }
   const orderRef = orderNumber != null ? ` — #PC-${orderNumber}` : ''
 
@@ -229,6 +231,7 @@ export function buildOrderReceiptEmailHtml(o: {
   shipPostcode: string
   orderNumber: number | null
   graceCancelUntil: string | null
+  orderId?: string | null
 }) {
   const G = '#1a2e1a'
   const GOLD = '#c9a84c'
@@ -273,10 +276,11 @@ export function buildOrderReceiptEmailHtml(o: {
 
   // Auto-filled boxes were chosen for them, so they keep the free-cancel
   // window. Manual orders don't need it.
+  const editLink = o.orderId ? `${siteUrl}/edit-order?id=${o.orderId}` : `${siteUrl}/order-history`
   const autoFillNote =
     o.orderType === 'auto_filled' && o.graceCancelUntil
       ? `<p style="margin:20px 0 0;font-family:${SANS};font-size:13px;line-height:1.7;color:${G};background:${CREAM};border-left:3px solid ${GOLD};padding:12px 16px;">
-          Don't want this box? Cancel free until <strong>${o.graceCancelUntil} tonight</strong> for a full refund in your <a href="${siteUrl}/order-history" style="color:${G};">Order History</a>.
+          Want to change something? <a href="${editLink}" style="color:${G};font-weight:700;">Edit your order</a> free until <strong>${o.graceCancelUntil} tonight</strong> — swap meals, change the amount, or cancel it entirely for a full refund.
         </p>`
       : ''
 

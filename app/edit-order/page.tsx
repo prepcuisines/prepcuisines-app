@@ -231,6 +231,19 @@ function EditOrderInner() {
           ) : (
             editable && (
               <>
+                <div className="pc-edit-sticky-summary">
+                  <span>
+                    <strong>{mainMeals}</strong> meal{mainMeals === 1 ? '' : 's'} selected
+                  </span>
+                  <span>
+                    New total £{newTotal.toFixed(2)}
+                    {delta > 0.009
+                      ? ` — £${delta.toFixed(2)} to charge`
+                      : delta < -0.009
+                        ? ` — £${Math.abs(delta).toFixed(2)} to refund`
+                        : ''}
+                  </span>
+                </div>
                 <div className="pc-mp-grid" style={{ marginTop: 24 }}>
                   {menu.map((item) => {
                     const unit = Math.round(item.price * (item.discount_exempt ? 1 : rate) * 100) / 100

@@ -389,7 +389,8 @@ export async function POST(req: NextRequest) {
                     false,
                     sub.postcode || '',
                     insertedOrder?.order_number ?? null,
-                    '9pm'
+                    '9pm',
+                    reservedOrderId
                   )
                   await klaviyoTrackEvent(
                     sub.email,
