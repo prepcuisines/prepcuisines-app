@@ -22,7 +22,7 @@ const steps = [
 const plans = [
   { tag: 'Popular', name: 'Lean & Clean', desc: 'High protein, low calorie meals designed to help you cut without sacrificing taste or energy.', image: `${CDN}/ground-beef-pepper-rice-bowl-683x1024.webp` },
   { tag: 'Best Value', name: 'Bulk & Build', desc: 'High calorie, muscle-building meals packed with clean carbs and quality protein to fuel serious gains.', image: `${CDN}/4BAF6F67-DE09-434C-8BF7-E92FB7F2040A.jpg` },
-  { tag: 'New', name: 'Simply Balanced', desc: 'Nutritious, well-rounded meals for those who want to eat well, feel great, and maintain a healthy lifestyle.', image: `${CDN}/ChatGPTImageJun15_2026_11_47_41PM.png` },
+  { tag: 'New', name: 'Simply Balanced', desc: 'Nutritious, well-rounded meals for those who want to eat well, feel great, and maintain a healthy lifestyle.', image: `https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%201,%202026,%2006_09_24%20PM.png` },
 ]
 
 const testimonials = [
