@@ -21,19 +21,19 @@ const steps = [
   },
   {
     number: '03',
-    icon: '⏰',
-    image: '/step3-cutoff.jpg',
-    title: 'Every week has a cutoff',
-    description:
-      "Each delivery day has an ordering cutoff. Order before it and you choose exactly what goes in your box that week. If you ever miss it, don't worry — see below.",
-  },
-  {
-    number: '04',
     icon: '🔄',
     image: '/step4-delivery.jpg',
     title: 'Never miss a delivery',
     description:
       "If a cutoff passes and you haven't placed an order, we automatically fill your box from your favourite dishes (never anything you've marked as disliked) and charge your saved card, so your weekly delivery still arrives without you lifting a finger.",
+  },
+  {
+    number: '04',
+    icon: '⏰',
+    image: '/step3-cutoff.jpg',
+    title: 'Every week has a cutoff',
+    description:
+      "Each delivery day has an ordering cutoff. Order before it and you choose exactly what goes in your box that week. If you ever miss it, don't worry — see above.",
   },
   {
     number: '05',
@@ -81,10 +81,12 @@ export default function HowItWorksPage() {
                       <span className="pc-how-panel-icon">{step.icon}</span>
                     </>
                   )}
+                  <div className="pc-how-panel-overlay">
+                    <div className="pc-how-step-eyebrow">Step {step.number}</div>
+                    <h3>{step.title}</h3>
+                  </div>
                 </div>
                 <div className="pc-how-row-text">
-                  <div className="pc-how-step-eyebrow">Step {step.number}</div>
-                  <h3>{step.title}</h3>
                   <p>{step.description}</p>
                 </div>
               </div>
