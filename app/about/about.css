@@ -24,7 +24,7 @@
 }
 .pc-about-eyebrow {
   display: inline-flex; align-items: center; gap: 12px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
   color: var(--gold-dark); margin-bottom: 20px; position: relative; z-index: 1;
 }
 .pc-about-eyebrow::before, .pc-about-eyebrow::after {
@@ -40,7 +40,7 @@
   font-family: var(--font-cormorant), Georgia, serif !important; font-style: italic; font-weight: 400; color: var(--gold);
 }
 .pc-about-hero-sub {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 22px; font-weight: 300; font-style: italic;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 25px; font-weight: 300; font-style: italic;
   color: rgba(245,242,236,0.73); margin-top: 16px; line-height: 1.6; position: relative; z-index: 1;
 }
 
@@ -59,12 +59,12 @@
   position: absolute; bottom: 24px; left: 24px;
   background: rgba(245,242,236,0.95); backdrop-filter: blur(12px);
   padding: 12px 20px; border-radius: 100px;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--green); border: 1px solid rgba(255,255,255,0.6);
 }
 .pc-about-section-eyebrow {
   display: flex; align-items: center; gap: 12px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
   color: var(--gold-dark); margin-bottom: 20px;
 }
 .pc-about-section-eyebrow::before {
@@ -80,7 +80,7 @@
   font-family: var(--font-cormorant), Georgia, serif !important; font-style: italic; font-weight: 400; color: var(--gold);
 }
 .pc-about-story p {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 19px; font-weight: 500;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 21px; font-weight: 500;
   color: rgba(245,242,236,0.82); line-height: 1.8; margin-bottom: 18px;
 }
 
@@ -90,7 +90,7 @@
 .pc-about-values-header { text-align: center; margin-bottom: 64px; }
 .pc-about-center-eyebrow {
   display: inline-flex; align-items: center; gap: 12px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase;
   color: var(--gold-dark); margin-bottom: 16px;
 }
 .pc-about-center-eyebrow::before, .pc-about-center-eyebrow::after {
@@ -105,7 +105,7 @@
   font-family: var(--font-cormorant), Georgia, serif !important; font-style: italic; font-weight: 400; color: var(--gold-dark);
 }
 .pc-about-section-sub {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 19px; font-weight: 300; font-style: italic;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 21px; font-weight: 300; font-style: italic;
   color: rgba(45,53,16,0.67); margin-top: 12px; line-height: 1.6;
 }
 .pc-about-values-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
@@ -125,18 +125,18 @@
 .pc-about-value-icon {
   width: 64px; height: 64px; background: var(--green); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 29px; margin-bottom: 24px; position: relative;
+  font-size: 32px; margin-bottom: 24px; position: relative;
 }
 .pc-about-value-icon::after {
   content: ''; position: absolute; inset: -4px; border-radius: 50%;
   border: 1px solid rgba(201,168,76,0.25);
 }
 .pc-about-value-card h3 {
-  font-family: var(--font-playfair), Georgia, serif !important; font-size: 20px; font-weight: 900;
+  font-family: var(--font-playfair), Georgia, serif !important; font-size: 22px; font-weight: 900;
   color: var(--green); letter-spacing: -0.01em; margin-bottom: 12px;
 }
 .pc-about-value-card p {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 18px; font-weight: 500;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 20px; font-weight: 500;
   font-style: italic; color: rgba(45,53,16,0.82); line-height: 1.65;
 }
 
@@ -160,7 +160,7 @@
   line-height: 1; display: block; margin-bottom: 10px;
 }
 .pc-about-stat-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.18em;
   text-transform: uppercase; color: rgba(245,242,236,0.67);
 }
 
@@ -181,13 +181,13 @@
   font-family: var(--font-cormorant), Georgia, serif !important; font-style: italic; font-weight: 400; color: var(--gold-dark);
 }
 .pc-about-promise p {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 19px; font-weight: 500;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 21px; font-weight: 500;
   color: rgba(45,53,16,0.82); line-height: 1.8; margin-bottom: 16px;
 }
 .pc-about-promise-list { list-style: none; margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
 .pc-about-promise-list li {
   display: flex; align-items: flex-start; gap: 14px;
-  font-family: var(--font-montserrat), sans-serif !important; font-size: 14px; font-weight: 500;
+  font-family: var(--font-montserrat), sans-serif !important; font-size: 16px; font-weight: 500;
   color: rgba(45,53,16,0.85); line-height: 1.5;
 }
 .pc-about-promise-list li::before {
@@ -222,14 +222,14 @@
   font-family: var(--font-cormorant), Georgia, serif !important; font-style: italic; font-weight: 400; color: var(--gold);
 }
 .pc-about-cta p {
-  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 19px; font-style: italic;
+  font-family: var(--font-cormorant), Georgia, serif !important; font-size: 21px; font-style: italic;
   color: rgba(245,242,236,0.76); margin-bottom: 36px; line-height: 1.6;
 }
 .pc-about-cta-btn {
   display: inline-flex; align-items: center; gap: 10px;
   background: var(--gold); color: var(--green);
   padding: 16px 40px; border-radius: 100px;
-  font-family: var(--font-montserrat), sans-serif !important; font-size: 13px; font-weight: 700;
+  font-family: var(--font-montserrat), sans-serif !important; font-size: 15px; font-weight: 700;
   letter-spacing: 0.14em; text-transform: uppercase; text-decoration: none;
   transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
   box-shadow: 0 4px 24px rgba(201,168,76,0.35);
