@@ -47,6 +47,11 @@ export default function CheckoutPage() {
   const [subscriberPostcode, setSubscriberPostcode] = useState('')
   const [deliveryInstructions, setDeliveryInstructions] = useState('')
   const [makeInstructionsPermanent, setMakeInstructionsPermanent] = useState(false)
+  // True right after we've caught the displayed discount going stale (see
+  // placeExistingOrder) - the price on screen has just been corrected to
+  // the real current rate, and they need to look at it again and confirm
+  // before anything is actually charged.
+  const [priceChangedNeedsReconfirm, setPriceChangedNeedsReconfirm] = useState(false)
 
   const [returningUserId, setReturningUserId] = useState<string | null>(null)
   const [returningOrdersCompleted, setReturningOrdersCompleted] = useState(0)
@@ -172,6 +177,49 @@ export default function CheckoutPage() {
     setCheckoutLoading(true)
     setCheckoutError(null)
     setExistingOrderId(null)
+
+    // The discount shown was fetched once when this page first loaded. It
+    // can go stale by the time they actually pay (most likely cause: the
+    // 8pm auto-fill cron ran in between and already used up their 40% on
+    // a different order) - the server would then correctly charge the
+    // real current rate, but silently, at a different price than what
+    // they were shown. Catch that here and make them confirm the real
+    // price rather than ever charging a surprise amount.
+    if (!priceChangedNeedsReconfirm) {
+      const rateFor = (winback: boolean, ordersCompleted: number, bonusOrders: number) =>
+        winback ? 0.6 : ordersCompleted <= 5 || bonusOrders > 0 ? 0.8 : 1
+      const currentRate = rateFor(subscriberWinbackPending, subscriberOrdersCompleted, subscriberBonusOrders)
+
+      const supabase = createClient()
+      const { data: freshProfile } = await supabase
+        .from('customer_profiles')
+        .select('orders_completed, winback_discount_pending, bonus_discount_orders_remaining')
+        .eq('id', subscriberUserId)
+        .maybeSingle()
+
+      if (freshProfile) {
+        const freshRate = rateFor(
+          !!freshProfile.winback_discount_pending,
+          freshProfile.orders_completed || 0,
+          freshProfile.bonus_discount_orders_remaining || 0
+        )
+        if (freshRate !== currentRate) {
+          setSubscriberWinbackPending(!!freshProfile.winback_discount_pending)
+          setSubscriberOrdersCompleted(freshProfile.orders_completed || 0)
+          setSubscriberBonusOrders(freshProfile.bonus_discount_orders_remaining || 0)
+          setPriceChangedNeedsReconfirm(true)
+          setCheckoutLoading(false)
+          setCheckoutError(
+            freshRate > currentRate
+              ? "Your discount has changed since you loaded this page — the total below is now correct. Please check it and confirm again to place your order."
+              : 'Your price just updated in your favour — please check the total below and confirm again to place your order.'
+          )
+          return
+        }
+      }
+    }
+    setPriceChangedNeedsReconfirm(false)
+
     try {
       // Reactivation (if needed) happens server-side, atomically with a
       // successful charge — never here client-side, and never before we
