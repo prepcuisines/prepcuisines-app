@@ -1015,24 +1015,49 @@ export async function sendComeOrderInviteEmailToCustomer(
 // reactivating picks up exactly where they left off). If they've already
 // used up all 6 discounted orders, this sends without any discount
 // mention rather than promising something that isn't true.
+export type CancelRetentionOffer =
+  | { type: 'forty_percent' }
+  | { type: 'twenty_percent_bonus' }
+  | { type: 'none'; eligibleAgainAt: string | null }
+
 export async function sendCancelledRetentionEmailToCustomer(
   toEmail: string,
   firstName: string,
-  discountedOrdersRemaining: number
+  offer: CancelRetentionOffer
 ) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
 
-  const hasDiscountLeft = discountedOrdersRemaining > 0
-  const bannerText = hasDiscountLeft ? '🎁 YOUR 20% OFF IS STILL WAITING' : '👋 SORRY TO SEE YOU GO'
-  const bodyText = hasDiscountLeft
-    ? `Before you go — you've still got <strong>${discountedOrdersRemaining} order${
-        discountedOrdersRemaining === 1 ? '' : 's'
-      } left at 20% off</strong>. Reactivate any time and pick up right where you left off, no need to start over.`
-    : `Before you go — if you ever fancy coming back, just reactivate any time. We'll have a fresh menu waiting.`
+  const bannerText =
+    offer.type === 'forty_percent'
+      ? '🎁 40% OFF IS WAITING FOR YOU'
+      : offer.type === 'twenty_percent_bonus'
+        ? '🎁 20% OFF YOUR NEXT 4 ORDERS'
+        : '👋 SORRY TO SEE YOU GO'
+
+  const eligibleAgainText =
+    offer.type === 'none' && offer.eligibleAgainAt
+      ? ` You'll be eligible for a returning-customer discount again from ${new Date(
+          offer.eligibleAgainAt
+        ).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+      : ''
+
+  const bodyText =
+    offer.type === 'forty_percent'
+      ? `Before you go — your next order is already set up at <strong>40% off</strong>. Just reactivate whenever you're ready, no need to do anything else.`
+      : offer.type === 'twenty_percent_bonus'
+        ? `Before you go — your next <strong>4 orders are already set up at 20% off</strong>. Just reactivate whenever you're ready, no need to do anything else.`
+        : `Before you go — if you ever fancy coming back, just reactivate any time. We'll have a fresh menu waiting.${eligibleAgainText}`
+
+  const subject =
+    offer.type === 'forty_percent'
+      ? `${firstName}, your next order is 40% off`
+      : offer.type === 'twenty_percent_bonus'
+        ? `${firstName}, your next 4 orders are 20% off`
+        : `${firstName}, sorry to see you go`
 
   await sendEmailViaNeo(
     toEmail,
-    hasDiscountLeft ? `${firstName}, your 20% off is still here` : `${firstName}, sorry to see you go`,
+    subject,
     `
     <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
       <tr><td align="center">

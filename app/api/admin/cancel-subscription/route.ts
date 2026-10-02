@@ -30,26 +30,50 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from('customer_profiles')
-    .select('email, full_name, orders_completed')
+    .select('email, full_name, orders_completed, retention_discount_last_claimed_at')
     .eq('id', customerId)
     .maybeSingle()
 
-  const { error } = await supabase
-    .from('customer_profiles')
-    .update({
-      subscription_status: 'cancelled',
-      subscription_cancelled_at: new Date().toISOString(),
-    })
-    .eq('id', customerId)
+  // Same retention-offer rules as the dashboard's own cancel flow - see
+  // app/api/cancel-subscription/route.ts for the full explanation.
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  const discountEligible =
+    !profile?.retention_discount_last_claimed_at ||
+    new Date(profile.retention_discount_last_claimed_at) < sixMonthsAgo
+  const hasUsedAllInitialDiscountOrders = (profile?.orders_completed || 0) > 5
+  const now = new Date().toISOString()
+
+  const update: Record<string, unknown> = {
+    subscription_status: 'cancelled',
+    subscription_cancelled_at: now,
+  }
+  if (discountEligible) {
+    update.retention_discount_last_claimed_at = now
+    if (hasUsedAllInitialDiscountOrders) update.bonus_discount_orders_remaining = 4
+    else update.winback_discount_pending = true
+  }
+
+  const { error } = await supabase.from('customer_profiles').update(update).eq('id', customerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (profile?.email) {
-    const discountedOrdersRemaining = Math.max(0, 6 - (profile.orders_completed || 0))
     await sendCancelledRetentionEmailToCustomer(
       profile.email,
       (profile.full_name || 'there').split(' ')[0],
-      discountedOrdersRemaining
+      discountEligible
+        ? { type: hasUsedAllInitialDiscountOrders ? 'twenty_percent_bonus' : 'forty_percent' }
+        : {
+            type: 'none',
+            eligibleAgainAt: profile.retention_discount_last_claimed_at
+              ? (() => {
+                  const d = new Date(profile.retention_discount_last_claimed_at!)
+                  d.setMonth(d.getMonth() + 6)
+                  return d.toISOString()
+                })()
+              : null,
+          }
     )
   }
 
