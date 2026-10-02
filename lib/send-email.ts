@@ -1031,29 +1031,29 @@ export function buildCancelledRetentionEmailHtml(
     offer.type === 'forty_percent'
       ? '🎁 40% OFF IS WAITING FOR YOU'
       : offer.type === 'twenty_percent_bonus'
-        ? '🎁 20% OFF YOUR NEXT 4 ORDERS'
+        ? '🎁 20% OFF YOUR NEXT 5 ORDERS'
         : '👋 SORRY TO SEE YOU GO'
 
   const eligibleAgainText =
     offer.type === 'none' && offer.eligibleAgainAt
-      ? ` You'll be eligible for a returning-customer discount again from ${new Date(
+      ? ` We'll have a returning-customer discount ready for you again from ${new Date(
           offer.eligibleAgainAt
         ).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`
       : ''
 
   const bodyText =
     offer.type === 'forty_percent'
-      ? `Before you go — your next order is already set up at <strong>40% off</strong>. Just reactivate whenever you're ready, no need to do anything else.`
+      ? `We're genuinely sorry to see you go — we'll really miss cooking for you. Whenever you're ready to come back, we'd love to have you: your next order is already set up at <strong>40% off</strong>, so there's nothing extra to do, just reactivate when it feels right.`
       : offer.type === 'twenty_percent_bonus'
-        ? `Before you go — your next <strong>4 orders are already set up at 20% off</strong>. Just reactivate whenever you're ready, no need to do anything else.`
-        : `Before you go — if you ever fancy coming back, just reactivate any time. We'll have a fresh menu waiting.${eligibleAgainText}`
+        ? `We're genuinely sorry to see you go — we'll really miss cooking for you. Whenever you're ready to come back, we'd love to have you: your next <strong>5 orders are already set up at 20% off</strong>, so there's nothing extra to do, just reactivate when it feels right.`
+        : `We're genuinely sorry to see you go — we'll really miss cooking for you. If you ever fancy coming back, just reactivate any time, we'll have a fresh menu waiting for you.${eligibleAgainText}`
 
   const subject =
     offer.type === 'forty_percent'
-      ? `${firstName}, your next order is 40% off`
+      ? `${firstName}, we're sorry to see you go — 40% off whenever you're ready to return`
       : offer.type === 'twenty_percent_bonus'
-        ? `${firstName}, your next 4 orders are 20% off`
-        : `${firstName}, sorry to see you go`
+        ? `${firstName}, we're sorry to see you go — 20% off your next 5 orders whenever you return`
+        : `${firstName}, we're really sorry to see you go`
 
   const html = `
     <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
@@ -1067,7 +1067,7 @@ export function buildCancelledRetentionEmailHtml(
           </td></tr>
           <tr><td style="padding:40px 36px 36px;">
             <p style="font-family:Georgia,serif;font-size:26px;color:#1a2e1a;margin:0 0 20px;line-height:1.3;">
-              Sorry to see you go, ${firstName}.
+              We're really sorry to see you go, ${firstName}.
             </p>
             <p style="font-size:15px;line-height:1.75;color:#333333;margin:0 0 28px;">
               ${bodyText}

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
   if (discountEligible) {
     update.retention_discount_last_claimed_at = now
-    if (hasUsedAllInitialDiscountOrders) update.bonus_discount_orders_remaining = 4
+    if (hasUsedAllInitialDiscountOrders) update.bonus_discount_orders_remaining = 5
     else update.winback_discount_pending = true
   }
 

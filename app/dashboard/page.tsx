@@ -354,10 +354,10 @@ export default function DashboardPage() {
     const now = new Date().toISOString()
     const { error: updateError } = await supabase
       .from('customer_profiles')
-      .update({ bonus_discount_orders_remaining: 4, retention_discount_last_claimed_at: now })
+      .update({ bonus_discount_orders_remaining: 5, retention_discount_last_claimed_at: now })
       .eq('id', user.id)
     if (!updateError) {
-      setProfile({ ...profile, bonus_discount_orders_remaining: 4, retention_discount_last_claimed_at: now })
+      setProfile({ ...profile, bonus_discount_orders_remaining: 5, retention_discount_last_claimed_at: now })
       setCancelStep('closed')
     }
     setActionLoading(false)
@@ -805,13 +805,13 @@ export default function DashboardPage() {
                   hasUsedAllInitialDiscountOrders ? (
                     <>
                       <h3>Before you go — one more thing</h3>
-                      <p>Stay subscribed and we'll give you 4 more orders at 20% off.</p>
+                      <p>Stay subscribed and we'll give you 5 more orders at 20% off.</p>
                       <button
                         className="pc-checkout-btn primary"
                         onClick={acceptBonusDiscountOffer}
                         disabled={actionLoading}
                       >
-                        Get 4 orders at 20% off
+                        Get 5 orders at 20% off
                       </button>
                     </>
                   ) : (
