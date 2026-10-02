@@ -2397,7 +2397,7 @@ export default function AdminDashboard() {
         .reduce((s, item) => s + (item.qty || 0), 0)
       if (itemCount <= 0) continue
       if (itemCount <= 6) counts.small++
-      else if (itemCount <= 10) counts.medium++
+      else if (itemCount <= 8) counts.medium++
       else counts.large++
     }
     return counts
@@ -3088,15 +3088,15 @@ Bukr / prepcuisines`
     loadOrders()
   }
 
-  // Same banding used in Packaging & Delivery costs: small <=6 items,
-  // medium 7-10, large 11+. Delivery line excluded from the count, same
-  // as everywhere else box size is worked out.
+  // New boxes (Oct 2026): small <=6 items (unchanged), medium 7-8, large
+  // 9+. Delivery line excluded from the count, same as everywhere else
+  // box size is worked out.
   const boxSizeForOrder = (o: Order): 'small' | 'medium' | 'large' => {
     const totalItems = (o.items || [])
       .filter((i) => i.name && i.name !== 'Delivery')
       .reduce((s, i) => s + (i.qty || 0), 0)
     if (totalItems <= 6) return 'small'
-    if (totalItems <= 10) return 'medium'
+    if (totalItems <= 8) return 'medium'
     return 'large'
   }
 
@@ -4696,8 +4696,8 @@ Bukr / prepcuisines`
                   <div className="box-count-summary">
                     <span className="box-count-label">Nationwide boxes needed:</span>
                     <span className="box-count-item">Small (≤6): <strong>{boxCountsForKey.small}</strong></span>
-                    <span className="box-count-item">Medium (7–10): <strong>{boxCountsForKey.medium}</strong></span>
-                    <span className="box-count-item">Large (11+): <strong>{boxCountsForKey.large}</strong></span>
+                    <span className="box-count-item">Medium (7–8): <strong>{boxCountsForKey.medium}</strong></span>
+                    <span className="box-count-item">Large (9+): <strong>{boxCountsForKey.large}</strong></span>
                   </div>
                 )}
 
