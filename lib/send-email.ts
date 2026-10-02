@@ -1020,11 +1020,11 @@ export type CancelRetentionOffer =
   | { type: 'twenty_percent_bonus' }
   | { type: 'none'; eligibleAgainAt: string | null }
 
-export async function sendCancelledRetentionEmailToCustomer(
+export function buildCancelledRetentionEmailHtml(
   toEmail: string,
   firstName: string,
   offer: CancelRetentionOffer
-) {
+): { subject: string; html: string } {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
 
   const bannerText =
@@ -1055,10 +1055,7 @@ export async function sendCancelledRetentionEmailToCustomer(
         ? `${firstName}, your next 4 orders are 20% off`
         : `${firstName}, sorry to see you go`
 
-  await sendEmailViaNeo(
-    toEmail,
-    subject,
-    `
+  const html = `
     <table border="0" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 16px;" width="100%">
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
@@ -1099,7 +1096,17 @@ export async function sendCancelledRetentionEmailToCustomer(
       </td></tr>
     </table>
     `
-  )
+
+  return { subject, html }
+}
+
+export async function sendCancelledRetentionEmailToCustomer(
+  toEmail: string,
+  firstName: string,
+  offer: CancelRetentionOffer
+) {
+  const { subject, html } = buildCancelledRetentionEmailHtml(toEmail, firstName, offer)
+  await sendEmailViaNeo(toEmail, subject, html)
 }
 
 // A genuinely plain-text style message - just a subject and body,
