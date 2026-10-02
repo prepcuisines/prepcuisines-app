@@ -334,7 +334,7 @@ export default function DashboardPage() {
       .update({ winback_discount_pending: true, retention_discount_last_claimed_at: now })
       .eq('id', user.id)
     if (!updateError) {
-      setProfile({ ...profile, retention_discount_last_claimed_at: now })
+      setProfile({ ...profile, winback_discount_pending: true, retention_discount_last_claimed_at: now })
       setCancelStep('closed')
     }
     setActionLoading(false)
