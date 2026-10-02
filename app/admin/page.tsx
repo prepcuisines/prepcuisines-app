@@ -87,7 +87,19 @@ type Order = {
   dpd_shipment_id?: string | null
   dpd_consignment_number?: string | null
   label_printed_at?: string | null
+  // Manual override: treats this order as a Stoke/local delivery in the
+  // hub (packing slip style, box/bag tallies, cook sheet region) even
+  // though its postcode is outside Stoke — e.g. Derby/Nottingham orders
+  // delivered by our own driver rather than DPD. Delivery fee charged to
+  // the customer is unaffected by this flag.
+  force_local_delivery?: boolean | null
 }
+
+// Whether an order should be treated as a Stoke/local delivery in the hub —
+// either its postcode is in Stoke (ST prefix) or it's been manually
+// flagged as local via force_local_delivery (see above).
+const isStokeOrder = (o: Order) =>
+  !!o.force_local_delivery || (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
 
 type StokeRouteStop = {
   key: string
@@ -2362,7 +2374,7 @@ export default function AdminDashboard() {
       const day = dayNameOf(o.delivery_day)
       const key = `${week}__${day}`
       if (key !== expandedTallyKey) continue
-      const stoke = (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
+      const stoke = isStokeOrder(o)
       for (const item of o.items || []) {
         if (!item.name || item.name === 'Delivery') continue
         const entry = dishTotals.get(item.name) || { qty: 0, stokeQty: 0, outQty: 0 }
@@ -2391,7 +2403,7 @@ export default function AdminDashboard() {
       const day = dayNameOf(o.delivery_day)
       const key = `${week}__${day}`
       if (key !== expandedTallyKey) continue
-      if ((o.ship_postcode || '').trim().toUpperCase().startsWith('ST')) continue
+      if (isStokeOrder(o)) continue
       const itemCount = (o.items || [])
         .filter((item) => item.name && item.name !== 'Delivery')
         .reduce((s, item) => s + (item.qty || 0), 0)
@@ -2492,8 +2504,6 @@ export default function AdminDashboard() {
       .map(([area, count]) => ({ area, count, pct: Math.round((count / maxCount) * 100) }))
       .sort((a, b) => b.count - a.count)
   }, [filteredOrders])
-
-  const isStokeOrder = (o: Order) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
 
   const generatePackingSlipHtml = (o: Order) => {
     const name = o.ship_full_name || o.customer_name || 'Customer'
@@ -2988,7 +2998,7 @@ Bukr / prepcuisines`
     const byState = printLabelsOrders.filter((o) => matchesOrderState(o, orderStateFilter))
     if (locationFilter === 'all') return byState
     return byState.filter((o) => {
-      const isStoke = (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')
+      const isStoke = isStokeOrder(o)
       return locationFilter === 'st' ? isStoke : !isStoke
     })
   }, [printLabelsOrders, locationFilter, orderStateFilter])
@@ -3333,16 +3343,18 @@ Bukr / prepcuisines`
   }
 
   const stokeOrderCount = useMemo(
-    () => deliverableOrders.filter((o) => (o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
+    () => deliverableOrders.filter(isStokeOrder).length,
     [deliverableOrders]
   )
 
   // DPD only charges for deliveries outside Stoke-on-Trent — those are
   // done in-house. So this always counts non-Stoke orders from the
   // current search/order set, regardless of which location toggle is
-  // selected, since that's the real cost driver either way.
+  // selected, since that's the real cost driver either way. (Orders
+  // force-flagged local are excluded too, since they're also handled
+  // in-house rather than via DPD.)
   const outsideStokeCount = useMemo(
-    () => filteredOrders.filter((o) => !(o.ship_postcode || '').trim().toUpperCase().startsWith('ST')).length,
+    () => filteredOrders.filter((o) => !isStokeOrder(o)).length,
     [filteredOrders]
   )
   const DPD_COST_PER_DELIVERY = 7.95
