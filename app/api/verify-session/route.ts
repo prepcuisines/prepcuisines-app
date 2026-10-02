@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
+import { sendOrderConfirmationEmailToCustomer, sendAdminAlertEmail } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
 import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
 
@@ -33,10 +33,27 @@ export async function GET(req: NextRequest) {
       // Save the card used here so our weekly job can charge it later,
       // and mark this as their first completed order in the discount sequence.
       const paymentIntent = session.payment_intent as Stripe.PaymentIntent | null
-      const paymentMethodId =
+      let paymentMethodId =
         typeof paymentIntent?.payment_method === 'string'
           ? paymentIntent.payment_method
           : paymentIntent?.payment_method?.id
+
+      // Fallback: this page loads right after Stripe's redirect, and the
+      // session's embedded payment_intent snapshot has occasionally not
+      // had payment_method attached yet at that exact moment (a real
+      // customer was left with no card on file despite being charged).
+      // One fresh direct fetch is enough to settle it.
+      if (!paymentMethodId && paymentIntent?.id) {
+        try {
+          const freshIntent = await stripe.paymentIntents.retrieve(paymentIntent.id)
+          paymentMethodId =
+            typeof freshIntent.payment_method === 'string'
+              ? freshIntent.payment_method
+              : freshIntent.payment_method?.id
+        } catch {
+          // Fall through - still handled below if this didn't help.
+        }
+      }
 
       const userId = session.metadata.userId
       const deliveryDay = session.metadata.deliveryDay || null
@@ -63,7 +80,22 @@ export async function GET(req: NextRequest) {
       }
       if (isFirstOrder) profileUpdate.orders_completed = 1
 
-      await supabase.from('customer_profiles').update(profileUpdate).eq('id', userId)
+      const { error: profileUpdateError } = await supabase
+        .from('customer_profiles')
+        .update(profileUpdate)
+        .eq('id', userId)
+
+      if (profileUpdateError) {
+        await sendAdminAlertEmail(
+          'Signup: could not save customer profile after payment',
+          `Payment succeeded (session ${sessionId}, user ${userId}) but saving the profile failed: ${profileUpdateError.message}. Check this customer's account manually — their card and/or delivery details may not have saved.`
+        ).catch(() => {})
+      } else if (!paymentMethodId) {
+        await sendAdminAlertEmail(
+          'Signup: no card captured for a new subscriber',
+          `${userId} completed checkout (session ${sessionId}) but no payment method could be captured, so this subscriber has no card on file. Their first order went through, but future auto-fill charges will be skipped until they add a card themselves (or you check Stripe for the payment method used and set it manually).`
+        ).catch(() => {})
+      }
 
       // Log this first order into history too — pulling the itemized
       // detail straight from Stripe's own line items for this session,
@@ -222,10 +254,17 @@ export async function GET(req: NextRequest) {
             })
           }
         }
-      } catch (historyErr) {
+      } catch (historyErr: any) {
         // Never let order-history logging break the actual signup —
         // the payment and subscription activation above already succeeded.
+        // But this must never be silent: a customer being charged with
+        // no order anywhere in the system is exactly the incident this
+        // is here to catch (real example: session ${sessionId}).
         console.error('Could not log signup order to history:', historyErr)
+        await sendAdminAlertEmail(
+          'URGENT: customer charged but their first order was not saved',
+          `Session ${sessionId}, user ${userId}, amount £${((session.amount_total || 0) / 100).toFixed(2)}.\n\nThe payment succeeded and their account/subscription is active, but creating the order record failed:\n${historyErr?.message || historyErr}\n\nCheck Stripe for this session's payment details, then create the order manually from what they actually paid for.`
+        ).catch(() => {})
       }
     }
 
@@ -330,10 +369,15 @@ export async function GET(req: NextRequest) {
             orderId: sessionId,
           })
         }
-      } catch (paygErr) {
+      } catch (paygErr: any) {
         // Same principle as above — don't let logging/email failures
-        // affect the fact that payment already succeeded.
+        // affect the fact that payment already succeeded. But alert,
+        // same reasoning as the signup path above.
         console.error('Could not log Pay As You Go order:', paygErr)
+        await sendAdminAlertEmail(
+          'URGENT: customer charged but their Pay As You Go order was not saved',
+          `Session ${sessionId}, amount £${((session.amount_total || 0) / 100).toFixed(2)}.\n\nThe payment succeeded, but creating the order record failed:\n${paygErr?.message || paygErr}\n\nCheck Stripe for this session's payment and customer details, then create the order manually from what they actually paid for.`
+        ).catch(() => {})
       }
     }
 
