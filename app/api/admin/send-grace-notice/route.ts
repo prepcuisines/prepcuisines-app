@@ -13,7 +13,7 @@ function isAuthorized(req: NextRequest) {
 }
 
 // One-tap system send: emails every live auto-filled order from the last few
-// hours the grace-window notice (cancel free until 9:30pm tonight). Visit
+// hours the grace-window notice (edit free until 8:30pm tonight). Visit
 // this URL while logged into the admin. Safe to re-run — sending twice just
 // means a reminder, and the response lists exactly who was emailed.
 export async function GET(req: NextRequest) {
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         o.ship_email,
         (o.ship_full_name || '').split(' ')[0],
         o.order_number,
-        '9pm'
+        '8:30pm'
       )
       sent.push(`${o.ship_full_name} <${o.ship_email}>`)
     } catch {

@@ -95,6 +95,21 @@ type Order = {
   force_local_delivery?: boolean | null
 }
 
+// Shape returned by /api/admin/customer-orders — a trimmed-down order record
+// for the order-history list in the customer detail modal.
+type CustomerOrderHistoryItem = {
+  id: string
+  order_number: number | null
+  status: string
+  items: { name: string; price: number; qty: number }[]
+  total_amount: number | null
+  delivery_day: string | null
+  created_at: string
+  fulfilled?: boolean
+  cancelled?: boolean
+  menu_windows: { week_start_date: string } | null
+}
+
 // Whether an order should be treated as a Stoke/local delivery in the hub —
 // either its postcode is in Stoke (ST prefix) or it's been manually
 // flagged as local via force_local_delivery (see above).
@@ -347,6 +362,8 @@ export default function AdminDashboard() {
   >('idle')
   const [editCustomerEmailError, setEditCustomerEmailError] = useState<string | null>(null)
   const [viewCustomerDetail, setViewCustomerDetail] = useState<Customer | null>(null)
+  const [customerOrderHistory, setCustomerOrderHistory] = useState<CustomerOrderHistoryItem[]>([])
+  const [customerOrderHistoryLoading, setCustomerOrderHistoryLoading] = useState(false)
   const [editDeliveryCustomer, setEditDeliveryCustomer] = useState<{
     id: string
     name: string
@@ -654,6 +671,28 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadCustomerOrderHistory = async (customerId: string) => {
+    setCustomerOrderHistoryLoading(true)
+    setCustomerOrderHistory([])
+    try {
+      const res = await fetch(`/api/admin/customer-orders?customer_id=${encodeURIComponent(customerId)}`, {
+        cache: 'no-store',
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setCustomerOrderHistory(data.orders || [])
+    } catch {
+      setCustomerOrderHistory([])
+    } finally {
+      setCustomerOrderHistoryLoading(false)
+    }
+  }
+
+  const openCustomerDetail = (c: Customer) => {
+    setViewCustomerDetail(c)
+    loadCustomerOrderHistory(c.id)
   }
 
   const loadAddOrderMenuItems = async (windowId: string) => {
@@ -3916,7 +3955,7 @@ Bukr / prepcuisines`
                     <div
                       key={c.id}
                       className="pc-order-card"
-                      onClick={() => setViewCustomerDetail(c)}
+                      onClick={() => openCustomerDetail(c)}
                     >
                       <div className="pc-order-card-top">
                         <span className="avatar">{initials(c.full_name)}</span>
@@ -6780,6 +6819,60 @@ Bukr / prepcuisines`
                   <span>Signed up</span>
                   <span>{new Date(viewCustomerDetail.created_at).toLocaleDateString('en-GB')}</span>
                 </div>
+              </div>
+
+              <div className="pc-modal-section">
+                <label className="field-label">Order history</label>
+                {customerOrderHistoryLoading ? (
+                  <div className="empty-panel">Loading…</div>
+                ) : customerOrderHistory.length === 0 ? (
+                  <div className="empty-panel">No orders yet.</div>
+                ) : (
+                  <div className="pc-order-list">
+                    {customerOrderHistory.map((o) => {
+                      const itemCount = (o.items || []).reduce(
+                        (sum: number, it: any) => sum + (it.qty || 1),
+                        0
+                      )
+                      const weekStart = o.menu_windows?.week_start_date
+                        ? new Date(o.menu_windows.week_start_date).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : new Date(o.created_at).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                      return (
+                        <div key={o.id} className="pc-order-card" style={{ cursor: 'default' }}>
+                          <div className="pc-order-card-top">
+                            <div style={{ flex: 1 }}>
+                              <div className="pc-order-card-name">
+                                #{o.order_number} — {o.delivery_day || weekStart}
+                              </div>
+                              <div className="pc-modal-summary-item-meta">
+                                {weekStart} · {itemCount} item{itemCount === 1 ? '' : 's'}
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 700 }}>{money(Number(o.total_amount) || 0)}</div>
+                          </div>
+                          <div className="pc-order-card-meta">
+                            {o.cancelled ? (
+                              <span className="pill pill-muted">Cancelled</span>
+                            ) : (
+                              <span className="pill" style={orderTypePillStyle(o.status)}>
+                                {statusLabels[o.status] || o.status}
+                              </span>
+                            )}
+                            {o.fulfilled && <span className="pill pill-muted">Delivered</span>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="pc-modal-section">
