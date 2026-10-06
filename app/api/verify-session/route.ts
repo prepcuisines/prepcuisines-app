@@ -276,11 +276,19 @@ export async function GET(req: NextRequest) {
         // Idempotency: this endpoint runs on every load of the
         // order-confirmed page, so a refresh/revisit must never log the
         // same single payment as a second order (real incident: one
-        // charge, two identical order rows 24 minutes apart).
+        // charge, two identical order rows 24 minutes apart — and a
+        // second real incident where two near-simultaneous page loads
+        // raced past this exact check before either had inserted,
+        // producing two duplicate rows; .maybeSingle() with no .limit(1)
+        // then silently broke on the next revisit because it found two
+        // matching rows instead of at most one, letting a third duplicate
+        // through. .limit(1) keeps this check safe no matter how many
+        // duplicate rows already exist.)
         const { data: alreadyLogged } = await supabase
           .from('customer_window_orders')
           .select('id')
           .eq('stripe_session_id', sessionId)
+          .limit(1)
           .maybeSingle()
 
         if (alreadyLogged) {
@@ -316,7 +324,7 @@ export async function GET(req: NextRequest) {
           matchedWindowId = window?.id || null
         }
 
-        const { data: insertedPaygOrder } = await supabase
+        const { data: insertedPaygOrder, error: insertPaygError } = await supabase
           .from('customer_window_orders')
           .insert({
             customer_id: null,
@@ -335,6 +343,19 @@ export async function GET(req: NextRequest) {
           })
           .select('order_number')
           .single()
+
+        // Last line of defence: a DB-level unique constraint on
+        // stripe_session_id backs up the check above for the case where two
+        // requests for the same session race past it at almost the same
+        // instant (the exact bug that produced 3 orders off 1 payment for
+        // one customer). A unique-violation here means another request won
+        // the race and already logged this payment — not a real error.
+        if (insertPaygError) {
+          if (insertPaygError.code === '23505') {
+            return NextResponse.json({ paid })
+          }
+          throw insertPaygError
+        }
 
         if (email) {
           await sendOrderConfirmationEmailToCustomer(
