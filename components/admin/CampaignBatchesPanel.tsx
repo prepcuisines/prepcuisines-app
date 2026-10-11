@@ -112,7 +112,7 @@ export default function CampaignBatchesPanel() {
 
   const template = templates.find((t) => t.key === templateKey)
   const audienceMismatch =
-    !!template && !!audience && template.intendedFor === 'not_subscribed' && !['not_subscribed', 'leads', 'payg'].includes(audience)
+    !!template && !!audience && template.intendedFor === 'not_subscribed' && !['not_subscribed', 'leads', 'latest_leads', 'payg'].includes(audience)
 
   const pickAudience = async (key: string) => {
     setAudience(key)
