@@ -351,7 +351,14 @@ export async function POST(req: NextRequest) {
                 .update({
                   status: 'auto_filled',
                   stripe_payment_intent_id: paymentIntent.id,
-                  items: orderItemsSnapshot,
+                  // Delivery is stored as its own line so the items on the
+                  // record always add up to total_amount (same as orders
+                  // placed at checkout). Emails/events below keep the
+                  // food-only snapshot.
+                  items: [
+                    ...orderItemsSnapshot,
+                    { name: 'Delivery', price: deliveryFee, qty: 1 },
+                  ],
                   total_amount: totalAmount / 100,
                   ship_full_name: sub.full_name || null,
                   ship_phone: sub.phone || null,

@@ -232,7 +232,13 @@ export async function POST(req: Request) {
 
   const { error: updateError } = await supabase
     .from('customer_window_orders')
-    .update({ items: newItems, total_amount: newTotal, edited_at: new Date().toISOString() })
+    .update({
+      // Keep the Delivery fee as its own line so items always add up to
+      // total_amount after an edit.
+      items: [...newItems, { name: 'Delivery', price: deliveryFee, qty: 1 }],
+      total_amount: newTotal,
+      edited_at: new Date().toISOString(),
+    })
     .eq('id', order.id)
 
   if (updateError) {
