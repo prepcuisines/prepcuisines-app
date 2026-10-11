@@ -13,7 +13,7 @@ export const CAMPAIGN_AUDIENCES = [
   {
     key: 'latest_leads',
     label: 'Latest 400 leads',
-    hint: 'The 400 newest leads who never ordered and can still get 40% off',
+    hint: 'Newest signups on the new site (up to 400) who haven\'t subscribed and can still get 40% off. Excludes the Shopify import',
   },
   { key: 'payg', label: 'Pay As You Go customers', hint: 'Ordered one-off, never subscribed' },
   {
@@ -28,7 +28,7 @@ export type CampaignAudienceKey = (typeof CAMPAIGN_AUDIENCES)[number]['key']
 
 export type CampaignRecipient = { email: string; firstName: string | null }
 
-// How many leads the "Latest 400 leads" audience takes (newest first).
+// Most people the "Latest 400 leads" audience takes (newest signups first).
 const LATEST_LEADS_COUNT = 400
 
 const norm = (e: string | null | undefined) => (e || '').trim().toLowerCase()
@@ -53,14 +53,8 @@ export async function buildCampaignAudience(
   audience: CampaignAudienceKey
 ): Promise<CampaignRecipient[]> {
   const [leads, profiles, paygOrders, used40, suppressions] = await Promise.all([
-    fetchAll<{ email: string; full_name: string | null; created_at: string | null }>((a, b) =>
-      supabase
-        .from('marketing_leads')
-        .select('email, full_name, created_at')
-        .not('email', 'is', null)
-        .order('created_at', { ascending: false, nullsFirst: false })
-        .order('id')
-        .range(a, b)
+    fetchAll<{ email: string; full_name: string | null }>((a, b) =>
+      supabase.from('marketing_leads').select('email, full_name').not('email', 'is', null).range(a, b)
     ),
     fetchAll<{
       email: string
@@ -68,17 +62,18 @@ export async function buildCampaignAudience(
       marketing_consent: boolean | null
       subscription_status: string | null
       orders_completed: number | null
+      created_at: string | null
     }>((a, b) =>
       supabase
         .from('customer_profiles')
-        .select('email, full_name, marketing_consent, subscription_status, orders_completed')
+        .select('email, full_name, marketing_consent, subscription_status, orders_completed, created_at')
         .not('email', 'is', null)
         .range(a, b)
     ),
-    fetchAll<{ ship_email: string; ship_full_name: string | null }>((a, b) =>
+    fetchAll<{ ship_email: string; ship_full_name: string | null; created_at: string | null }>((a, b) =>
       supabase
         .from('customer_window_orders')
-        .select('ship_email, ship_full_name')
+        .select('ship_email, ship_full_name, created_at')
         .eq('status', 'payg_order')
         .not('ship_email', 'is', null)
         .range(a, b)
@@ -119,18 +114,25 @@ export async function buildCampaignAudience(
       add(e, l.full_name)
     }
   }
-  // The newest eligible leads, newest first, stopping at the limit. Uses the
-  // same eligibility rules as "Leads only", so the batch is always a full
-  // 400 when enough eligible leads exist.
-  const addLatestLeads = (limit: number) => {
-    const newestFirst = [...leads].sort(
-      (x, y) => (Date.parse(y.created_at || '') || 0) - (Date.parse(x.created_at || '') || 0)
-    )
-    for (const l of newestFirst) {
+  // People who signed up on the new site (an account, or a Pay As You Go
+  // order) and haven't subscribed, who can still get the 40% first-box offer.
+  // Shopify-imported leads are deliberately left out. Newest signup first,
+  // stopping at the limit.
+  const addLatestSignups = (limit: number) => {
+    const when = (d: string | null | undefined) => Date.parse(d || '') || 0
+    const candidates = new Map<string, { name: string | null; at: number }>()
+    const consider = (email: string, name: string | null | undefined, at: number) => {
+      const e = norm(email)
+      if (!e || hasSubscribed(e) || usedOffer.has(e)) return
+      const prev = candidates.get(e)
+      if (!prev || at < prev.at) candidates.set(e, { name: name || prev?.name || null, at })
+    }
+    for (const p of profiles) consider(p.email, p.full_name, when(p.created_at))
+    for (const o of paygOrders) consider(o.ship_email, o.ship_full_name, when(o.created_at))
+    const newestFirst = Array.from(candidates.entries()).sort((x, y) => y[1].at - x[1].at)
+    for (const [e, c] of newestFirst) {
       if (result.size >= limit) break
-      const e = norm(l.email)
-      if (profileByEmail.has(e) || paygEmails.has(e) || usedOffer.has(e)) continue
-      add(e, l.full_name)
+      add(e, c.name || profileByEmail.get(e)?.full_name)
     }
   }
   const addPayg = () => {
@@ -140,7 +142,7 @@ export async function buildCampaignAudience(
     }
   }
 
-  if (audience === 'latest_leads') addLatestLeads(LATEST_LEADS_COUNT)
+  if (audience === 'latest_leads') addLatestSignups(LATEST_LEADS_COUNT)
   if (audience === 'leads' || audience === 'not_subscribed') addLeads()
   if (audience === 'payg' || audience === 'not_subscribed') addPayg()
 
