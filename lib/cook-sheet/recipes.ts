@@ -312,6 +312,30 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
+    name: 'Peri Rosa Chicken Rigatoni With Peas',
+    cat: 'low',
+    stickerColour: 'dark green',
+    // Confirmed per-portion spec (Oct 2026): 552 kcal, 48.9g P / 54.1g C /
+    // 15.6g F, ~400g per box. Portion each box as 125g chicken, 110g cooked
+    // rigatoni and 165g sauce (peas included). 10g of the peri peri sauce and
+    // 5g of the spices are brushed onto the chicken; the rest goes in the sauce.
+    meat: { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 170, cookedWeight: 125 },
+    ingredients: [
+      { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 170, isMeat: true },
+      { name: 'Rigatoni Pasta (dry)', raw: 48, cookedWeight: 110 },
+      { name: 'Light Evaporated Milk', raw: 45 },
+      { name: 'Light Cream Cheese', raw: 20 },
+      { name: 'Peas', raw: 40 },
+      { name: "Nando's Peri Peri Sauce (Medium)", raw: 25 },
+      { name: 'Dried Spices & Salt', raw: 8 },
+      { name: 'Tomato Purée', raw: 15 },
+      { name: 'White & Red Onion', raw: 25 },
+      { name: 'Red & Green Pepper', raw: 25 },
+      { name: 'Fresh Parsley & Coriander', raw: 3 },
+      { name: 'Lemon Juice', raw: 4 },
+    ],
+  },
+  {
     name: 'Crispy Chickpeas & Hot Honey Halloumi Salad',
     cat: 'low',
     stickerColour: 'pink',
