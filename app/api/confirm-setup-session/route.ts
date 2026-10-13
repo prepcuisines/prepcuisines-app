@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     const { data: profile } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, phone, house_number, street, postcode, stripe_customer_id, orders_completed, standing_delivery_instructions'
+        'full_name, email, phone, house_number, street, postcode, stripe_customer_id, orders_completed, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining'
       )
       .eq('id', userId)
       .single()
@@ -162,7 +162,16 @@ export async function GET(req: NextRequest) {
     }
 
     const ordersCompleted = profile.orders_completed || 0
-    const discountRate = ordersCompleted <= 5 ? 0.8 : 1
+    // Same tiers as /api/charge-existing-order: a pending 40% win-back beats
+    // everything, then first-5 / bonus 20%, then full price. This path (a
+    // declined card replaced mid-order) used to ignore the 40% and the bonus
+    // orders, so people were charged more than the price they were shown.
+    const hasBonusDiscount = (profile.bonus_discount_orders_remaining || 0) > 0
+    const discountRate = profile.winback_discount_pending
+      ? 0.6
+      : ordersCompleted <= 5 || hasBonusDiscount
+        ? 0.8
+        : 1
 
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
@@ -184,6 +193,8 @@ export async function GET(req: NextRequest) {
         qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
       }
     })
+    // Stored with an explicit Delivery line so items add up to the total.
+    const savedItems = [...orderItemsSnapshot, { name: 'Delivery', price: deliveryFee, qty: 1 }]
 
     let paymentIntent: Stripe.PaymentIntent
     try {
@@ -219,6 +230,13 @@ export async function GET(req: NextRequest) {
 
     if (paymentIntent.status === 'succeeded') {
       const updates: Record<string, any> = { orders_completed: ordersCompleted + 1 }
+      // The one-off 40% is used up by this order.
+      if (profile.winback_discount_pending) {
+        updates.winback_discount_pending = false
+      }
+      if (ordersCompleted > 5 && hasBonusDiscount) {
+        updates.bonus_discount_orders_remaining = (profile.bonus_discount_orders_remaining || 0) - 1
+      }
       if (reactivate) {
         updates.subscription_status = 'active'
       }
@@ -250,7 +268,7 @@ export async function GET(req: NextRequest) {
 
         const orderFields = {
           status: 'manually_ordered',
-          items: orderItemsSnapshot,
+          items: savedItems,
           total_amount: totalAmount / 100,
           delivery_day: deliveryDay || null,
           stripe_payment_intent_id: paymentIntent.id,
