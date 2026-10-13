@@ -314,7 +314,7 @@ export const RECIPES: Recipe[] = [
   {
     name: 'Peri Rosa Chicken Rigatoni With Peas',
     cat: 'low',
-    stickerColour: 'dark green',
+    stickerColour: 'pink',
     // Confirmed per-portion spec (Oct 2026): 552 kcal, 48.9g P / 54.1g C /
     // 15.6g F, ~400g per box. Portion each box as 125g chicken, 110g cooked
     // rigatoni and 165g sauce (peas included). 10g of the peri peri sauce and
