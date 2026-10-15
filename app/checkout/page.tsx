@@ -727,7 +727,7 @@ export default function CheckoutPage() {
               </p>
               <ul className="pc-checkout-features">
                 {!isReturningCustomer && <li>Discount confirmed on the next step</li>}
-                {!isReturningCustomer && <li>Reduced rate on your next 5 orders</li>}
+                {!isReturningCustomer && <li>20% off your next 5 orders</li>}
                 <li>Skip or cancel any week</li>
               </ul>
               <button
