@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const { data: customers, error } = await supabase
     .from('customer_profiles')
     .select(
-      'id, full_name, email, phone, house_number, street, postcode, subscription_status, subscription_cancelled_at, cancellation_reason, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, created_at, marketing_consent'
+      'id, full_name, email, phone, house_number, street, postcode, subscription_status, subscription_cancelled_at, cancellation_reason, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, created_at, marketing_consent, winback_discount_pending, bonus_discount_orders_remaining'
     )
     .gte('created_at', LAUNCH_CUTOFF)
     .order('created_at', { ascending: false })
@@ -147,7 +147,56 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { customerId, skip } = body || {}
+  const { customerId, skip, discountPercent } = body || {}
+
+  // Gives a customer a one-off discount on their next order: 40, 20, or 0 to
+  // take it away. Uses the same two fields every charge path already reads
+  // (auto-fill, the saved-card charge, the new-card retry and the checkout
+  // page's price), so the price they see is the price they're charged:
+  //   40% -> winback_discount_pending (cleared when that order is charged)
+  //   20% -> bonus_discount_orders_remaining = 1 (counted down when charged)
+  // Orders 1-5 are already 20% off, so a 20% bump only changes the price
+  // from order 6 onwards - for those customers nothing is stored.
+  if (customerId && discountPercent !== undefined) {
+    if (![0, 20, 40].includes(discountPercent)) {
+      return NextResponse.json({ error: 'Discount must be 20, 40 or 0' }, { status: 400 })
+    }
+    const { data: cust, error: custError } = await supabase
+      .from('customer_profiles')
+      .select('id, orders_completed')
+      .eq('id', customerId)
+      .single()
+    if (custError || !cust) {
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
+    }
+    if (discountPercent === 20 && (cust.orders_completed || 0) <= 5) {
+      // Don't store a bonus that would sit unused and then switch on later.
+      await supabase
+        .from('customer_profiles')
+        .update({ winback_discount_pending: false, bonus_discount_orders_remaining: 0 })
+        .eq('id', customerId)
+      return NextResponse.json({
+        success: true,
+        alreadyTwentyPercent: true,
+        customer: { id: customerId, winback_discount_pending: false, bonus_discount_orders_remaining: 0 },
+      })
+    }
+    const update =
+      discountPercent === 40
+        ? { winback_discount_pending: true, bonus_discount_orders_remaining: 0 }
+        : discountPercent === 20
+          ? { winback_discount_pending: false, bonus_discount_orders_remaining: 1 }
+          : { winback_discount_pending: false, bonus_discount_orders_remaining: 0 }
+    const { data: updated, error: updError } = await supabase
+      .from('customer_profiles')
+      .update(update)
+      .eq('id', customerId)
+      .select('id, winback_discount_pending, bonus_discount_orders_remaining')
+      .single()
+    if (updError) return NextResponse.json({ error: updError.message }, { status: 500 })
+    return NextResponse.json({ success: true, customer: updated })
+  }
+
   if (!customerId || typeof skip !== 'boolean') {
     return NextResponse.json({ error: 'Missing customerId or skip' }, { status: 400 })
   }

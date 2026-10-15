@@ -52,6 +52,8 @@ type Customer = {
   skip_next_order: boolean | null
   created_at: string
   marketing_consent: boolean | null
+  winback_discount_pending?: boolean | null
+  bonus_discount_orders_remaining?: number | null
   lastOrderAt: string | null
   daysSinceLastOrder: number | null
   orderCount: number
@@ -692,6 +694,7 @@ export default function AdminDashboard() {
 
   const openCustomerDetail = (c: Customer) => {
     setViewCustomerDetail(c)
+    setDiscountNote(null)
     loadCustomerOrderHistory(c.id)
   }
 
@@ -1280,6 +1283,43 @@ export default function AdminDashboard() {
       }
     } finally {
       setSkipNextLoading(false)
+    }
+  }
+
+  // Gives (or removes) a one-off 40% / 20% discount on a customer's next
+  // order. The server stores it in the fields every charge path reads, so
+  // the checkout price and the amount actually charged always match.
+  const [discountLoading, setDiscountLoading] = useState(false)
+  const [discountNote, setDiscountNote] = useState<string | null>(null)
+  const handleSetDiscount = async (customerId: string, percent: 0 | 20 | 40) => {
+    setDiscountLoading(true)
+    setDiscountNote(null)
+    try {
+      const res = await fetch('/api/admin/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId, discountPercent: percent }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setDiscountNote(data.error || 'Could not update the discount')
+        return
+      }
+      const patch = {
+        winback_discount_pending: !!data.customer?.winback_discount_pending,
+        bonus_discount_orders_remaining: data.customer?.bonus_discount_orders_remaining || 0,
+      }
+      setCustomers((prev) => prev.map((c) => (c.id === customerId ? { ...c, ...patch } : c)))
+      setViewCustomerDetail((prev) => (prev && prev.id === customerId ? { ...prev, ...patch } : prev))
+      setDiscountNote(
+        data.alreadyTwentyPercent
+          ? 'Already gets 20% off — their first 5 orders are 20% off.'
+          : percent === 0
+            ? 'Discount removed.'
+            : `${percent}% off added to their next order.`
+      )
+    } finally {
+      setDiscountLoading(false)
     }
   }
 
@@ -6786,6 +6826,48 @@ Bukr / prepcuisines`
                     {viewCustomerDetail.skip_next_order ? 'Undo skip next delivery' : 'Skip next delivery'}
                   </button>
                 </div>
+              </div>
+
+              <div className="pc-modal-card">
+                <div className="pc-modal-card-label">Discount on next order</div>
+                <div className="pc-modal-address">
+                  {viewCustomerDetail.winback_discount_pending
+                    ? '40% off'
+                    : (viewCustomerDetail.bonus_discount_orders_remaining || 0) > 0
+                      ? '20% off'
+                      : (viewCustomerDetail.orders_completed || 0) <= 5
+                        ? 'None extra (first 5 orders are 20% off)'
+                        : 'None'}
+                </div>
+                <div className="pc-modal-inline-row" style={{ marginTop: 10 }}>
+                  <button
+                    className="segment-pill"
+                    disabled={discountLoading}
+                    onClick={() => handleSetDiscount(viewCustomerDetail.id, 40)}
+                  >
+                    Give 40% off
+                  </button>
+                  <button
+                    className="segment-pill"
+                    disabled={discountLoading}
+                    onClick={() => handleSetDiscount(viewCustomerDetail.id, 20)}
+                    style={{ marginLeft: 8 }}
+                  >
+                    Give 20% off
+                  </button>
+                  {(viewCustomerDetail.winback_discount_pending ||
+                    (viewCustomerDetail.bonus_discount_orders_remaining || 0) > 0) && (
+                    <button
+                      className="segment-pill"
+                      disabled={discountLoading}
+                      onClick={() => handleSetDiscount(viewCustomerDetail.id, 0)}
+                      style={{ marginLeft: 8 }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {discountNote && <div className="pc-modal-summary-item-meta" style={{ marginTop: 8 }}>{discountNote}</div>}
               </div>
 
               <div className="pc-modal-card">
