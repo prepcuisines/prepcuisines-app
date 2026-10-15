@@ -65,7 +65,7 @@ export const RECIPES: Recipe[] = [
     meat: { name: 'Lean Ground Beef', raw: 150, cookedWeight: 130 },
     ingredients: [
       { name: 'Lean Ground Beef', raw: 150, isMeat: true },
-      { name: 'Bowtie Pasta (dry)', raw: 75 },
+      { name: 'Farfalle Pasta (dry)', raw: 75 },
       { name: 'White Onion', raw: 63 },
       { name: 'Garlic (minced)', raw: 5 },
       { name: 'Tomato Paste', raw: 19 },
