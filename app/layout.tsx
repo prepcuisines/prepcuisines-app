@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import MetaPixel from "@/components/MetaPixel";
+import GoogleAds from "@/components/GoogleAds";
 
 // Fonts are bundled in app/fonts (not fetched from Google at build time):
 // production builds were failing whenever Google Fonts couldn't be reached
@@ -56,6 +57,7 @@ export default function RootLayout({
     >
 <body className="min-h-full flex flex-col">
       <MetaPixel />
+      <GoogleAds />
       {children}
     </body>
     </html>

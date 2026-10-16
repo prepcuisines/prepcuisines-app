@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildPurchaseConversion } from '@/lib/purchaseConversion'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendOrderConfirmationEmailToCustomer, sendAdminAlertEmail } from '@/lib/send-email'
@@ -28,6 +29,17 @@ export async function GET(req: NextRequest) {
     const paid =
       session.payment_status === 'paid' ||
       (session.mode !== 'payment' && session.status === 'complete')
+
+    // Reported to Google Ads by the browser, but only ever from these
+    // Stripe-sourced figures. Requires Stripe to say the money actually
+    // moved; a free/zero-value or setup-only session never qualifies.
+    const conversion = buildPurchaseConversion({
+      transactionId: session.id,
+      amountMinorUnits: session.amount_total,
+      currency: session.currency,
+      createdUnix: session.created,
+      confirmedPaid: session.mode === 'payment' && session.payment_status === 'paid',
+    })
 
     if (paid && session.metadata?.payMode === 'subscribe' && session.metadata?.userId) {
       // Save the card used here so our weekly job can charge it later,
@@ -183,7 +195,7 @@ export async function GET(req: NextRequest) {
           .limit(1)
           .maybeSingle()
         if (sessionOrder) {
-          return NextResponse.json({ success: true, alreadyRecorded: true })
+          return NextResponse.json({ success: true, alreadyRecorded: true, paid, conversion })
         }
 
         // Otherwise skip only if we've already logged this exact window for
@@ -292,7 +304,7 @@ export async function GET(req: NextRequest) {
           .maybeSingle()
 
         if (alreadyLogged) {
-          return NextResponse.json({ paid })
+          return NextResponse.json({ paid, conversion })
         }
 
         const deliveryDay = session.metadata?.deliveryDay || null
@@ -352,7 +364,7 @@ export async function GET(req: NextRequest) {
         // the race and already logged this payment — not a real error.
         if (insertPaygError) {
           if (insertPaygError.code === '23505') {
-            return NextResponse.json({ paid })
+            return NextResponse.json({ paid, conversion })
           }
           throw insertPaygError
         }
@@ -402,7 +414,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ paid })
+    return NextResponse.json({ paid, conversion })
   } catch (err: any) {
     return NextResponse.json({ paid: false, error: err.message }, { status: 500 })
   }

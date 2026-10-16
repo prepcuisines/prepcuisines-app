@@ -1,5 +1,6 @@
 'use client'
 
+import { trackPurchase } from '@/lib/googleAds'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
@@ -291,6 +292,7 @@ export default function CheckoutPage() {
         return
       }
       sessionStorage.removeItem('pc-order')
+      trackPurchase(data.conversion)
       setOrderPlaced(true)
       setCheckoutLoading(false)
     } catch {

@@ -312,7 +312,7 @@ export async function GET(req: NextRequest) {
         )
       }
 
-      return NextResponse.redirect(`${siteUrl}/order-complete`)
+      return NextResponse.redirect(`${siteUrl}/order-complete?pi=${encodeURIComponent(paymentIntent.id)}`)
     }
 
     await supabase.from('payment_failures').insert({

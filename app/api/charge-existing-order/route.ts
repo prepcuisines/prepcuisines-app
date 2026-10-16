@@ -1,3 +1,4 @@
+import { buildPurchaseConversion } from '@/lib/purchaseConversion'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
@@ -392,7 +393,16 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      return NextResponse.json({ success: true })
+      return NextResponse.json({
+        success: true,
+        conversion: buildPurchaseConversion({
+          transactionId: paymentIntent.id,
+          amountMinorUnits: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          createdUnix: paymentIntent.created,
+          confirmedPaid: paymentIntent.status === 'succeeded',
+        }),
+      })
     }
 
     // Payment intent came back but didn't succeed (e.g. requires_action) —

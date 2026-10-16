@@ -1,9 +1,14 @@
+import { Suspense } from 'react'
 import Header from '../Header'
+import ConversionTracker from './ConversionTracker'
 
 export default function OrderCompletePage() {
   return (
     <>
       <Header />
+      <Suspense fallback={null}>
+        <ConversionTracker />
+      </Suspense>
       <div className="pc-subscriber-confirm">
         <div className="pc-subscriber-confirm-wrapper">
           <div className="pc-mp-eyebrow" style={{ color: 'var(--pc-gold)' }}>All Set</div>

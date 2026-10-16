@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '../Header'
+import { trackPurchase } from '@/lib/googleAds'
 
 function OrderConfirmedInner() {
   const searchParams = useSearchParams()
@@ -21,6 +22,7 @@ function OrderConfirmedInner() {
         setConfirmed(data.paid === true)
         setChecking(false)
         if (data.paid) sessionStorage.removeItem('pc-order')
+        if (data.paid) trackPurchase(data.conversion)
       })
       .catch(() => setChecking(false))
   }, [sessionId])

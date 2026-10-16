@@ -92,8 +92,14 @@ export default function PrivacyPage() {
             <h2>7. Cookies</h2>
             <p>
               Our website uses essential cookies needed to keep you logged
-              in and to remember your order in progress. We do not currently
-              use non-essential tracking or advertising cookies.
+              in and to remember your order in progress. If you choose
+              &ldquo;Accept&rdquo; on our banner, we also use Google
+              advertising cookies to measure which of our ads lead to
+              orders. We do not use them for ad personalisation, and you can
+              choose &ldquo;Reject&rdquo; at any time by clearing this
+              site&rsquo;s data in your browser. Our purchase measurement
+              sends only the order value and an anonymous order reference
+              &mdash; never your name, email, phone or address.
             </p>
           </div>
 
