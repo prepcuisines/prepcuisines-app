@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import CookieSettingsLink from '@/components/CookieSettingsLink'
 
 export default function Footer() {
   return (
@@ -10,6 +11,7 @@ export default function Footer() {
           <Link href="/about">About</Link>
           <Link href="/privacy">Privacy Policy</Link>
           <Link href="/terms">Terms &amp; Conditions</Link>
+          <CookieSettingsLink />
         </nav>
         <div className="pc-footer-details">
           <p>prepcuisines, 102A Sun Street, Stoke-on-Trent, ST1 4JR</p>

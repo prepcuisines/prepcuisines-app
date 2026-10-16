@@ -11,8 +11,9 @@ export type PurchaseConversion = {
 
 // A payment older than this is never reported. It stops an old bookmarked
 // confirmation link (or a cleared browser) from re-firing a conversion days
-// later. Google also de-duplicates on transaction id, so this is a second layer.
-const MAX_AGE_SECONDS = 2 * 60 * 60
+// later, while leaving a full day for a customer who returns to the
+// confirmation page after paying. Google also de-duplicates on transaction id, so this is a second layer.
+const MAX_AGE_SECONDS = 24 * 60 * 60
 
 export function buildPurchaseConversion(opts: {
   transactionId: string

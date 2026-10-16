@@ -24,6 +24,9 @@ function sha256(value: string) {
 }
 
 type MetaEventInput = {
+  // Must be true only when the visitor accepted advertising cookies. Required
+  // so no caller can send customer data to Meta without thinking about consent.
+  consent: boolean
   eventName: 'Purchase' | 'Subscribe' | 'InitiateCheckout' | 'Lead'
   eventId: string // shared with the browser pixel call for the same action, so Meta can dedupe
   email?: string | null
@@ -39,6 +42,7 @@ type MetaEventInput = {
 }
 
 export async function sendMetaConversionEvent(input: MetaEventInput) {
+  if (!input.consent) return
   if (!META_PIXEL_ID || !META_CONVERSIONS_API_TOKEN) {
     console.warn('META_PIXEL_ID or META_CONVERSIONS_API_TOKEN not set — skipping Meta event', input.eventName)
     return

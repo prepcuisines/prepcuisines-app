@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer, sendAdminAlertEmail } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
+import { hasAdConsent } from '@/lib/consentServer'
 import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
@@ -382,6 +383,7 @@ export async function POST(req: NextRequest) {
           // about the discounted first order, never the real recurring
           // revenue from someone actually placing their own repeat order.
           await sendMetaConversionEvent({
+            consent: hasAdConsent(req),
             eventName: 'Purchase',
             eventId: paymentIntent.id,
             email: profile.email,

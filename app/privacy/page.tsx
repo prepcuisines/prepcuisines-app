@@ -94,10 +94,12 @@ export default function PrivacyPage() {
               Our website uses essential cookies needed to keep you logged
               in and to remember your order in progress. If you choose
               &ldquo;Accept&rdquo; on our banner, we also use Google
-              advertising cookies to measure which of our ads lead to
-              orders. We do not use them for ad personalisation, and you can
-              choose &ldquo;Reject&rdquo; at any time by clearing this
-              site&rsquo;s data in your browser. Our purchase measurement
+              and Meta advertising cookies to measure which of our ads lead
+              to orders, and we share order details (and, for Meta, a
+              scrambled form of your email and phone number) with Meta. If you
+              choose &ldquo;Reject&rdquo;, none of this is loaded or sent. You
+              can change your choice at any time using &ldquo;Cookie
+              Settings&rdquo; at the bottom of any page. Our Google purchase measurement
               sends only the order value and an anonymous order reference
               &mdash; never your name, email, phone or address.
             </p>

@@ -3,6 +3,7 @@
 // confirmed payment (see lib/purchaseConversion.ts).
 
 import type { PurchaseConversion } from './purchaseConversion'
+import { CONSENT_CHANGED_EVENT, getConsent } from './consent'
 
 const ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID
 const PURCHASE_LABEL = process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_LABEL
@@ -29,6 +30,15 @@ export function trackPurchase(conversion: PurchaseConversion | undefined | null)
   if (!conversion || !ADS_ID || !PURCHASE_LABEL) return
   if (typeof window === 'undefined') return
   if (alreadySent(conversion.transactionId)) return
+  // No advertising consent means Google's script isn't loaded: send nothing.
+  const consent = getConsent()
+  if (consent === 'denied') return
+  if (consent === null) {
+    // Visitor hasn't answered the cookie banner yet. If they accept while
+    // still on this page, report the purchase then; otherwise send nothing.
+    window.addEventListener(CONSENT_CHANGED_EVENT, () => trackPurchase(conversion), { once: true })
+    return
+  }
 
   // The Google tag is loaded after the page hydrates, and it must have set
   // its consent defaults before any event is queued. Wait for it to be ready.

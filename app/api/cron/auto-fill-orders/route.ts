@@ -3,7 +3,6 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer, sendAdminAlertEmail } from '@/lib/send-email'
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
-import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -409,19 +408,9 @@ export async function POST(req: NextRequest) {
                     },
                     totalAmount / 100
                   )
-                  // The real recurring revenue, unlike the one-off Subscribe
-                  // event at signup - without this, Meta only ever sees the
-                  // discounted first order and can't tell a one-time customer
-                  // from a loyal long-term subscriber.
-                  await sendMetaConversionEvent({
-                    eventName: 'Purchase',
-                    eventId: paymentIntent.id,
-                    email: sub.email,
-                    phone: sub.phone,
-                    value: totalAmount / 100,
-                    currency: 'GBP',
-                    orderId: paymentIntent.id,
-                  })
+                  // No Meta event here: this job runs without a browser, so
+                  // there is no cookie-consent signal for the customer. Sending
+                  // their hashed email/phone to Meta needs that consent.
                 }
               } catch (sideEffectErr: any) {
                 results.push({ customer: sub.id, status: 'charged_ok_but_notification_failed', message: sideEffectErr.message })
