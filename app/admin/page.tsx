@@ -54,6 +54,8 @@ type Customer = {
   marketing_consent: boolean | null
   winback_discount_pending?: boolean | null
   bonus_discount_orders_remaining?: number | null
+  winback_last_sent_at?: string | null
+  retention_discount_last_claimed_at?: string | null
   lastOrderAt: string | null
   daysSinceLastOrder: number | null
   orderCount: number
@@ -2126,6 +2128,37 @@ export default function AdminDashboard() {
         key: 'win_back',
         label: 'Win-back candidates',
         customers: consented.filter((c) => c.isWinBackCandidate),
+      },
+      // Cancelled customers only, split by where they are with the one-off
+      // 40% win-back offer. "40% waiting" = flag still on (applies at their
+      // next order). "Used it" = offered before, flag now off. "Never offered"
+      // should be empty once every cancelled account has been flagged.
+      {
+        key: 'winback_waiting',
+        label: 'Cancelled — 40% waiting',
+        customers: consented.filter((c) => c.subscription_status === 'cancelled' && c.winback_discount_pending),
+      },
+      {
+        key: 'winback_used',
+        label: 'Cancelled — used their offer',
+        customers: consented.filter(
+          (c) =>
+            c.subscription_status === 'cancelled' &&
+            !c.winback_discount_pending &&
+            (!!c.winback_last_sent_at || !!c.retention_discount_last_claimed_at || (c.bonus_discount_orders_remaining || 0) > 0)
+        ),
+      },
+      {
+        key: 'winback_never',
+        label: 'Cancelled — never offered',
+        customers: consented.filter(
+          (c) =>
+            c.subscription_status === 'cancelled' &&
+            !c.winback_discount_pending &&
+            !c.winback_last_sent_at &&
+            !c.retention_discount_last_claimed_at &&
+            !(c.bonus_discount_orders_remaining || 0)
+        ),
       },
       {
         key: 'top_spenders',

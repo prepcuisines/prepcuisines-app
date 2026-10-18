@@ -1,3 +1,4 @@
+import { logWinback } from '@/lib/winbackLog'
 import { buildPurchaseConversion } from '@/lib/purchaseConversion'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
@@ -291,6 +292,9 @@ export async function POST(req: NextRequest) {
         .from('customer_profiles')
         .update(updates)
         .eq('id', userId)
+      if (profile.winback_discount_pending) {
+        await logWinback(supabase, { customerId: userId, email: profile.email, event: 'used', source: 'saved_card_order' })
+      }
 
       if (matchedWindowId) {
         // The customer has now paid for this order themselves, so any

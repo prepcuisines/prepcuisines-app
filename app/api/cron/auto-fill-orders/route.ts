@@ -1,3 +1,4 @@
+import { logWinback } from '@/lib/winbackLog'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
@@ -344,6 +345,9 @@ export async function POST(req: NextRequest) {
                     : {}),
                 })
                 .eq('id', sub.id)
+              if (sub.winback_discount_pending) {
+                await logWinback(supabase, { customerId: sub.id, email: sub.email, event: 'used', source: 'auto_fill' })
+              }
 
               const { data } = await supabase
                 .from('customer_window_orders')

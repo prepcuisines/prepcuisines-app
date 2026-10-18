@@ -1,3 +1,4 @@
+import { logWinback } from '@/lib/winbackLog'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   const { data: customers, error } = await supabase
     .from('customer_profiles')
     .select(
-      'id, full_name, email, phone, house_number, street, postcode, subscription_status, subscription_cancelled_at, cancellation_reason, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, created_at, marketing_consent, winback_discount_pending, bonus_discount_orders_remaining'
+      'id, full_name, email, phone, house_number, street, postcode, subscription_status, subscription_cancelled_at, cancellation_reason, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, created_at, marketing_consent, winback_discount_pending, bonus_discount_orders_remaining, winback_last_sent_at, retention_discount_last_claimed_at'
     )
     .gte('created_at', LAUNCH_CUTOFF)
     .order('created_at', { ascending: false })
@@ -194,6 +195,12 @@ export async function POST(req: NextRequest) {
       .select('id, winback_discount_pending, bonus_discount_orders_remaining')
       .single()
     if (updError) return NextResponse.json({ error: updError.message }, { status: 500 })
+    await logWinback(supabase, {
+      customerId,
+      event: discountPercent === 40 ? 'flagged' : 'cleared',
+      source: 'admin',
+      note: `admin set ${discountPercent}%`,
+    })
     return NextResponse.json({ success: true, customer: updated })
   }
 

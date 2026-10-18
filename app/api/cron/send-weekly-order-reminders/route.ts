@@ -1,3 +1,4 @@
+import { logWinback } from '@/lib/winbackLog'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import {
@@ -419,6 +420,7 @@ export async function POST(req: NextRequest) {
         .from('customer_profiles')
         .update({ winback_last_sent_at: new Date().toISOString(), winback_discount_pending: true })
         .eq('id', person.id)
+      await logWinback(supabase, { customerId: person.id, email: person.email, event: 'flagged', source: 'winback_email' })
     } else if (person.kind === 'leadsPayday') {
       await sendPaydayDealEmailToLead(person.email, (person.full_name || 'there').split(' ')[0])
       await supabase

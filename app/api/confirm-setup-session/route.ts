@@ -1,3 +1,4 @@
+import { logWinback } from '@/lib/winbackLog'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
@@ -252,6 +253,9 @@ export async function GET(req: NextRequest) {
         updates.standing_delivery_instructions = deliveryInstructions
       }
       await supabase.from('customer_profiles').update(updates).eq('id', userId)
+      if (profile.winback_discount_pending) {
+        await logWinback(supabase, { customerId: userId, email: profile.email, event: 'used', source: 'new_card_order' })
+      }
 
       if (matchedWindowId) {
         // The customer has now paid for this order themselves, so any

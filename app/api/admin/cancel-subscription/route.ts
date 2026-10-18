@@ -1,3 +1,4 @@
+import { logWinback } from '@/lib/winbackLog'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendCancelledRetentionEmailToCustomer } from '@/lib/send-email'
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.from('customer_profiles').update(update).eq('id', customerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (update.winback_discount_pending === true) {
+    await logWinback(supabase, { customerId, email: profile?.email, event: 'flagged', source: 'cancellation' })
+  }
 
   if (profile?.email) {
     await sendCancelledRetentionEmailToCustomer(
