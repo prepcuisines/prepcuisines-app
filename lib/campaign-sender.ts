@@ -4,6 +4,7 @@ import { buildUnsubscribeUrl } from '@/lib/unsubscribe'
 import { getCampaignTemplate, renderCampaignHtml, renderCampaignSubject, buildImageCampaignHtml } from '@/lib/campaign-templates'
 import { buildReminderEmailHtml } from '@/lib/reminder-email'
 import { buildSkipUrl } from '@/lib/skip-link'
+import { isPermanentBounce, suppressBouncedEmail, loadSuppressedEmails } from '@/lib/emailBounce'
 
 // Hard limits. The database enforces these too (max 400 recipients per
 // batch, only one batch sending at a time), so even a bug here can't
@@ -140,10 +141,18 @@ export async function sendCampaignBatchChunk(
     for (const p of skippers || []) if (p.skip_next_order || p.subscription_status !== 'active') noLongerNeeded.add(p.id)
   }
 
+  // Re-check the do-not-email list right now, so anyone who unsubscribed or
+  // bounced after this batch was built is never emailed.
+  const suppressedNow = await loadSuppressedEmails(supabase)
+
   let sent = 0
   let failed = 0
   for (const r of pending || []) {
     if (Date.now() - started > budgetMs) break
+    if (suppressedNow.has((r.email || '').trim().toLowerCase())) {
+      await supabase.from('email_campaign_recipients').update({ skipped_at: new Date().toISOString() }).eq('id', r.id)
+      continue
+    }
     if (sent + failed >= MAX_BATCH_SIZE) break
     if (isReminder && r.customer_id && noLongerNeeded.has(r.customer_id)) {
       await supabase.from('email_campaign_recipients').update({ skipped_at: new Date().toISOString() }).eq('id', r.id)
@@ -179,6 +188,7 @@ export async function sendCampaignBatchChunk(
         .from('email_campaign_recipients')
         .update({ failed_at: new Date().toISOString(), error: String(err?.message || err).slice(0, 300) })
         .eq('id', r.id)
+      if (isPermanentBounce(err)) await suppressBouncedEmail(supabase, r.email)
       failed += 1
     }
   }

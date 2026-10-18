@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { loadSuppressedEmails } from '@/lib/emailBounce'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,7 +38,9 @@ export async function POST(req: NextRequest) {
   for (const r of consented) {
     byEmail.set(r.email.toLowerCase().trim(), r)
   }
-  const uniqueRows = Array.from(byEmail.values())
+  // Never bring back anyone who unsubscribed or whose address bounced.
+  const suppressed = await loadSuppressedEmails(supabase)
+  const uniqueRows = Array.from(byEmail.values()).filter((r) => !suppressed.has(r.email.toLowerCase().trim()))
 
   let updatedExistingCustomers = 0
   let createdLeads = 0

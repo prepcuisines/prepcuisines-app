@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendPlainTextBroadcastEmail } from '@/lib/send-email'
+import { isPermanentBounce, suppressBouncedEmail, loadSuppressedEmails } from '@/lib/emailBounce'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,7 +103,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing subject or body' }, { status: 400 })
   }
 
-  const batch = recipients.slice(0, MAX_PER_RUN)
+  const suppressedNow = await loadSuppressedEmails(supabase)
+  const batch = recipients.filter((e) => !suppressedNow.has(e.trim().toLowerCase())).slice(0, MAX_PER_RUN)
   let sent = 0
   for (const email of batch) {
     try {
@@ -111,7 +113,8 @@ export async function POST(req: NextRequest) {
       await supabase
         .from('plain_text_send_log')
         .insert({ recipient_email: email, subject_key: subjectKey })
-    } catch {
+    } catch (err) {
+      if (isPermanentBounce(err)) await suppressBouncedEmail(supabase, email)
       // Individual failures don't stop the rest of the batch, and aren't
       // logged as sent - they'll be retried on the next batch/attempt.
     }
