@@ -2423,7 +2423,8 @@ export default function AdminDashboard() {
 
   // Kitchen only needs the window either side of today's prep, not the
   // full history — find the split between past and upcoming, then keep
-  // one before it, the current one, and one after.
+  // one before it, the current one, and the next two upcoming (so the
+  // Wednesday coming is visible while Sunday is the current window).
   const visibleOrderTally = useMemo(() => {
     const todayIso = new Date().toISOString().slice(0, 10)
     let currentIdx = -1
@@ -2434,8 +2435,8 @@ export default function AdminDashboard() {
         break
       }
     }
-    if (currentIdx === -1) return orderTally.slice(0, 3)
-    return orderTally.slice(Math.max(0, currentIdx - 1), currentIdx + 2)
+    if (currentIdx === -1) return orderTally.slice(0, 4)
+    return orderTally.slice(Math.max(0, currentIdx - 1), currentIdx + 3)
   }, [orderTally])
 
   const [expandedTallyKey, setExpandedTallyKey] = useState<string | null>(null)
