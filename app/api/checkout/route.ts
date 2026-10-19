@@ -86,6 +86,19 @@ export async function POST(req: NextRequest) {
       isReturningWelcome40Customer = !!existingWelcome40Address
     }
 
+    // Customers on a permanent discount (set by admin) get it on every
+    // order, Pay As You Go included.
+    let permanentRate: number | null = null
+    if (userId) {
+      const { data: permProfile } = await supabase
+        .from('customer_profiles')
+        .select('permanent_discount_percent')
+        .eq('id', userId)
+        .maybeSingle()
+      const pct = permProfile?.permanent_discount_percent || 0
+      if (pct > 0) permanentRate = 1 - pct / 100
+    }
+
     // No `recurring` on any line item anymore — both paths are now a normal
     // one-time charge. For Subscribe & Save, future weeks are charged by our
     // own weekly job using the saved card, not by a Stripe subscription object.
@@ -96,8 +109,9 @@ export async function POST(req: NextRequest) {
     // always stays at full price regardless of discount tier.
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
-      const discountMultiplier = isReturningWelcome40Customer ? 0.8 : 0.6
-      const unitPrice = isSubscribe && !item.discount_exempt ? item.price * discountMultiplier : item.price
+      const discountMultiplier = permanentRate ?? (isReturningWelcome40Customer ? 0.8 : 0.6)
+      const discountApplies = (isSubscribe || permanentRate !== null) && !item.discount_exempt
+      const unitPrice = discountApplies ? item.price * discountMultiplier : item.price
       return {
         quantity: qty,
         price_data: {

@@ -60,6 +60,7 @@ export default function CheckoutPage() {
   const [returningBonusOrders, setReturningBonusOrders] = useState(0)
   const [returningDeliveriesPerWeek, setReturningDeliveriesPerWeek] = useState<number | null>(null)
   const [unfinishedSignupUserId, setUnfinishedSignupUserId] = useState<string | null>(null)
+  const [permanentRate, setPermanentRate] = useState<number | null>(null)
   const [unfinishedSignupEmail, setUnfinishedSignupEmail] = useState<string | null>(null)
 
   useEffect(() => {
@@ -68,10 +69,11 @@ export default function CheckoutPage() {
       if (!data.user) return
       const { data: profile } = await supabase
         .from('customer_profiles')
-        .select('email, subscription_status, standing_delivery_day, second_delivery_day, deliveries_per_week, standing_plan_size, orders_completed, postcode, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining')
+        .select('email, subscription_status, standing_delivery_day, second_delivery_day, deliveries_per_week, standing_plan_size, orders_completed, postcode, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent')
         .eq('id', data.user.id)
         .single()
       if (!profile) return
+      if ((profile.permanent_discount_percent || 0) > 0) setPermanentRate(1 - profile.permanent_discount_percent / 100)
 
       // subscription_status defaults to 'active' the moment an account is
       // created — before they've actually finished paying for anything. So
@@ -339,6 +341,7 @@ export default function CheckoutPage() {
           dessertQty: order.dessertQty,
           postcode,
           payMode,
+          userId: payMode === 'full' ? returningUserId || undefined : undefined,
           deliveryDay: order.deliveryDay,
           windowId: order.windowId,
           planSize: order.planSize,
@@ -620,9 +623,9 @@ export default function CheckoutPage() {
   // (20% off if still within their first 5 orders, full price after) — not
   // the 40% new-customer rate, which only applies to a genuinely new signup.
   const isReturningCustomer = !!returningUserId
-  const subscribeRate = isReturningCustomer
+  const subscribeRate = permanentRate ?? (isReturningCustomer
     ? (returningOrdersCompleted <= 5 ? 0.8 : 1)
-    : 0.6
+    : 0.6)
 
   const fullFoodTotal = lineItems.reduce((sum, item) => sum + item.price * item.qty, 0)
   const subscribeFoodTotal = fullFoodTotal * subscribeRate
@@ -632,6 +635,8 @@ export default function CheckoutPage() {
   const deliveryFee = normalisedPostcode ? (isStokeOnTrent ? 2.99 : 7.95) : 0
 
   const fullTotal = fullFoodTotal + deliveryFee
+  // Pay As You Go price: only differs for customers on a permanent discount.
+  const paygTotal = fullFoodTotal * (permanentRate ?? 1) + deliveryFee
   const subscribeTotal = subscribeFoodTotal + deliveryFee
 
   return (
@@ -685,7 +690,7 @@ export default function CheckoutPage() {
             <div className="pc-checkout-card">
               <div className="pc-checkout-card-label">Pay As You Go</div>
               <div className="pc-checkout-price">
-                £{fullTotal.toFixed(2)}
+                £{paygTotal.toFixed(2)}
               </div>
               <p className="pc-checkout-note">One-off order, full price</p>
               <ul className="pc-checkout-features">
