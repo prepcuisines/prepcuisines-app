@@ -22,6 +22,11 @@ export const CAMPAIGN_AUDIENCES = [
     hint: 'Used to order or already had the first-box offer — they get 20%, not 40%',
   },
   { key: 'subscribers', label: 'Active subscribers', hint: 'Currently subscribed' },
+  {
+    key: 'cancelled_40',
+    label: 'Cancelled — 40% waiting',
+    hint: 'Cancelled customers who still have their one-off 40% off waiting on their next order',
+  },
 ] as const
 
 export type CampaignAudienceKey = (typeof CAMPAIGN_AUDIENCES)[number]['key']
@@ -63,10 +68,11 @@ export async function buildCampaignAudience(
       subscription_status: string | null
       orders_completed: number | null
       created_at: string | null
+      winback_discount_pending: boolean | null
     }>((a, b) =>
       supabase
         .from('customer_profiles')
-        .select('email, full_name, marketing_consent, subscription_status, orders_completed, created_at')
+        .select('email, full_name, marketing_consent, subscription_status, orders_completed, created_at, winback_discount_pending')
         .not('email', 'is', null)
         .range(a, b)
     ),
@@ -148,6 +154,12 @@ export async function buildCampaignAudience(
 
   if (audience === 'subscribers') {
     for (const p of profiles) if (p.subscription_status === 'active') add(p.email, p.full_name)
+  }
+
+  if (audience === 'cancelled_40') {
+    for (const p of profiles) {
+      if (p.subscription_status === 'cancelled' && p.winback_discount_pending) add(p.email, p.full_name)
+    }
   }
 
   if (audience === 'past_customers') {
