@@ -112,7 +112,10 @@ export default function CampaignBatchesPanel() {
 
   const template = templates.find((t) => t.key === templateKey)
   const audienceMismatch =
-    !!template && !!audience && template.intendedFor === 'not_subscribed' && !['not_subscribed', 'leads', 'latest_leads', 'payg'].includes(audience)
+    !!template &&
+    !!audience &&
+    ((template.intendedFor === 'not_subscribed' && !['not_subscribed', 'leads', 'latest_leads', 'payg'].includes(audience)) ||
+      (template.intendedFor === 'cancelled_40' && audience !== 'cancelled_40'))
 
   const pickAudience = async (key: string) => {
     setAudience(key)
@@ -219,7 +222,9 @@ export default function CampaignBatchesPanel() {
         )}
         {audienceMismatch && (
           <p style={{ fontSize: 13, color: '#a33', margin: '0 0 12px' }}>
-            This email promises 40% off a first box. This group won&apos;t get 40% at checkout.
+            {template?.intendedFor === 'cancelled_40'
+              ? "This email promises a waiting 40% off. Only the Cancelled — 40% waiting group has that."
+              : "This email promises 40% off a first box. This group won't get 40% at checkout."}
           </p>
         )}
         {formMessage && <p style={{ fontSize: 13, color: '#a33' }}>{formMessage}</p>}

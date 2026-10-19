@@ -10,7 +10,7 @@ export type CampaignTemplate = {
   defaultSubject: string
   // Which audience this email is written for, so the admin can warn if
   // it's sent to the wrong group (e.g. a 40%-off email to past customers).
-  intendedFor: 'not_subscribed' | 'past_customers' | 'subscribers' | 'any'
+  intendedFor: 'not_subscribed' | 'past_customers' | 'subscribers' | 'cancelled_40' | 'any'
   // Used for {{first_name}} when we don't know someone's name.
   nameFallback?: string
   html: string
@@ -31,6 +31,21 @@ const CUTOFFS = 'Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: 
 const ORDER_LINK = 'Order here: <a href="https://prepcuisines.co.uk/menu" style="color:#1a2e1a;font-weight:600;">prepcuisines.co.uk/menu</a>'
 
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
+  {
+    key: 'winback-40',
+    name: 'Win-back - your 40% is waiting',
+    defaultSubject: '{{first_name}}, your 40% off is waiting',
+    intendedFor: 'cancelled_40',
+    nameFallback: 'there',
+    html: plain([
+      'Hey {{first_name}},',
+      'Quick one. Your <strong>40% off your next order</strong> is still waiting on your account. No code needed, it comes off automatically when you come back.',
+      'Chef-made, high protein, from £4.80 a meal. Heat, eat, done.',
+      'Log in to restart your subscription: <a href="https://prepcuisines.co.uk/login" style="color:#1a2e1a;font-weight:600;">prepcuisines.co.uk/login</a>',
+      CUTOFFS,
+      '— Bukr',
+    ]),
+  },
   {
     key: 'payday',
     name: 'Payday deal',
