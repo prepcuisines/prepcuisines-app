@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const { data: profile } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, phone, house_number, street, postcode, stripe_customer_id, orders_completed, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining'
+        'full_name, email, phone, house_number, street, postcode, stripe_customer_id, orders_completed, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent'
       )
       .eq('id', userId)
       .single()
@@ -232,7 +232,7 @@ export async function GET(req: NextRequest) {
     if (paymentIntent.status === 'succeeded') {
       const updates: Record<string, any> = { orders_completed: ordersCompleted + 1 }
       // The one-off 40% is used up by this order.
-      if (profile.winback_discount_pending) {
+      if (profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40) {
         updates.winback_discount_pending = false
       }
       if (ordersCompleted > 5 && hasBonusDiscount) {
@@ -253,7 +253,7 @@ export async function GET(req: NextRequest) {
         updates.standing_delivery_instructions = deliveryInstructions
       }
       await supabase.from('customer_profiles').update(updates).eq('id', userId)
-      if (profile.winback_discount_pending) {
+      if (profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40) {
         await logWinback(supabase, { customerId: userId, email: profile.email, event: 'used', source: 'new_card_order' })
       }
 

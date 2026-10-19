@@ -39,7 +39,7 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
 
   const { data: profile } = await supabase
     .from('customer_profiles')
-    .select('email, full_name, phone, house_number, street, postcode, standing_delivery_instructions, stripe_customer_id, stripe_payment_method_id, orders_completed, winback_discount_pending, bonus_discount_orders_remaining')
+    .select('email, full_name, phone, house_number, street, postcode, standing_delivery_instructions, stripe_customer_id, stripe_payment_method_id, orders_completed, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent')
     .eq('id', failure.customer_id)
     .maybeSingle()
 
@@ -191,7 +191,7 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
         .from('customer_profiles')
         .update({
           orders_completed: ordersCompleted + 1,
-          ...(profile.winback_discount_pending ? { winback_discount_pending: false } : {}),
+          ...(profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40 ? { winback_discount_pending: false } : {}),
           ...(ordersCompleted > 5 && (profile.bonus_discount_orders_remaining || 0) > 0
             ? { bonus_discount_orders_remaining: (profile.bonus_discount_orders_remaining || 0) - 1 }
             : {}),

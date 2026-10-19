@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const { data: profile, error: profileError } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, phone, house_number, street, stripe_customer_id, stripe_payment_method_id, orders_completed, subscription_status, postcode, skip_next_order, standing_delivery_instructions, second_delivery_day, deliveries_per_week, winback_discount_pending, bonus_discount_orders_remaining'
+        'full_name, email, phone, house_number, street, stripe_customer_id, stripe_payment_method_id, orders_completed, subscription_status, postcode, skip_next_order, standing_delivery_instructions, second_delivery_day, deliveries_per_week, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent'
       )
       .eq('id', userId)
       .single()
@@ -263,7 +263,7 @@ export async function POST(req: NextRequest) {
       if (reactivate) {
         updates.subscription_status = 'active'
       }
-      if (profile.winback_discount_pending) {
+      if (profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40) {
         updates.winback_discount_pending = false
       }
       if (ordersCompleted > 5 && hasBonusDiscount) {
@@ -292,7 +292,7 @@ export async function POST(req: NextRequest) {
         .from('customer_profiles')
         .update(updates)
         .eq('id', userId)
-      if (profile.winback_discount_pending) {
+      if (profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40) {
         await logWinback(supabase, { customerId: userId, email: profile.email, event: 'used', source: 'saved_card_order' })
       }
 

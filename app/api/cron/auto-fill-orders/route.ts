@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       const { data: subscribers, error: subsError } = await supabase
         .from('customer_profiles')
         .select(
-          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status, winback_discount_pending, bonus_discount_orders_remaining, standing_breakfast_qty, second_breakfast_qty, standing_dessert_qty, second_dessert_qty, standing_skip_breakfast, standing_skip_dessert'
+          'id, full_name, email, phone, house_number, street, standing_delivery_instructions, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, orders_completed, stripe_customer_id, stripe_payment_method_id, postcode, subscription_status, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent, standing_breakfast_qty, second_breakfast_qty, standing_dessert_qty, second_dessert_qty, standing_skip_breakfast, standing_skip_dessert'
         )
         .eq('subscription_status', 'active')
         .or(`standing_delivery_day.eq.${window.delivery_day},second_delivery_day.eq.${window.delivery_day}`)
@@ -339,13 +339,13 @@ export async function POST(req: NextRequest) {
                 .from('customer_profiles')
                 .update({
                   orders_completed: ordersCompleted + 1,
-                  ...(sub.winback_discount_pending ? { winback_discount_pending: false } : {}),
+                  ...(sub.winback_discount_pending && (sub.permanent_discount_percent || 0) < 40 ? { winback_discount_pending: false } : {}),
                   ...(ordersCompleted > 5 && hasBonusDiscount
                     ? { bonus_discount_orders_remaining: (sub.bonus_discount_orders_remaining || 0) - 1 }
                     : {}),
                 })
                 .eq('id', sub.id)
-              if (sub.winback_discount_pending) {
+              if (sub.winback_discount_pending && (sub.permanent_discount_percent || 0) < 40) {
                 await logWinback(supabase, { customerId: sub.id, email: sub.email, event: 'used', source: 'auto_fill' })
               }
 
