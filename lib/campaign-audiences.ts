@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { logWinback } from '@/lib/winbackLog'
 
 // Who a marketing campaign can be sent to. Every audience already excludes
 // unsubscribed people (email_suppressions + profiles with marketing turned
@@ -26,6 +27,11 @@ export const CAMPAIGN_AUDIENCES = [
     key: 'cancelled_40',
     label: 'Cancelled — 40% waiting',
     hint: 'Cancelled customers who still have their one-off 40% off waiting on their next order',
+  },
+  {
+    key: 'cancelled_never',
+    label: 'Cancelled — never offered 40%',
+    hint: 'Cancelled customers never offered the 40%. Sending to them switches the 40% on for their next order',
   },
 ] as const
 
@@ -69,10 +75,13 @@ export async function buildCampaignAudience(
       orders_completed: number | null
       created_at: string | null
       winback_discount_pending: boolean | null
+      winback_last_sent_at: string | null
+      retention_discount_last_claimed_at: string | null
+      bonus_discount_orders_remaining: number | null
     }>((a, b) =>
       supabase
         .from('customer_profiles')
-        .select('email, full_name, marketing_consent, subscription_status, orders_completed, created_at, winback_discount_pending')
+        .select('email, full_name, marketing_consent, subscription_status, orders_completed, created_at, winback_discount_pending, winback_last_sent_at, retention_discount_last_claimed_at, bonus_discount_orders_remaining')
         .not('email', 'is', null)
         .range(a, b)
     ),
@@ -162,6 +171,19 @@ export async function buildCampaignAudience(
     }
   }
 
+  if (audience === 'cancelled_never') {
+    for (const p of profiles) {
+      if (
+        p.subscription_status === 'cancelled' &&
+        !p.winback_discount_pending &&
+        !p.winback_last_sent_at &&
+        !p.retention_discount_last_claimed_at &&
+        !(p.bonus_discount_orders_remaining || 0)
+      )
+        add(p.email, p.full_name)
+    }
+  }
+
   if (audience === 'past_customers') {
     for (const p of profiles) {
       const e = norm(p.email)
@@ -178,4 +200,24 @@ export async function buildCampaignAudience(
   }
 
   return Array.from(result.values())
+}
+
+// Switches the one-off 40% on for everyone in a "never offered" send, so the
+// email's promise is true at checkout. Only touches accounts that are still
+// cancelled and not already flagged.
+export async function flagNeverOffered(supabase: SupabaseClient, emails: string[]) {
+  const list = emails.map(norm).filter(Boolean)
+  for (let i = 0; i < list.length; i += 200) {
+    const chunk = list.slice(i, i + 200)
+    const { data } = await supabase
+      .from('customer_profiles')
+      .update({ winback_discount_pending: true, winback_last_sent_at: new Date().toISOString() })
+      .in('email', chunk)
+      .eq('subscription_status', 'cancelled')
+      .eq('winback_discount_pending', false)
+      .select('id, email')
+    for (const row of data || []) {
+      await logWinback(supabase, { customerId: row.id, email: row.email, event: 'flagged', source: 'campaign' })
+    }
+  }
 }

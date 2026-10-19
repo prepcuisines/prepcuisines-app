@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isAdminRequest } from '@/lib/admin-auth'
 import { CAMPAIGN_TEMPLATES, getCampaignTemplate } from '@/lib/campaign-templates'
-import { CAMPAIGN_AUDIENCES, buildCampaignAudience, type CampaignAudienceKey } from '@/lib/campaign-audiences'
+import { CAMPAIGN_AUDIENCES, buildCampaignAudience, flagNeverOffered, type CampaignAudienceKey } from '@/lib/campaign-audiences'
 import { MAX_BATCH_SIZE } from '@/lib/campaign-sender'
 import { buildReminderAudience, formatCutoff } from '@/lib/reminder-email'
 
@@ -58,10 +58,12 @@ export async function POST(req: NextRequest) {
   if (recipients.length === 0) return NextResponse.json({ error: 'Nobody in that group to email' }, { status: 400 })
 
   const audienceLabel = CAMPAIGN_AUDIENCES.find((a) => a.key === audience)!.label
-  return insertCampaignWithBatches(
+  const res = await insertCampaignWithBatches(
     { name: `${template.name} · ${audienceLabel}`, subject: cleanSubject, template_key: template.key, audience },
     recipients.map((r) => ({ email: r.email, first_name: r.firstName }))
   )
+  if (res.ok && audience === 'cancelled_never') await flagNeverOffered(supabase, recipients.map((r) => r.email))
+  return res
 }
 
 // Creates the campaign, then splits the fixed recipient list into batches
@@ -111,7 +113,7 @@ async function createImageCampaign(body: any) {
   if (recipients.length === 0) return NextResponse.json({ error: 'Nobody in that group to email' }, { status: 400 })
 
   const audienceLabel = CAMPAIGN_AUDIENCES.find((a) => a.key === audience)!.label
-  return insertCampaignWithBatches(
+  const imgRes = await insertCampaignWithBatches(
     {
       name: `Image campaign · ${audienceLabel}`,
       subject: cleanSubject,
@@ -125,6 +127,8 @@ async function createImageCampaign(body: any) {
     },
     recipients.map((r) => ({ email: r.email, first_name: r.firstName }))
   )
+  if (imgRes.ok && audience === 'cancelled_never') await flagNeverOffered(supabase, recipients.map((r) => r.email))
+  return imgRes
 }
 
 // Body: { kind: 'subscriber_reminder', windowId, reminderType: 'reminder'|'last_call', subject, imageUrl }
