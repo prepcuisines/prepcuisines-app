@@ -6,6 +6,7 @@ import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
 import CostsPanel from '../../components/admin/CostsPanel'
 import BillsPanel from '../../components/admin/BillsPanel'
 import EmailMarketingPanel from '../../components/admin/EmailMarketingPanel'
+import CashLinksPanel from '../../components/admin/CashLinksPanel'
 
 type Overview = {
   range?: {
@@ -4367,6 +4368,8 @@ Bukr / prepcuisines`
                 </div>
               </form>
             )}
+
+            <CashLinksPanel />
 
             <div className="date-filter-toggle-row">
               <button
