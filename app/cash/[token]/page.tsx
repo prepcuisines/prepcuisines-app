@@ -31,6 +31,6 @@ export default async function Page({ params }: { params: Promise<{ token: string
     )
   }
 
-  const windows = await getOpenCashWindows(supabase)
-  return <CashOrderForm token={token} customerName={link.name} deliveryFee={link.delivery_fee} windows={windows} />
+  const windows = await getOpenCashWindows(supabase, link.meal_price)
+  return <CashOrderForm token={token} customerName={link.name} deliveryFee={link.delivery_fee} mealPrice={link.meal_price === null || link.meal_price === undefined ? 6 : Number(link.meal_price)} windows={windows} />
 }

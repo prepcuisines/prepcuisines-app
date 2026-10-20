@@ -29,11 +29,13 @@ export default function CashOrderForm({
   token,
   customerName,
   deliveryFee,
+  mealPrice,
   windows,
 }: {
   token: string
   customerName: string
   deliveryFee: number | null
+  mealPrice: number
   windows: CashWindow[]
 }) {
   const [windowId, setWindowId] = useState(windows[0]?.id || '')
@@ -147,7 +149,7 @@ export default function CashOrderForm({
       {Header}
       <div style={wrap}>
         <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: 28, margin: '0 0 4px' }}>Hi {customerName.split(' ')[0]}</h1>
-        <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>Choose your meals below. Meals are £6 each. You pay cash when it arrives.</p>
+        <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>Choose your meals below. Meals are {money(mealPrice)} each. You pay cash when it arrives.</p>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
           {windows.map((w) => (

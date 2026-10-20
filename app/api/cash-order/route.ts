@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   const lines = ids.map((id) => {
     const m = onMenu.get(id)
-    return { qty: quantities[id], name: m.name as string, price: cashUnitPrice(m.category, Number(m.price)) }
+    return { qty: quantities[id], name: m.name as string, price: cashUnitPrice(m.category, Number(m.price), link.meal_price) }
   })
   const deliveryFee = cashDeliveryFee(postcode, link.delivery_fee)
   const total = Math.round((lines.reduce((s, l) => s + l.qty * l.price, 0) + deliveryFee) * 100) / 100

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const { data: links, error } = await supabase
     .from('cash_order_links')
-    .select('id, token, name, delivery_fee, active, created_at')
+    .select('id, token, name, delivery_fee, meal_price, active, created_at')
     .order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   })
 }
 
-// Body: { name, deliveryFee? }
+// Body: { name, deliveryFee?, mealPrice? }
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const body = await req.json().catch(() => ({}))
@@ -47,22 +47,34 @@ export async function POST(req: NextRequest) {
   const fee = body.deliveryFee === '' || body.deliveryFee == null ? null : Number(body.deliveryFee)
   if (fee !== null && (Number.isNaN(fee) || fee < 0 || fee > 50))
     return NextResponse.json({ error: 'Delivery fee must be between 0 and 50' }, { status: 400 })
+  const meal = body.mealPrice === '' || body.mealPrice == null ? null : Number(body.mealPrice)
+  if (meal !== null && (Number.isNaN(meal) || meal < 0 || meal > 100))
+    return NextResponse.json({ error: 'Meal price must be between 0 and 100' }, { status: 400 })
   const token = randomBytes(18).toString('base64url')
   const { data, error } = await supabase
     .from('cash_order_links')
-    .insert({ token, name, delivery_fee: fee })
-    .select('id, token, name, delivery_fee, active, created_at')
+    .insert({ token, name, delivery_fee: fee, meal_price: meal })
+    .select('id, token, name, delivery_fee, meal_price, active, created_at')
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true, link: data })
 }
 
-// Body: { id, active }
+// Body: { id, active? , mealPrice? } (mealPrice '' resets to the standard £6)
 export async function PATCH(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
-  const { id, active } = await req.json().catch(() => ({}))
-  if (!id || typeof active !== 'boolean') return NextResponse.json({ error: 'Missing id or active' }, { status: 400 })
-  const { error } = await supabase.from('cash_order_links').update({ active }).eq('id', id)
+  const { id, active, mealPrice } = await req.json().catch(() => ({}))
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  const update: Record<string, unknown> = {}
+  if (typeof active === 'boolean') update.active = active
+  if (mealPrice !== undefined) {
+    const meal = mealPrice === '' || mealPrice === null ? null : Number(mealPrice)
+    if (meal !== null && (Number.isNaN(meal) || meal < 0 || meal > 100))
+      return NextResponse.json({ error: 'Meal price must be between 0 and 100' }, { status: 400 })
+    update.meal_price = meal
+  }
+  if (Object.keys(update).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  const { error } = await supabase.from('cash_order_links').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

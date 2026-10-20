@@ -7,6 +7,7 @@ type Link = {
   token: string
   name: string
   delivery_fee: number | null
+  meal_price: number | null
   active: boolean
   created_at: string
   orders: { count: number; total: number; last: string | null }
@@ -31,6 +32,7 @@ export default function CashLinksPanel() {
   const [links, setLinks] = useState<Link[]>([])
   const [name, setName] = useState('')
   const [fee, setFee] = useState('')
+  const [mealPrice, setMealPrice] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -53,13 +55,14 @@ export default function CashLinksPanel() {
     const res = await fetch('/api/admin/cash-links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, deliveryFee: fee }),
+      body: JSON.stringify({ name, deliveryFee: fee, mealPrice }),
     })
     const data = await res.json()
     setBusy(false)
     if (!res.ok) return setMessage(data.error || 'Could not create the link')
     setName('')
     setFee('')
+    setMealPrice('')
     await load()
     copy(data.link)
   }
@@ -69,6 +72,20 @@ export default function CashLinksPanel() {
       setCopied(l.id)
       setTimeout(() => setCopied((c) => (c === l.id ? null : c)), 2500)
     })
+  }
+
+  const editPrice = async (l: Link) => {
+    const current = l.meal_price === null ? '6' : String(l.meal_price)
+    const input = window.prompt(`Price per meal for ${l.name} (£). Leave blank for the standard £6.`, current)
+    if (input === null) return
+    const res = await fetch('/api/admin/cash-links', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: l.id, mealPrice: input.trim() }),
+    })
+    if (!res.ok) setMessage((await res.json().catch(() => ({}))).error || 'Could not change the price')
+    else setMessage(null)
+    load()
   }
 
   const toggle = async (l: Link) => {
@@ -90,11 +107,18 @@ export default function CashLinksPanel() {
       {open && (
         <div className="insights-block">
           <p className="map-intro">
-            A private order link for one person. It always shows the current Wednesday and Sunday menus, meals at £6, and ends with pay by cash.
+            A private order link for one person. It always shows the current Wednesday and Sunday menus, you choose the price per meal (standard £6), and ends with pay by cash.
             Their orders appear in Orders marked as cash. Switch a link off any time.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
             <input style={{ ...field, flex: '1 1 180px' }} placeholder="Name (e.g. Sam)" value={name} onChange={(e) => setName(e.target.value)} />
+            <input
+              style={{ ...field, width: 130 }}
+              placeholder="Per meal £ (6)"
+              inputMode="decimal"
+              value={mealPrice}
+              onChange={(e) => setMealPrice(e.target.value)}
+            />
             <input
               style={{ ...field, width: 150 }}
               placeholder="Delivery £ (optional)"
@@ -106,7 +130,7 @@ export default function CashLinksPanel() {
               Create and copy link
             </button>
           </div>
-          <p style={{ fontSize: 12, color: '#777', margin: '0 0 14px' }}>Leave delivery blank for the normal fee (£2.99 for ST postcodes, £7.95 elsewhere). Put 0 for free delivery.</p>
+          <p style={{ fontSize: 12, color: '#777', margin: '0 0 14px' }}>Leave per meal blank for £6 (breakfasts and desserts always use their normal price). Leave delivery blank for the normal fee (£2.99 for ST postcodes, £7.95 elsewhere). Put 0 for free delivery.</p>
           {message && <p style={{ fontSize: 13, color: '#a33' }}>{message}</p>}
           {links.length === 0 ? (
             <div className="empty-panel">No links yet.</div>
@@ -119,11 +143,13 @@ export default function CashLinksPanel() {
                 </div>
                 <div style={{ fontSize: 13, color: '#666', margin: '4px 0 10px' }}>
                   {l.orders.count} order{l.orders.count === 1 ? '' : 's'} · £{l.orders.total.toFixed(2)}
+                  {` · £${Number(l.meal_price ?? 6).toFixed(2)} per meal`}
                   {l.orders.last ? ` · last ${new Date(l.orders.last).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
                   {l.delivery_fee !== null ? ` · delivery £${Number(l.delivery_fee).toFixed(2)}` : ''}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button style={btn} onClick={() => copy(l)}>{copied === l.id ? 'Copied ✓' : 'Copy link'}</button>
+                  <button style={btn} onClick={() => editPrice(l)}>Change meal price</button>
                   <button style={btn} onClick={() => toggle(l)}>{l.active ? 'Switch off' : 'Switch on'}</button>
                 </div>
               </div>

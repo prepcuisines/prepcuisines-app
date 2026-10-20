@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-// Private "pay by cash" order links. Every meal is a flat £6; breakfasts and
+// Private "pay by cash" order links. Every meal is a flat £6 unless the link has its own meal price; breakfasts and
 // desserts use their normal menu price. Delivery follows the site rule unless
 // the link has its own fee set.
 export const CASH_MEAL_PRICE = 6
@@ -12,8 +12,10 @@ export function cashDeliveryFee(postcode: string, override: number | null | unde
   return pc.startsWith('ST') ? 2.99 : 7.95
 }
 
-export function cashUnitPrice(category: string, menuPrice: number) {
-  return category === 'meal' ? CASH_MEAL_PRICE : Number(menuPrice)
+// mealPrice is the per-link price Bukr sets; blank means the standard £6.
+export function cashUnitPrice(category: string, menuPrice: number, mealPrice?: number | null) {
+  if (category !== 'meal') return Number(menuPrice)
+  return mealPrice !== null && mealPrice !== undefined && !Number.isNaN(Number(mealPrice)) ? Number(mealPrice) : CASH_MEAL_PRICE
 }
 
 export type CashMenuItem = {
@@ -38,7 +40,7 @@ export async function getLinkByToken(supabase: SupabaseClient, token: string) {
   if (!token || token.length < 16 || token.length > 64) return null
   const { data } = await supabase
     .from('cash_order_links')
-    .select('id, name, active, delivery_fee')
+    .select('id, name, active, delivery_fee, meal_price')
     .eq('token', token)
     .maybeSingle()
   return data && data.active ? data : null
@@ -46,7 +48,7 @@ export async function getLinkByToken(supabase: SupabaseClient, token: string) {
 
 // The soonest still-open window for each day, with that window's live menu.
 // Computed on every request, so the link always shows the current menu.
-export async function getOpenCashWindows(supabase: SupabaseClient): Promise<CashWindow[]> {
+export async function getOpenCashWindows(supabase: SupabaseClient, mealPrice?: number | null): Promise<CashWindow[]> {
   const { data: windows } = await supabase
     .from('menu_windows')
     .select('id, delivery_day, week_start_date, cutoff_datetime, available')
@@ -77,7 +79,7 @@ export async function getOpenCashWindows(supabase: SupabaseClient): Promise<Cash
         allergens: m.allergens,
         calories: m.calories,
         protein_g: m.protein_g,
-        price: cashUnitPrice(m.category, Number(m.price)),
+        price: cashUnitPrice(m.category, Number(m.price), mealPrice),
       }))
     out.push({
       id: w.id,
