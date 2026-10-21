@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const { data: menuItems, error: itemsError } = await supabase
     .from('menu_items')
-    .select('id, name, category, price, ingredients')
+    .select('id, name, category, price, ingredients, allergens')
     .order('category', { ascending: true })
     .order('name', { ascending: true })
 
@@ -76,12 +76,21 @@ export async function PATCH(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
-  const { menuItemId, ingredients } = await req.json().catch(() => ({}))
-  if (!menuItemId || typeof ingredients !== 'string') {
+  const { menuItemId, ingredients, allergens } = await req.json().catch(() => ({}))
+  if (!menuItemId || (typeof ingredients !== 'string' && typeof allergens !== 'string')) {
     return NextResponse.json({ error: 'Missing or invalid parameters' }, { status: 400 })
   }
-  const text = ingredients.trim().slice(0, 2000)
-  const { error } = await supabase.from('menu_items').update({ ingredients: text || null }).eq('id', menuItemId)
+  const update: Record<string, string | null> = {}
+  if (typeof ingredients === 'string') update.ingredients = ingredients.trim().slice(0, 2000) || null
+  if (typeof allergens === 'string') {
+    // Stored as "milk; wheat; sesame" — tidy whatever was typed into that shape.
+    const list = allergens
+      .split(/[;,]/)
+      .map((a) => a.trim().toLowerCase())
+      .filter(Boolean)
+    update.allergens = list.length ? list.join('; ').slice(0, 300) : null
+  }
+  const { error } = await supabase.from('menu_items').update(update).eq('id', menuItemId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

@@ -448,8 +448,9 @@ export default function AdminDashboard() {
   const [fillManualBusyId, setFillManualBusyId] = useState<string | null>(null)
 
   const [menuItems, setMenuItems] = useState<
-    { id: string; name: string; category: string | null; price: number | null; ingredients?: string | null }[]
+    { id: string; name: string; category: string | null; price: number | null; ingredients?: string | null; allergens?: string | null }[]
   >([])
+  const [allergenDrafts, setAllergenDrafts] = useState<Record<string, string>>({})
   const [ingredientDrafts, setIngredientDrafts] = useState<Record<string, string>>({})
   const [ingredientSavedId, setIngredientSavedId] = useState<string | null>(null)
   const [menuWindows, setMenuWindows] = useState<
@@ -1013,17 +1014,29 @@ export default function AdminDashboard() {
     }
   }
 
-  const saveIngredients = async (itemId: string, text: string) => {
+  const saveIngredients = async (itemId: string, text: string, allergenText: string) => {
     const res = await fetch('/api/admin/menu', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ menuItemId: itemId, ingredients: text }),
+      body: JSON.stringify({ menuItemId: itemId, ingredients: text, allergens: allergenText }),
     })
     if (!res.ok) {
       alert('Could not save the ingredients')
       return
     }
-    setMenuItems((prev) => prev.map((m) => (m.id === itemId ? { ...m, ingredients: text.trim() || null } : m)))
+    const cleanedAllergens = allergenText
+      .split(/[;,]/)
+      .map((a) => a.trim().toLowerCase())
+      .filter(Boolean)
+      .join('; ')
+    setMenuItems((prev) =>
+      prev.map((m) => (m.id === itemId ? { ...m, ingredients: text.trim() || null, allergens: cleanedAllergens || null } : m))
+    )
+    setAllergenDrafts((prev) => {
+      const next = { ...prev }
+      delete next[itemId]
+      return next
+    })
     setIngredientDrafts((prev) => {
       const next = { ...prev }
       delete next[itemId]
@@ -5447,16 +5460,18 @@ Bukr / prepcuisines`
             {menuItems.length > 0 && (
               <details className="menu-window-card" style={{ marginTop: 16 }}>
                 <summary className="menu-window-title" style={{ cursor: 'pointer' }}>
-                  Dish ingredients — shown behind the (i) on the menu (
+                  Dish ingredients and allergens — shown on the menu (
                   {menuItems.filter((m) => (m.ingredients || '').trim()).length} of {menuItems.length} filled in)
                 </summary>
                 <p className="cook-sheet-collapse-meta" style={{ margin: '8px 0 12px' }}>
-                  The (i) only appears on a dish once it has ingredients. List them in the order on the label, with allergens clear.
+                  Ingredients show behind the (i). Allergens show as the red tags on each dish — separate them with a semicolon, e.g. milk; wheat; sesame.
                 </p>
                 {menuItems.map((item) => {
                   const saved = item.ingredients || ''
                   const draft = ingredientDrafts[item.id] ?? saved
-                  const dirty = draft !== saved
+                  const savedAllergens = item.allergens || ''
+                  const allergenDraft = allergenDrafts[item.id] ?? savedAllergens
+                  const dirty = draft !== saved || allergenDraft !== savedAllergens
                   return (
                     <div key={item.id} style={{ marginBottom: 14 }}>
                       <div className="menu-item-name" style={{ marginBottom: 4 }}>{item.name}</div>
@@ -5469,11 +5484,19 @@ Bukr / prepcuisines`
                         value={draft}
                         onChange={(e) => setIngredientDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
                       />
+                      <input
+                        className="text-input"
+                        style={{ width: '100%', marginTop: 6 }}
+                        aria-label={`Allergens for ${item.name}`}
+                        placeholder="Allergens, separated by ; e.g. milk; wheat; sesame"
+                        value={allergenDraft}
+                        onChange={(e) => setAllergenDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                      />
                       <button
                         className="segment-pill"
                         style={{ marginTop: 6 }}
                         disabled={!dirty}
-                        onClick={() => saveIngredients(item.id, draft)}
+                        onClick={() => saveIngredients(item.id, draft, allergenDraft)}
                       >
                         {ingredientSavedId === item.id ? 'Saved ✓' : 'Save'}
                       </button>
