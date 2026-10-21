@@ -3,11 +3,10 @@
 import { useState } from 'react'
 
 // Small (i) button that opens the full ingredient list for one dish.
-// Renders nothing until the dish has ingredients saved in admin.
+// Always shown; until a dish has ingredients saved in admin it says they are on request.
 export default function IngredientsInfo({ name, ingredients }: { name: string; ingredients?: string | null }) {
   const [open, setOpen] = useState(false)
   const text = (ingredients || '').trim()
-  if (!text) return null
   return (
     <div style={{ margin: '4px 0 8px' }}>
       <button
@@ -93,7 +92,7 @@ export default function IngredientsInfo({ name, ingredients }: { name: string; i
               </button>
             </div>
             <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>Ingredients</div>
-            <div>{text}</div>
+            <div>{text || 'We\'re adding the full ingredient list for this dish. Message us and we\'ll send it to you straight away.'}</div>
             <div style={{ marginTop: 10, opacity: 0.75 }}>Cooked in extra virgin olive oil.</div>
           </div>
         </div>
