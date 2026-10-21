@@ -93,7 +93,6 @@ export default function IngredientsInfo({ name, ingredients }: { name: string; i
             </div>
             <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>Ingredients</div>
             <div>{text || 'We\'re adding the full ingredient list for this dish. Message us and we\'ll send it to you straight away.'}</div>
-            <div style={{ marginTop: 10, opacity: 0.75 }}>Cooked in extra virgin olive oil.</div>
           </div>
         </div>
       )}
