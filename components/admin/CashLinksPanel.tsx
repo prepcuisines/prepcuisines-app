@@ -88,6 +88,18 @@ export default function CashLinksPanel() {
     load()
   }
 
+  const remove = async (l: Link) => {
+    if (!window.confirm(`Delete ${l.name}? Their link stops working for good. Orders they already placed stay in Orders.`)) return
+    const res = await fetch('/api/admin/cash-links', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: l.id }),
+    })
+    if (!res.ok) setMessage((await res.json().catch(() => ({}))).error || 'Could not delete')
+    else setMessage(null)
+    load()
+  }
+
   const toggle = async (l: Link) => {
     await fetch('/api/admin/cash-links', {
       method: 'PATCH',
@@ -151,6 +163,7 @@ export default function CashLinksPanel() {
                   <button style={btn} onClick={() => copy(l)}>{copied === l.id ? 'Copied ✓' : 'Copy link'}</button>
                   <button style={btn} onClick={() => editPrice(l)}>Change meal price</button>
                   <button style={btn} onClick={() => toggle(l)}>{l.active ? 'Switch off' : 'Switch on'}</button>
+                  <button style={{ ...btn, color: '#a33', borderColor: '#e0b4b4' }} onClick={() => remove(l)}>Delete</button>
                 </div>
               </div>
             ))

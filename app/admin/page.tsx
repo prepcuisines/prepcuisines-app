@@ -933,6 +933,17 @@ export default function AdminDashboard() {
     loadRecurringOrders()
   }
 
+  const deleteRecurringOrder = async (r: any) => {
+    if (!window.confirm(`Delete the recurring order for ${r.customer_name || 'this customer'}? It stops for good. Orders already made from it stay in Orders.`)) return
+    const res = await fetch('/api/admin/recurring-manual-orders', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: r.id }),
+    })
+    if (!res.ok) alert('Could not delete this recurring order')
+    loadRecurringOrders()
+  }
+
   const setupRecurringOrder = async () => {
     setRepeatStatus('saving')
     setRepeatError(null)
@@ -4461,6 +4472,12 @@ Bukr / prepcuisines`
                                   onClick={() => toggleRecurringOrderActive(r.id, !r.active)}
                                 >
                                   {r.active ? 'Pause' : 'Resume'}
+                                </button>
+                                <button
+                                  className="segment-pill"
+                                  onClick={() => deleteRecurringOrder(r)}
+                                >
+                                  Delete
                                 </button>
                               </div>
                             </td>
