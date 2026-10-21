@@ -333,8 +333,8 @@ html, body { margin: 0; padding: 0; }
 .pc-checkout-breakdown { background: var(--pc-white); border-radius: 20px; padding: 36px 40px; }
 .pc-breakdown-list { display: flex; flex-direction: column; }
 .pc-breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(45,53,16,0.06); font-size: 17px; color: var(--pc-green); }
-.pc-breakdown-name { display: flex; align-items: center; gap: 8px; }
-.pc-breakdown-qty { color: rgba(45,53,16,0.64); font-size: 15px; }
+.pc-breakdown-name { flex: 1; min-width: 0; padding-right: 12px; }
+.pc-breakdown-qty { color: rgba(45,53,16,0.64); font-size: 15px; white-space: nowrap; margin-left: 6px; }
 .pc-breakdown-total { font-weight: 600; border-top: 2px solid rgba(45,53,16,0.1); margin-top: 8px; padding-top: 16px; }
 .pc-breakdown-discount { color: #b5432f; font-weight: 600; }
 .pc-breakdown-final { font-family: var(--font-playfair), Georgia, serif; font-size: 25px; font-weight: 900; border-top: none; padding-top: 16px; }
@@ -357,7 +357,7 @@ html, body { margin: 0; padding: 0; }
 /* Discounted price inside the "Your Plan" breakdown row */
 .pc-breakdown-plan-price { font-family: var(--font-playfair), Georgia, serif; font-size: 22px; font-weight: 900; color: var(--pc-gold-dark); }
 /* Per-item was/now price on each breakdown line */
-.pc-breakdown-price { display: flex; align-items: center; gap: 8px; }
+.pc-breakdown-price { display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap; }
 .pc-breakdown-price-was { font-size: 16px; color: rgba(45,53,16,0.61); text-decoration: line-through; }
 .pc-breakdown-price-now { font-weight: 700; color: var(--pc-gold-dark); }
 /* Disabled state for checkout buttons until postcode entered */
