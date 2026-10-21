@@ -58,7 +58,7 @@ export default async function LateOrderPage({
 
   const { data: items } = await supabase
     .from('menu_window_items')
-    .select('week_in_rotation, menu_items(id, name, description, price, category, allergens, image_url)')
+    .select('week_in_rotation, menu_items(id, name, description, price, category, allergens, ingredients, image_url)')
     .eq('menu_window_id', targetWindow.id)
 
   return (

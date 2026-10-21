@@ -23,6 +23,7 @@ export type CashMenuItem = {
   name: string
   category: string
   allergens: string | null
+  ingredients: string | null
   calories: number | null
   protein_g: number | null
   price: number // the price the cash customer pays
@@ -67,7 +68,7 @@ export async function getOpenCashWindows(supabase: SupabaseClient, mealPrice?: n
   for (const w of picked) {
     const { data: rows } = await supabase
       .from('menu_window_items')
-      .select('menu_items(id, name, category, allergens, calories, protein_g, price, active)')
+      .select('menu_items(id, name, category, allergens, ingredients, calories, protein_g, price, active)')
       .eq('menu_window_id', w.id)
     const items: CashMenuItem[] = (rows || [])
       .map((r: any) => r.menu_items)
@@ -77,6 +78,7 @@ export async function getOpenCashWindows(supabase: SupabaseClient, mealPrice?: n
         name: m.name,
         category: m.category,
         allergens: m.allergens,
+        ingredients: m.ingredients,
         calories: m.calories,
         protein_g: m.protein_g,
         price: cashUnitPrice(m.category, Number(m.price), mealPrice),

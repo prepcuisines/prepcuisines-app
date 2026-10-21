@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const { data: menuItems, error: itemsError } = await supabase
     .from('menu_items')
-    .select('id, name, category, price')
+    .select('id, name, category, price, ingredients')
     .order('category', { ascending: true })
     .order('name', { ascending: true })
 
@@ -69,6 +69,21 @@ export async function GET(req: NextRequest) {
     windows: activeWindows,
     selectedByWindow,
   })
+}
+
+// Saves the ingredient list shown behind the (i) button for one dish.
+export async function PATCH(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+  const { menuItemId, ingredients } = await req.json().catch(() => ({}))
+  if (!menuItemId || typeof ingredients !== 'string') {
+    return NextResponse.json({ error: 'Missing or invalid parameters' }, { status: 400 })
+  }
+  const text = ingredients.trim().slice(0, 2000)
+  const { error } = await supabase.from('menu_items').update({ ingredients: text || null }).eq('id', menuItemId)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
 }
 
 // Toggles one dish on or off for one window by adding or removing the

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '../Header'
+import IngredientsInfo from './IngredientsInfo'
 
 type MenuWindow = {
   id: string
@@ -19,6 +20,7 @@ type MenuItem = {
   price: number
   category: string
   allergens: string
+  ingredients?: string | null
   image_url: string
   compare_at_price: number | null
   promo_label: string | null
@@ -219,6 +221,7 @@ function DishCard({
       </div>
       <div className="pc-meal-body">
         <h3 className="pc-meal-name">{item.name}</h3>
+        <IngredientsInfo name={item.name} ingredients={item.ingredients} />
         {item.description && <p className="pc-meal-macros">{item.description}</p>}
         <MacroPills
           calories={item.calories}

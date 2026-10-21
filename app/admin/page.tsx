@@ -448,8 +448,10 @@ export default function AdminDashboard() {
   const [fillManualBusyId, setFillManualBusyId] = useState<string | null>(null)
 
   const [menuItems, setMenuItems] = useState<
-    { id: string; name: string; category: string | null; price: number | null }[]
+    { id: string; name: string; category: string | null; price: number | null; ingredients?: string | null }[]
   >([])
+  const [ingredientDrafts, setIngredientDrafts] = useState<Record<string, string>>({})
+  const [ingredientSavedId, setIngredientSavedId] = useState<string | null>(null)
   const [menuWindows, setMenuWindows] = useState<
     { id: string; delivery_day: string; week_start_date: string }[]
   >([])
@@ -1009,6 +1011,26 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const saveIngredients = async (itemId: string, text: string) => {
+    const res = await fetch('/api/admin/menu', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ menuItemId: itemId, ingredients: text }),
+    })
+    if (!res.ok) {
+      alert('Could not save the ingredients')
+      return
+    }
+    setMenuItems((prev) => prev.map((m) => (m.id === itemId ? { ...m, ingredients: text.trim() || null } : m)))
+    setIngredientDrafts((prev) => {
+      const next = { ...prev }
+      delete next[itemId]
+      return next
+    })
+    setIngredientSavedId(itemId)
+    setTimeout(() => setIngredientSavedId((c) => (c === itemId ? null : c)), 2000)
   }
 
   const toggleMenuItem = async (windowId: string, itemId: string, currentlyOn: boolean) => {
@@ -5420,6 +5442,45 @@ Bukr / prepcuisines`
                   )
                 })}
               </div>
+            )}
+
+            {menuItems.length > 0 && (
+              <details className="menu-window-card" style={{ marginTop: 16 }}>
+                <summary className="menu-window-title" style={{ cursor: 'pointer' }}>
+                  Dish ingredients — shown behind the (i) on the menu (
+                  {menuItems.filter((m) => (m.ingredients || '').trim()).length} of {menuItems.length} filled in)
+                </summary>
+                <p className="cook-sheet-collapse-meta" style={{ margin: '8px 0 12px' }}>
+                  The (i) only appears on a dish once it has ingredients. List them in the order on the label, with allergens clear.
+                </p>
+                {menuItems.map((item) => {
+                  const saved = item.ingredients || ''
+                  const draft = ingredientDrafts[item.id] ?? saved
+                  const dirty = draft !== saved
+                  return (
+                    <div key={item.id} style={{ marginBottom: 14 }}>
+                      <div className="menu-item-name" style={{ marginBottom: 4 }}>{item.name}</div>
+                      <textarea
+                        className="text-input"
+                        rows={3}
+                        style={{ width: '100%' }}
+                        aria-label={`Ingredients for ${item.name}`}
+                        placeholder="e.g. Chicken breast, basmati rice, peas, double cream, garlic, paprika…"
+                        value={draft}
+                        onChange={(e) => setIngredientDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                      />
+                      <button
+                        className="segment-pill"
+                        style={{ marginTop: 6 }}
+                        disabled={!dirty}
+                        onClick={() => saveIngredients(item.id, draft)}
+                      >
+                        {ingredientSavedId === item.id ? 'Saved ✓' : 'Save'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </details>
             )}
           </section>
         )}

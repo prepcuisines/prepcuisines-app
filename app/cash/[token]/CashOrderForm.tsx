@@ -1,5 +1,6 @@
 'use client'
 
+import IngredientsInfo from '@/app/menu/IngredientsInfo'
 import { useEffect, useMemo, useState } from 'react'
 import type { CashWindow } from '@/lib/cashOrder'
 
@@ -183,6 +184,7 @@ export default function CashOrderForm({
                         {i.protein_g ? ` · ${Number(i.protein_g)}g protein` : ''}
                       </div>
                       {i.allergens && <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Contains: {i.allergens}</div>}
+                      <div style={{ marginTop: 4 }}><IngredientsInfo name={i.name} ingredients={i.ingredients} /></div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {(cart[i.id] || 0) > 0 && (
