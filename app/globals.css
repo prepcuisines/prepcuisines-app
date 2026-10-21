@@ -190,7 +190,7 @@ html, body { margin: 0; padding: 0; }
 .pc-meal-price-was { text-decoration: line-through; opacity: 0.65; font-weight: 500; font-size: 13px; }
 .pc-meal-promo-badge { position: absolute; top: 10px; left: 10px; background: var(--pc-green); color: var(--pc-gold); font-family: var(--font-montserrat), sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; padding: 5px 10px; border-radius: 999px; box-shadow: 0 2px 6px rgba(45,53,16,0.25); max-width: 62%; text-align: center; line-height: 1.2; }
 .pc-meal-img img { width: 100%; height: 100%; object-fit: cover; }
-@media (max-width: 720px) { .pc-meal-img { height: auto; aspect-ratio: 4 / 3; } }
+@media (max-width: 720px) { .pc-meal-img { height: auto; aspect-ratio: 16 / 10; } }
 .pc-meal-img-placeholder { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-family: var(--font-cormorant), Georgia, serif; font-size: 20px; font-style: italic; color: var(--pc-green); opacity: 0.5; }
 .pc-meal-body { padding: 18px; }
 .pc-meal-name { font-family: var(--font-playfair), Georgia, serif; font-size: 21px; font-weight: 700; margin-bottom: 6px; }
