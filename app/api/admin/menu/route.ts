@@ -65,15 +65,15 @@ export async function GET(req: NextRequest) {
   }
 
   // What sold in the previous drop: for Sunday and for Wednesday, the most
-  // recent window whose order cutoff has passed, with units sold per dish.
+  // recent window already delivered (delivery date before today), with units sold per dish.
   const lastDrop: Record<string, { date: string; sold: Record<string, number> }> = {}
   for (const day of ['Sunday', 'Wednesday']) {
     const { data: past } = await supabase
       .from('menu_windows')
       .select('id, week_start_date')
       .eq('delivery_day', day)
-      .lte('cutoff_datetime', new Date().toISOString())
-      .order('cutoff_datetime', { ascending: false })
+      .lt('week_start_date', new Date().toISOString().slice(0, 10))
+      .order('week_start_date', { ascending: false })
       .limit(1)
     const w = past?.[0]
     if (!w) continue
