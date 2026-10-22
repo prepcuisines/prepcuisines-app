@@ -1,5 +1,6 @@
 'use client'
 
+import { PROTEIN_GROUPS, proteinGroupFor } from '@/lib/protein-groups'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
 import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
@@ -450,6 +451,7 @@ export default function AdminDashboard() {
   const [menuItems, setMenuItems] = useState<
     { id: string; name: string; category: string | null; price: number | null; ingredients?: string | null; allergens?: string | null }[]
   >([])
+  const [lastDrop, setLastDrop] = useState<Record<string, { date: string; sold: Record<string, number> }>>({})
   const [allergenDrafts, setAllergenDrafts] = useState<Record<string, string>>({})
   const [ingredientDrafts, setIngredientDrafts] = useState<Record<string, string>>({})
   const [ingredientSavedId, setIngredientSavedId] = useState<string | null>(null)
@@ -1006,6 +1008,7 @@ export default function AdminDashboard() {
       setMenuItems(data.menuItems || [])
       setMenuWindows(data.windows || [])
       setSelectedByWindow(data.selectedByWindow || {})
+      setLastDrop(data.lastDrop || {})
       setMenuLoaded(true)
     } catch {
       setMenuLoaded(true)
@@ -5410,28 +5413,49 @@ Bukr / prepcuisines`
               <div className="menu-windows-grid">
                 {menuWindows.map((w) => {
                   const selected = selectedByWindow[w.id] || []
-                  const categories = Array.from(
-                    new Set(menuItems.map((m) => m.category || 'Other'))
-                  )
+                  const drop = lastDrop[w.delivery_day]
+                  const soldFor = (name: string) => drop?.sold?.[name] || 0
                   return (
                     <div key={w.id} className="menu-window-card">
                       <div className="menu-window-title">
                         {w.delivery_day} — w/c{' '}
                         {new Date(w.week_start_date).toLocaleDateString('en-GB')}
                       </div>
-                      <div className="menu-window-count">{selected.length} dishes on</div>
+                      <div className="menu-window-count">
+                        {selected.length} dishes on
+                        {drop
+                          ? ` · sold last ${w.delivery_day} (${new Date(drop.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}) shown beside each dish`
+                          : ''}
+                      </div>
 
-                      {categories.map((cat) => (
-                        <div key={cat} className="menu-category-block">
-                          <div className="menu-category-title">{cat}</div>
-                          {menuItems
-                            .filter((m) => (m.category || 'Other') === cat)
+                      {PROTEIN_GROUPS.map((group) => {
+                        const groupItems = menuItems
+                          .filter((m) => proteinGroupFor(m.name, m.category) === group.key)
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                        if (groupItems.length === 0) return null
+                        const onCount = groupItems.filter((m) => selected.includes(m.id)).length
+                        const soldTotal = groupItems.reduce((sum, m) => sum + soldFor(m.name), 0)
+                        const soldOn = groupItems
+                          .filter((m) => selected.includes(m.id))
+                          .reduce((sum, m) => sum + soldFor(m.name), 0)
+                        return (
+                        <div key={group.key} className="menu-category-block">
+                          <div className="menu-category-title">
+                            {group.label} — {onCount} on this menu
+                            {drop ? ` · ${soldTotal} sold last time (${soldOn} of those still on)` : ''}
+                          </div>
+                          {groupItems
                             .map((item) => {
                               const isOn = selected.includes(item.id)
                               const isToggling = togglingItem === `${w.id}-${item.id}`
                               return (
                                 <label key={item.id} className="menu-item-row">
                                   <span className="menu-item-name">{item.name}</span>
+                                  {drop && (
+                                    <span className="menu-item-price" title={`Sold in the last ${w.delivery_day} drop`}>
+                                      {soldFor(item.name)} sold
+                                    </span>
+                                  )}
                                   <span className="menu-item-price">
                                     {item.price != null ? money(item.price) : ''}
                                   </span>
@@ -5450,7 +5474,8 @@ Bukr / prepcuisines`
                               )
                             })}
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )
                 })}

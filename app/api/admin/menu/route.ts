@@ -64,10 +64,39 @@ export async function GET(req: NextRequest) {
     selectedByWindow[wi.menu_window_id].push(itemId)
   }
 
+  // What sold in the previous drop: for Sunday and for Wednesday, the most
+  // recent window whose order cutoff has passed, with units sold per dish.
+  const lastDrop: Record<string, { date: string; sold: Record<string, number> }> = {}
+  for (const day of ['Sunday', 'Wednesday']) {
+    const { data: past } = await supabase
+      .from('menu_windows')
+      .select('id, week_start_date')
+      .eq('delivery_day', day)
+      .lte('cutoff_datetime', new Date().toISOString())
+      .order('cutoff_datetime', { ascending: false })
+      .limit(1)
+    const w = past?.[0]
+    if (!w) continue
+    const { data: orders } = await supabase
+      .from('customer_window_orders')
+      .select('items')
+      .eq('menu_window_id', w.id)
+      .eq('cancelled', false)
+    const sold: Record<string, number> = {}
+    for (const o of orders || []) {
+      for (const it of (o.items as any[]) || []) {
+        if (!it?.name || it.name === 'Delivery') continue
+        sold[it.name] = (sold[it.name] || 0) + Number(it.qty || 0)
+      }
+    }
+    lastDrop[day] = { date: w.week_start_date, sold }
+  }
+
   return NextResponse.json({
     menuItems: menuItems || [],
     windows: activeWindows,
     selectedByWindow,
+    lastDrop,
   })
 }
 
