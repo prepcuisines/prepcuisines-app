@@ -56,6 +56,7 @@ type Customer = {
   marketing_consent: boolean | null
   winback_discount_pending?: boolean | null
   bonus_discount_orders_remaining?: number | null
+  permanent_discount_percent?: number | null
   winback_last_sent_at?: string | null
   retention_discount_last_claimed_at?: string | null
   lastOrderAt: string | null
@@ -1372,6 +1373,32 @@ export default function AdminDashboard() {
       )
     } finally {
       setDiscountLoading(false)
+    }
+  }
+
+  // Permanent discount: 20% or 40% off every order from now on (or remove).
+  const [permLoading, setPermLoading] = useState(false)
+  const [permNote, setPermNote] = useState<string | null>(null)
+  const handleSetPermanent = async (customerId: string, percent: 0 | 20 | 40) => {
+    setPermLoading(true)
+    setPermNote(null)
+    try {
+      const res = await fetch('/api/admin/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId, permanentPercent: percent }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setPermNote(data.error || 'Could not update the permanent discount')
+        return
+      }
+      const patch = { permanent_discount_percent: data.customer?.permanent_discount_percent || 0 }
+      setCustomers((prev) => prev.map((c) => (c.id === customerId ? { ...c, ...patch } : c)))
+      setViewCustomerDetail((prev) => (prev && prev.id === customerId ? { ...prev, ...patch } : prev))
+      setPermNote(percent === 0 ? 'Permanent discount removed.' : `Now ${percent}% off every order.`)
+    } finally {
+      setPermLoading(false)
     }
   }
 
@@ -6989,6 +7016,43 @@ Bukr / prepcuisines`
                     {viewCustomerDetail.skip_next_order ? 'Undo skip next delivery' : 'Skip next delivery'}
                   </button>
                 </div>
+              </div>
+
+              <div className="pc-modal-card">
+                <div className="pc-modal-card-label">Permanent discount</div>
+                <div className="pc-modal-address">
+                  {(viewCustomerDetail.permanent_discount_percent || 0) > 0
+                    ? `${viewCustomerDetail.permanent_discount_percent}% off every order`
+                    : 'None'}
+                </div>
+                <div className="pc-modal-inline-row" style={{ marginTop: 10 }}>
+                  <button
+                    className="segment-pill"
+                    disabled={permLoading}
+                    onClick={() => handleSetPermanent(viewCustomerDetail.id, 40)}
+                  >
+                    Always 40% off
+                  </button>
+                  <button
+                    className="segment-pill"
+                    disabled={permLoading}
+                    onClick={() => handleSetPermanent(viewCustomerDetail.id, 20)}
+                    style={{ marginLeft: 8 }}
+                  >
+                    Always 20% off
+                  </button>
+                  {(viewCustomerDetail.permanent_discount_percent || 0) > 0 && (
+                    <button
+                      className="segment-pill"
+                      disabled={permLoading}
+                      onClick={() => handleSetPermanent(viewCustomerDetail.id, 0)}
+                      style={{ marginLeft: 8 }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {permNote && <div className="pc-modal-summary-item-meta" style={{ marginTop: 8 }}>{permNote}</div>}
               </div>
 
               <div className="pc-modal-card">

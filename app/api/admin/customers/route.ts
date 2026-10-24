@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const { data: customers, error } = await supabase
     .from('customer_profiles')
     .select(
-      'id, full_name, email, phone, house_number, street, postcode, subscription_status, subscription_cancelled_at, cancellation_reason, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, created_at, marketing_consent, winback_discount_pending, bonus_discount_orders_remaining, winback_last_sent_at, retention_discount_last_claimed_at'
+      'id, full_name, email, phone, house_number, street, postcode, subscription_status, subscription_cancelled_at, cancellation_reason, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, created_at, marketing_consent, winback_discount_pending, bonus_discount_orders_remaining, winback_last_sent_at, retention_discount_last_claimed_at, permanent_discount_percent'
     )
     .gte('created_at', LAUNCH_CUTOFF)
     .order('created_at', { ascending: false })
@@ -148,7 +148,26 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { customerId, skip, discountPercent } = body || {}
+  const { customerId, skip, discountPercent, permanentPercent } = body || {}
+
+  // Permanent discount: 20 or 40 off every order from now on, or 0 to remove.
+  // Uses permanent_discount_percent, the field checkout and the charge paths
+  // already read (same as the existing 40% accounts).
+  if (customerId && permanentPercent !== undefined) {
+    if (![0, 20, 40].includes(permanentPercent)) {
+      return NextResponse.json({ error: 'Discount must be 20, 40 or 0' }, { status: 400 })
+    }
+    const { data: updated, error: permError } = await supabase
+      .from('customer_profiles')
+      .update({ permanent_discount_percent: permanentPercent })
+      .eq('id', customerId)
+      .select('id, permanent_discount_percent')
+      .single()
+    if (permError || !updated) {
+      return NextResponse.json({ error: permError?.message || 'Customer not found' }, { status: 404 })
+    }
+    return NextResponse.json({ success: true, customer: updated })
+  }
 
   // Gives a customer a one-off discount on their next order: 40, 20, or 0 to
   // take it away. Uses the same two fields every charge path already reads
