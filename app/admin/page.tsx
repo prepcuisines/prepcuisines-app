@@ -129,6 +129,7 @@ type StokeRouteStop = {
   address: string
   postcode: string
   emails: string[]
+  phones?: string[]
   orderCount: number
   lat: number
   lon: number
@@ -2849,6 +2850,11 @@ export default function AdminDashboard() {
   const [stokeRouteExcluded, setStokeRouteExcluded] = useState<string[]>([])
   const [stokeRouteFirsts, setStokeRouteFirsts] = useState<string[]>([])
   const [stokeRouteLasts, setStokeRouteLasts] = useState<string[]>([])
+  // Stops ticked as delivered. Saved with the route so a refresh or logout
+  // doesn't lose them; ticking one never emails anyone or touches the order.
+  const [stokeRouteDone, setStokeRouteDone] = useState<string[]>([])
+  const [stokeRouteOpen, setStokeRouteOpen] = useState<string | null>(null)
+  const stokeRouteHydratedFor = useRef<string | null>(null)
   const [stokeEmailsCopied, setStokeEmailsCopied] = useState(false)
   const [stokeTemplateCopied, setStokeTemplateCopied] = useState(false)
   const [stokeRouteLinksCopied, setStokeRouteLinksCopied] = useState(false)
@@ -2876,6 +2882,8 @@ export default function AdminDashboard() {
         existing.orderCount += 1
         if (o.customer_email && !existing.emails.includes(o.customer_email))
           existing.emails.push(o.customer_email)
+        if (o.ship_phone && !(existing.phones || []).includes(o.ship_phone))
+          existing.phones = [...(existing.phones || []), o.ship_phone]
       } else {
         groups.set(key, {
           key,
@@ -2883,6 +2891,7 @@ export default function AdminDashboard() {
           address: [o.ship_house_number, o.ship_street].filter(Boolean).join(' '),
           postcode: pc,
           emails: o.customer_email ? [o.customer_email] : [],
+          phones: o.ship_phone ? [o.ship_phone] : [],
           orderCount: 1,
           lat: 0,
           lon: 0,
@@ -2984,16 +2993,35 @@ export default function AdminDashboard() {
         .filter((st) => coords.has(st.postcode))
         .map((st) => ({ ...st, ...coords.get(st.postcode)! }))
       const missing = stops.filter((st) => !coords.has(st.postcode))
-      const byKey = new Map(located.map((st) => [st.key, st]))
+      // Stops already ticked as delivered stay at the top in the order they
+      // were done; only the remaining stops get re-optimised.
+      const doneSet = new Set(stokeRouteDone)
+      const doneStops = stokeRouteStops
+        .filter((st) => doneSet.has(st.key))
+        .map((st) => located.find((l) => l.key === st.key) || st)
+        .filter((st) => stops.some((s) => s.key === st.key))
+      const doneKeys = new Set(doneStops.map((st) => st.key))
+      const todo = located.filter((st) => !doneKeys.has(st.key))
+      const byKey = new Map(todo.map((st) => [st.key, st]))
       const firsts = stokeRouteFirsts
         .map((k) => byKey.get(k))
         .filter(Boolean) as StokeRouteStop[]
       const lasts = stokeRouteLasts.map((k) => byKey.get(k)).filter(Boolean) as StokeRouteStop[]
       const pinnedKeys = new Set([...stokeRouteFirsts, ...stokeRouteLasts])
-      const middle = located.filter((st) => !pinnedKeys.has(st.key))
-      const startPt = firsts.length ? firsts[firsts.length - 1] : STOKE_HQ
+      const middle = todo.filter((st) => !pinnedKeys.has(st.key))
+      const startPt = firsts.length
+        ? firsts[firsts.length - 1]
+        : doneStops.length
+          ? doneStops[doneStops.length - 1]
+          : STOKE_HQ
       const endPt = lasts.length ? lasts[0] : STOKE_HQ
-      setStokeRouteStops([...firsts, ...optimiseStokeRoute(middle, startPt, endPt), ...lasts])
+      setStokeRouteStops([
+        ...doneStops,
+        ...firsts,
+        ...optimiseStokeRoute(middle, startPt, endPt),
+        ...lasts,
+      ])
+      setStokeRouteDone(Array.from(doneKeys))
       setStokeRouteStatus('ready')
       if (missing.length)
         setStokeRouteError(
@@ -3004,6 +3032,77 @@ export default function AdminDashboard() {
       setStokeRouteError('Route build failed — check your connection and try again.')
     }
   }
+
+  const toggleStokeDone = (key: string) =>
+    setStokeRouteDone((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+
+  // Load the saved route (stop order + ticked-done stops) for the selected
+  // delivery date, so a refresh, logout or crash doesn't lose it.
+  useEffect(() => {
+    stokeRouteHydratedFor.current = null
+    const date = stokeRouteSingleDate
+    setStokeRouteOpen(null)
+    if (!date) {
+      setStokeRouteStops([])
+      setStokeRouteDone([])
+      setStokeRouteStatus('idle')
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/admin/stoke-route?date=${encodeURIComponent(date)}`, { cache: 'no-store' })
+        const data = res.ok ? await res.json() : null
+        if (cancelled) return
+        const saved = data?.state
+        if (saved && Array.isArray(saved.stops) && saved.stops.length) {
+          setStokeRouteStops(saved.stops)
+          setStokeRouteDone(Array.isArray(saved.done) ? saved.done : [])
+          setStokeRouteExcluded(Array.isArray(saved.excluded) ? saved.excluded : [])
+          setStokeRouteFirsts(Array.isArray(saved.firsts) ? saved.firsts : [])
+          setStokeRouteLasts(Array.isArray(saved.lasts) ? saved.lasts : [])
+          setStokeRouteStatus('ready')
+        } else {
+          setStokeRouteStops([])
+          setStokeRouteDone([])
+          setStokeRouteExcluded([])
+          setStokeRouteFirsts([])
+          setStokeRouteLasts([])
+          setStokeRouteStatus('idle')
+        }
+        stokeRouteHydratedFor.current = date
+      } catch {
+        // If loading fails we leave things as they are and don't save over the stored route.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [stokeRouteSingleDate])
+
+  // Save whenever the built route or the done ticks change.
+  useEffect(() => {
+    const date = stokeRouteSingleDate
+    if (!date || stokeRouteHydratedFor.current !== date) return
+    if (!stokeRouteStops.length) return
+    const t = setTimeout(() => {
+      fetch('/api/admin/stoke-route', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          state: {
+            stops: stokeRouteStops,
+            done: stokeRouteDone,
+            excluded: stokeRouteExcluded,
+            firsts: stokeRouteFirsts,
+            lasts: stokeRouteLasts,
+          },
+        }),
+      }).catch(() => {})
+    }, 600)
+    return () => clearTimeout(t)
+  }, [stokeRouteStops, stokeRouteDone, stokeRouteExcluded, stokeRouteFirsts, stokeRouteLasts, stokeRouteSingleDate])
 
   const stokeRouteKm = useMemo(() => {
     if (!stokeRouteStops.length) return 0
@@ -5800,7 +5899,7 @@ Bukr / prepcuisines`
                       <ul className="stoke-route-list">
                         {(stokeRouteStops.length ? stokeRouteStops : stokeRouteBaseStops).map(
                           (st, i) => (
-                            <li key={st.key}>
+                            <li key={st.key} style={stokeRouteDone.includes(st.key) ? { opacity: 0.5 } : undefined}>
                               <label className="stoke-route-row">
                                 <input
                                   type="checkbox"
@@ -5817,7 +5916,26 @@ Bukr / prepcuisines`
                                   {stokeRouteStops.length ? `${i + 1}.` : '\u2022'}
                                 </span>
                                 <span className="stoke-route-name">
-                                  {st.name}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      setStokeRouteOpen((prev) => (prev === st.key ? null : st.key))
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      font: 'inherit',
+                                      color: 'inherit',
+                                      cursor: 'pointer',
+                                      textDecoration: stokeRouteDone.includes(st.key) ? 'line-through' : 'underline dotted',
+                                      textAlign: 'left',
+                                    }}
+                                  >
+                                    {st.name}
+                                  </button>
                                   {st.orderCount > 1 ? ` \u00d7${st.orderCount} boxes` : ''}
                                 </span>
                                 <span className="stoke-route-addr">
@@ -5846,6 +5964,19 @@ Bukr / prepcuisines`
                                   </button>
                                 </span>
                                 {stokeRouteStops.length > 0 && (
+                                  <button
+                                    type="button"
+                                    className={`stoke-route-pin-btn ${stokeRouteDone.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      toggleStokeDone(st.key)
+                                    }}
+                                  >
+                                    {stokeRouteDone.includes(st.key) ? '\u2713 Done' : 'Done'}
+                                  </button>
+                                )}
+                                {stokeRouteStops.length > 0 && (
                                   <a
                                     className="stoke-route-go"
                                     href={stokeNavUrl(stokeNavApp, st.lat, st.lon)}
@@ -5857,10 +5988,58 @@ Bukr / prepcuisines`
                                   </a>
                                 )}
                               </label>
+                              {stokeRouteOpen === st.key && (() => {
+                                const fresh = stokeRouteBaseStops.find((b) => b.key === st.key)
+                                const phones = (fresh?.phones?.length ? fresh.phones : st.phones) || []
+                                const emails = (fresh?.emails?.length ? fresh.emails : st.emails) || []
+                                return (
+                                  <div className="map-intro" style={{ margin: '4px 0 8px 32px' }}>
+                                    <div>
+                                      <strong>Phone:</strong>{' '}
+                                      {phones.length
+                                        ? phones.map((ph, idx) => (
+                                            <span key={ph}>
+                                              {idx > 0 ? ', ' : ''}
+                                              <a href={`tel:${ph.replace(/\s+/g, '')}`}>{ph}</a>
+                                            </span>
+                                          ))
+                                        : 'no number on file'}
+                                    </div>
+                                    <div>
+                                      <strong>Email:</strong>{' '}
+                                      {emails.length
+                                        ? emails.map((em, idx) => (
+                                            <span key={em}>
+                                              {idx > 0 ? ', ' : ''}
+                                              <a href={`mailto:${em}`}>{em}</a>
+                                            </span>
+                                          ))
+                                        : 'no email on file'}
+                                    </div>
+                                  </div>
+                                )
+                              })()}
                             </li>
                           )
                         )}
                       </ul>
+                      {stokeRouteStops.length > 0 && (
+                        <p className="map-intro">
+                          {stokeRouteDone.length} of {stokeRouteStops.length} delivered. Done ticks
+                          and the route are saved automatically; nothing is emailed.
+                        </p>
+                      )}
+                      {stokeRouteStops.length > 0 &&
+                        stokeRouteBaseStops.some(
+                          (b) =>
+                            !stokeRouteExcluded.includes(b.key) &&
+                            !stokeRouteStops.some((st) => st.key === b.key)
+                        ) && (
+                          <p className="pc-error-text">
+                            New stops have appeared since this route was built — hit Rebuild route to
+                            add them (stops you've ticked Done stay as they are).
+                          </p>
+                        )}
                       {stokeRouteStops.length > 0 && stokeRouteExcluded.length > 0 && (
                         <p className="map-intro">Ticks changed — hit Rebuild route to re-optimise.</p>
                       )}
