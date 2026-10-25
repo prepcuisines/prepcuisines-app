@@ -2854,6 +2854,12 @@ export default function AdminDashboard() {
   // doesn't lose them; ticking one never emails anyone or touches the order.
   const [stokeRouteDone, setStokeRouteDone] = useState<string[]>([])
   const [stokeRouteOpen, setStokeRouteOpen] = useState<string | null>(null)
+  // Drivers: each stop can be assigned to a driver; every driver gets their
+  // own optimised run. No drivers added = one single route as before.
+  const [stokeDrivers, setStokeDrivers] = useState<string[]>([])
+  const [stokeAssign, setStokeAssign] = useState<Record<string, string>>({})
+  const [stokeViewDriver, setStokeViewDriver] = useState<string>('all')
+  const [stokeNewDriver, setStokeNewDriver] = useState('')
   const stokeRouteHydratedFor = useRef<string | null>(null)
   const [stokeEmailsCopied, setStokeEmailsCopied] = useState(false)
   const [stokeTemplateCopied, setStokeTemplateCopied] = useState(false)
@@ -2996,32 +3002,39 @@ export default function AdminDashboard() {
       // Stops already ticked as delivered stay at the top in the order they
       // were done; only the remaining stops get re-optimised.
       const doneSet = new Set(stokeRouteDone)
-      const doneStops = stokeRouteStops
-        .filter((st) => doneSet.has(st.key))
-        .map((st) => located.find((l) => l.key === st.key) || st)
-        .filter((st) => stops.some((s) => s.key === st.key))
-      const doneKeys = new Set(doneStops.map((st) => st.key))
-      const todo = located.filter((st) => !doneKeys.has(st.key))
-      const byKey = new Map(todo.map((st) => [st.key, st]))
-      const firsts = stokeRouteFirsts
-        .map((k) => byKey.get(k))
-        .filter(Boolean) as StokeRouteStop[]
-      const lasts = stokeRouteLasts.map((k) => byKey.get(k)).filter(Boolean) as StokeRouteStop[]
-      const pinnedKeys = new Set([...stokeRouteFirsts, ...stokeRouteLasts])
-      const middle = todo.filter((st) => !pinnedKeys.has(st.key))
-      const startPt = firsts.length
-        ? firsts[firsts.length - 1]
-        : doneStops.length
-          ? doneStops[doneStops.length - 1]
-          : STOKE_HQ
-      const endPt = lasts.length ? lasts[0] : STOKE_HQ
-      setStokeRouteStops([
-        ...doneStops,
-        ...firsts,
-        ...optimiseStokeRoute(middle, startPt, endPt),
-        ...lasts,
-      ])
-      setStokeRouteDone(Array.from(doneKeys))
+      const driverOf = (key: string) => (stokeDrivers.includes(stokeAssign[key]) ? stokeAssign[key] : '')
+      const groupNames = stokeDrivers.length ? [...stokeDrivers, ''] : ['']
+      const out: StokeRouteStop[] = []
+      const allDone: string[] = []
+      for (const g of groupNames) {
+        const gStops = located.filter((st) => driverOf(st.key) === g)
+        if (!gStops.length) continue
+        // Stops already ticked as delivered stay at the top in the order they
+        // were done; only the remaining stops get re-optimised.
+        const doneStops = stokeRouteStops
+          .filter((st) => doneSet.has(st.key) && driverOf(st.key) === g)
+          .map((st) => gStops.find((l) => l.key === st.key) || st)
+          .filter((st) => stops.some((x) => x.key === st.key))
+        const doneKeys = new Set(doneStops.map((st) => st.key))
+        const todo = gStops.filter((st) => !doneKeys.has(st.key))
+        const byKey = new Map(todo.map((st) => [st.key, st]))
+        const firsts = stokeRouteFirsts
+          .map((k) => byKey.get(k))
+          .filter(Boolean) as StokeRouteStop[]
+        const lasts = stokeRouteLasts.map((k) => byKey.get(k)).filter(Boolean) as StokeRouteStop[]
+        const pinnedKeys = new Set([...stokeRouteFirsts, ...stokeRouteLasts])
+        const middle = todo.filter((st) => !pinnedKeys.has(st.key))
+        const startPt = firsts.length
+          ? firsts[firsts.length - 1]
+          : doneStops.length
+            ? doneStops[doneStops.length - 1]
+            : STOKE_HQ
+        const endPt = lasts.length ? lasts[0] : STOKE_HQ
+        out.push(...doneStops, ...firsts, ...optimiseStokeRoute(middle, startPt, endPt), ...lasts)
+        allDone.push(...doneKeys)
+      }
+      setStokeRouteStops(out)
+      setStokeRouteDone(allDone)
       setStokeRouteStatus('ready')
       if (missing.length)
         setStokeRouteError(
@@ -3031,6 +3044,30 @@ export default function AdminDashboard() {
       setStokeRouteStatus('idle')
       setStokeRouteError('Route build failed — check your connection and try again.')
     }
+  }
+
+  // Wipes the saved route and every Done tick for the selected delivery date,
+  // back to a clean slate. Never touches the orders themselves.
+  const resetStokeRoute = async () => {
+    const date = stokeRouteSingleDate
+    if (!date) return
+    if (!window.confirm('Reset the route for this date? This clears the built route and all Done ticks.')) return
+    stokeRouteHydratedFor.current = null
+    setStokeRouteStops([])
+    setStokeRouteDone([])
+    setStokeRouteExcluded([])
+    setStokeRouteFirsts([])
+    setStokeRouteLasts([])
+    setStokeDrivers([])
+    setStokeAssign({})
+    setStokeViewDriver('all')
+    setStokeRouteOpen(null)
+    setStokeRouteError(null)
+    setStokeRouteStatus('idle')
+    try {
+      await fetch(`/api/admin/stoke-route?date=${encodeURIComponent(date)}`, { method: 'DELETE' })
+    } catch {}
+    stokeRouteHydratedFor.current = date
   }
 
   const toggleStokeDone = (key: string) =>
@@ -3061,6 +3098,8 @@ export default function AdminDashboard() {
           setStokeRouteExcluded(Array.isArray(saved.excluded) ? saved.excluded : [])
           setStokeRouteFirsts(Array.isArray(saved.firsts) ? saved.firsts : [])
           setStokeRouteLasts(Array.isArray(saved.lasts) ? saved.lasts : [])
+          setStokeDrivers(Array.isArray(saved.drivers) ? saved.drivers : [])
+          setStokeAssign(saved.assign && typeof saved.assign === 'object' ? saved.assign : {})
           setStokeRouteStatus('ready')
         } else {
           setStokeRouteStops([])
@@ -3068,8 +3107,11 @@ export default function AdminDashboard() {
           setStokeRouteExcluded([])
           setStokeRouteFirsts([])
           setStokeRouteLasts([])
+          setStokeDrivers([])
+          setStokeAssign({})
           setStokeRouteStatus('idle')
         }
+        setStokeViewDriver('all')
         stokeRouteHydratedFor.current = date
       } catch {
         // If loading fails we leave things as they are and don't save over the stored route.
@@ -3097,46 +3139,75 @@ export default function AdminDashboard() {
             excluded: stokeRouteExcluded,
             firsts: stokeRouteFirsts,
             lasts: stokeRouteLasts,
+            drivers: stokeDrivers,
+            assign: stokeAssign,
           },
         }),
       }).catch(() => {})
     }, 600)
     return () => clearTimeout(t)
-  }, [stokeRouteStops, stokeRouteDone, stokeRouteExcluded, stokeRouteFirsts, stokeRouteLasts, stokeRouteSingleDate])
+  }, [stokeRouteStops, stokeRouteDone, stokeRouteExcluded, stokeRouteFirsts, stokeRouteLasts, stokeDrivers, stokeAssign, stokeRouteSingleDate])
 
-  const stokeRouteKm = useMemo(() => {
-    if (!stokeRouteStops.length) return 0
+  // Stops grouped per driver (one group when no drivers are set up).
+  const stokeRouteGroups = useMemo(() => {
+    if (!stokeRouteStops.length) return [] as { driver: string; stops: StokeRouteStop[] }[]
+    if (!stokeDrivers.length) return [{ driver: '', stops: stokeRouteStops }]
+    const driverOf = (key: string) => (stokeDrivers.includes(stokeAssign[key]) ? stokeAssign[key] : '')
+    return [...stokeDrivers, '']
+      .map((d) => ({ driver: d, stops: stokeRouteStops.filter((st) => driverOf(st.key) === d) }))
+      .filter((g) => g.stops.length)
+  }, [stokeRouteStops, stokeDrivers, stokeAssign])
+
+  const stokeNumByKey = useMemo(() => {
+    const m = new Map<string, number>()
+    stokeRouteGroups.forEach((g) => g.stops.forEach((st, i) => m.set(st.key, i + 1)))
+    return m
+  }, [stokeRouteGroups])
+
+  const stokeGroupKm = (stops: StokeRouteStop[]) => {
+    if (!stops.length) return 0
     let km = 0
     let cur: { lat: number; lon: number } = STOKE_HQ
-    for (const st of stokeRouteStops) {
+    for (const st of stops) {
       km += havKm(cur, st)
       cur = st
     }
-    km += havKm(cur, STOKE_HQ)
-    return km
-  }, [stokeRouteStops])
+    return km + havKm(cur, STOKE_HQ)
+  }
+
+  const stokeRouteKm = useMemo(
+    () =>
+      stokeRouteGroups
+        .filter((g) => stokeViewDriver === 'all' || g.driver === stokeViewDriver)
+        .reduce((sum, g) => sum + stokeGroupKm(g.stops), 0),
+    [stokeRouteGroups, stokeViewDriver]
+  )
 
   const stokeRouteLegs = useMemo(() => {
-    if (!stokeRouteStops.length) return []
-    const pts = [STOKE_HQ, ...stokeRouteStops.map((st) => ({ lat: st.lat, lon: st.lon })), STOKE_HQ]
     const legs: { label: string; url: string }[] = []
-    const MAX = 10
-    let start = 0
-    while (start < pts.length - 1) {
-      const end = Math.min(start + MAX - 1, pts.length - 1)
-      legs.push({
-        label: `Leg ${legs.length + 1}`,
-        url:
-          'https://www.google.com/maps/dir/' +
-          pts
-            .slice(start, end + 1)
-            .map((pt) => `${pt.lat.toFixed(6)},${pt.lon.toFixed(6)}`)
-            .join('/'),
-      })
-      start = end
+    for (const g of stokeRouteGroups) {
+      if (stokeViewDriver !== 'all' && g.driver !== stokeViewDriver) continue
+      const pts = [STOKE_HQ, ...g.stops.map((st) => ({ lat: st.lat, lon: st.lon })), STOKE_HQ]
+      const MAX = 10
+      let start = 0
+      let n = 0
+      while (start < pts.length - 1) {
+        const end = Math.min(start + MAX - 1, pts.length - 1)
+        n += 1
+        legs.push({
+          label: `${g.driver ? g.driver + ' \u00b7 ' : ''}Leg ${n}`,
+          url:
+            'https://www.google.com/maps/dir/' +
+            pts
+              .slice(start, end + 1)
+              .map((pt) => `${pt.lat.toFixed(6)},${pt.lon.toFixed(6)}`)
+              .join('/'),
+        })
+        start = end
+      }
     }
     return legs
-  }, [stokeRouteStops])
+  }, [stokeRouteGroups, stokeViewDriver])
 
   const stokeRouteEmails = useMemo(() => {
     const set = new Set<string>()
@@ -3194,21 +3265,27 @@ Bukr / prepcuisines`
   const copyStokeRouteLinks = async () => {
     const appName =
       stokeNavApp === 'google' ? 'Google Maps' : stokeNavApp === 'apple' ? 'Apple Maps' : 'Waze'
-    const lines = [
-      `prepcuisines Stoke run — ${stokeDeliveryDayLabel} (${stokeRouteStops.length} stops, ~${stokeRouteKm.toFixed(1)} km — ${appName})`,
-      'Start: Kitchen — 102A Sun Street, ST1 4JR',
-      '',
-      ...(stokeNavApp === 'google' ? [...stokeRouteLegs.map((l) => `${l.label}: ${l.url}`), ''] : []),
-      ...stokeRouteStops.map(
-        (st, i) =>
-          `${i + 1}. ${st.name}${st.orderCount > 1 ? ` ×${st.orderCount}` : ''} — ${st.address}, ${st.postcode}` +
-          (stokeNavApp === 'google' ? '' : `\n${stokeNavUrl(stokeNavApp, st.lat, st.lon)}`)
-      ),
-      '',
-      'End: back to Kitchen — 102A Sun Street',
-    ]
+    const groups = stokeRouteGroups.filter((g) => stokeViewDriver === 'all' || g.driver === stokeViewDriver)
+    const lines: string[] = []
+    for (const g of groups) {
+      const legs = stokeRouteLegs.filter((l) => (g.driver ? l.label.startsWith(g.driver + ' \u00b7 ') : !l.label.includes('\u00b7')))
+      lines.push(
+        `prepcuisines Stoke run${g.driver ? ` \u2014 ${g.driver}` : ''} \u2014 ${stokeDeliveryDayLabel} (${g.stops.length} stops, ~${stokeGroupKm(g.stops).toFixed(1)} km \u2014 ${appName})`,
+        'Start: Kitchen \u2014 102A Sun Street, ST1 4JR',
+        '',
+        ...(stokeNavApp === 'google' ? [...legs.map((l) => `${l.label}: ${l.url}`), ''] : []),
+        ...g.stops.map(
+          (st, i) =>
+            `${i + 1}. ${st.name}${st.orderCount > 1 ? ` \u00d7${st.orderCount}` : ''} \u2014 ${st.address}, ${st.postcode}` +
+            (stokeNavApp === 'google' ? '' : `\n${stokeNavUrl(stokeNavApp, st.lat, st.lon)}`)
+        ),
+        '',
+        'End: back to Kitchen \u2014 102A Sun Street',
+        ''
+      )
+    }
     try {
-      await navigator.clipboard.writeText(lines.join('\n'))
+      await navigator.clipboard.writeText(lines.join('\n').trim())
       setStokeRouteLinksCopied(true)
       setTimeout(() => setStokeRouteLinksCopied(false), 2000)
     } catch {}
@@ -3238,16 +3315,23 @@ Bukr / prepcuisines`
           }),
         }).addTo(map)
       mk(STOKE_HQ.lat, STOKE_HQ.lon, 'K', 'stoke-route-pin-hq').bindTooltip('Kitchen — Sun Street')
-      stokeRouteStops.forEach((st, i) =>
-        mk(st.lat, st.lon, String(i + 1), '').bindTooltip(`${i + 1}. ${st.name} — ${st.postcode}`)
-      )
-      const line = [
-        [STOKE_HQ.lat, STOKE_HQ.lon],
-        ...stokeRouteStops.map((st) => [st.lat, st.lon]),
-        [STOKE_HQ.lat, STOKE_HQ.lon],
-      ]
-      L.polyline(line, { color: '#2d3510', weight: 3, opacity: 0.75 }).addTo(map)
-      map.fitBounds(line, { padding: [24, 24] })
+      const colours = ['#2d3510', '#c2410c', '#1d4ed8', '#7e22ce', '#0f766e', '#be123c']
+      const allPts: number[][] = [[STOKE_HQ.lat, STOKE_HQ.lon]]
+      stokeRouteGroups.forEach((g, gi) => {
+        g.stops.forEach((st, i) =>
+          mk(st.lat, st.lon, String(i + 1), '').bindTooltip(
+            `${g.driver ? g.driver + ' \u00b7 ' : ''}${i + 1}. ${st.name} \u2014 ${st.postcode}`
+          )
+        )
+        const gl = [
+          [STOKE_HQ.lat, STOKE_HQ.lon],
+          ...g.stops.map((st) => [st.lat, st.lon]),
+          [STOKE_HQ.lat, STOKE_HQ.lon],
+        ]
+        L.polyline(gl, { color: colours[gi % colours.length], weight: 3, opacity: 0.75 }).addTo(map)
+        allPts.push(...gl)
+      })
+      map.fitBounds(allPts, { padding: [24, 24] })
       stokeRouteMapInstance.current = map
     }
     const w = window as any
@@ -3270,7 +3354,7 @@ Bukr / prepcuisines`
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
     script.onload = render
     document.body.appendChild(script)
-  }, [showStokeRoute, stokeRouteStatus, stokeRouteStops])
+  }, [showStokeRoute, stokeRouteStatus, stokeRouteStops, stokeRouteGroups])
 
   const matchesOrderState = (o: Order, state: 'all' | 'live' | 'skipped' | 'cancelled' | 'cash') =>
     state === 'all'
@@ -5840,6 +5924,11 @@ Bukr / prepcuisines`
                               ? '\u21bb Rebuild route'
                               : 'Build optimised route'}
                         </button>
+                        {(stokeRouteStops.length > 0 || stokeRouteDone.length > 0) && (
+                          <button className="segment-pill" onClick={resetStokeRoute}>
+                            Reset
+                          </button>
+                        )}
                         <button className="segment-pill" onClick={copyStokeEmails}>
                           {stokeEmailsCopied
                             ? 'Copied!'
@@ -5896,8 +5985,81 @@ Bukr / prepcuisines`
                           )}
                         </>
                       )}
+                      <div className="pc-modal-inline-row" style={{ alignItems: 'center' }}>
+                        <span className="cook-sheet-collapse-meta">Drivers:</span>
+                        {stokeDrivers.length > 0 && (
+                          <button
+                            className={`segment-pill ${stokeViewDriver === 'all' ? 'segment-pill-active' : ''}`}
+                            onClick={() => setStokeViewDriver('all')}
+                          >
+                            All
+                          </button>
+                        )}
+                        {stokeDrivers.map((d) => (
+                          <span key={d} style={{ display: 'inline-flex', gap: 2 }}>
+                            <button
+                              className={`segment-pill ${stokeViewDriver === d ? 'segment-pill-active' : ''}`}
+                              onClick={() => setStokeViewDriver(d)}
+                            >
+                              {d}
+                              {stokeRouteGroups.find((g) => g.driver === d)
+                                ? ` (${stokeRouteGroups.find((g) => g.driver === d)!.stops.length})`
+                                : ''}
+                            </button>
+                            <button
+                              className="segment-pill"
+                              title={`Remove ${d}`}
+                              onClick={() => {
+                                if (!window.confirm(`Remove driver ${d}? Their stops go back to unassigned.`)) return
+                                setStokeDrivers((prev) => prev.filter((x) => x !== d))
+                                setStokeAssign((prev) => {
+                                  const next = { ...prev }
+                                  for (const k of Object.keys(next)) if (next[k] === d) delete next[k]
+                                  return next
+                                })
+                                setStokeViewDriver('all')
+                              }}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          className="text-input"
+                          style={{ maxWidth: 140 }}
+                          placeholder="Driver name"
+                          value={stokeNewDriver}
+                          onChange={(e) => setStokeNewDriver(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') (e.currentTarget.nextElementSibling as HTMLButtonElement | null)?.click()
+                          }}
+                        />
+                        <button
+                          className="segment-pill"
+                          onClick={() => {
+                            const name = stokeNewDriver.trim()
+                            if (!name || stokeDrivers.some((d) => d.toLowerCase() === name.toLowerCase())) return
+                            setStokeDrivers((prev) => [...prev, name])
+                            setStokeNewDriver('')
+                          }}
+                        >
+                          + Add driver
+                        </button>
+                      </div>
+                      {stokeDrivers.length > 0 && (
+                        <p className="map-intro">
+                          Pick a driver on each stop, then hit Rebuild route to optimise each driver's run
+                          separately.
+                        </p>
+                      )}
                       <ul className="stoke-route-list">
-                        {(stokeRouteStops.length ? stokeRouteStops : stokeRouteBaseStops).map(
+                        {(stokeRouteStops.length ? stokeRouteGroups.flatMap((g) => g.stops) : stokeRouteBaseStops)
+                          .filter(
+                            (st) =>
+                              stokeViewDriver === 'all' ||
+                              (stokeAssign[st.key] || '') === stokeViewDriver
+                          )
+                          .map(
                           (st, i) => (
                             <li key={st.key} style={stokeRouteDone.includes(st.key) ? { opacity: 0.5 } : undefined}>
                               <label className="stoke-route-row">
@@ -5913,7 +6075,7 @@ Bukr / prepcuisines`
                                   }
                                 />
                                 <span className="stoke-route-num">
-                                  {stokeRouteStops.length ? `${i + 1}.` : '\u2022'}
+                                  {stokeRouteStops.length ? `${stokeNumByKey.get(st.key) ?? i + 1}.` : '\u2022'}
                                 </span>
                                 <span className="stoke-route-name">
                                   <button
@@ -5941,6 +6103,28 @@ Bukr / prepcuisines`
                                 <span className="stoke-route-addr">
                                   {st.address} · {st.postcode}
                                 </span>
+                                {stokeDrivers.length > 0 && (
+                                  <select
+                                    value={stokeDrivers.includes(stokeAssign[st.key]) ? stokeAssign[st.key] : ''}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      setStokeAssign((prev) => {
+                                        const next = { ...prev }
+                                        if (v) next[st.key] = v
+                                        else delete next[st.key]
+                                        return next
+                                      })
+                                    }}
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {stokeDrivers.map((d) => (
+                                      <option key={d} value={d}>
+                                        {d}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
                                 <span className="stoke-route-pin-btns">
                                   <button
                                     type="button"
