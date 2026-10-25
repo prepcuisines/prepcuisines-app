@@ -3126,7 +3126,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const date = stokeRouteSingleDate
     if (!date || stokeRouteHydratedFor.current !== date) return
-    if (!stokeRouteStops.length) return
+    if (!stokeRouteStops.length && !stokeRouteDone.length) return
     const t = setTimeout(() => {
       fetch('/api/admin/stoke-route', {
         method: 'PUT',
@@ -6147,7 +6147,7 @@ Bukr / prepcuisines`
                                     Last
                                   </button>
                                 </span>
-                                {stokeRouteStops.length > 0 && (
+                                {(
                                   <button
                                     type="button"
                                     className={`stoke-route-pin-btn ${stokeRouteDone.includes(st.key) ? 'stoke-route-pin-btn-active' : ''}`}
@@ -6207,6 +6207,45 @@ Bukr / prepcuisines`
                           )
                         )}
                       </ul>
+                      {(() => {
+                        const all = stokeRouteStops.length ? stokeRouteStops : stokeRouteBaseStops
+                        const doneRows = all.filter((st) => stokeRouteDone.includes(st.key))
+                        return (
+                          <div className="stoke-route-template">
+                            <div className="cook-sheet-header-row">
+                              <span className="area-map-title">
+                                Completed deliveries ({doneRows.length} of {all.length})
+                              </span>
+                            </div>
+                            {doneRows.length === 0 ? (
+                              <p className="map-intro">Nothing ticked Done yet.</p>
+                            ) : (
+                              <ul className="stoke-route-list">
+                                {doneRows.map((st) => (
+                                  <li key={st.key} className="stoke-route-row">
+                                    <span className="stoke-route-num">{'\u2713'}</span>
+                                    <span className="stoke-route-name">
+                                      {st.name}
+                                      {st.orderCount > 1 ? ` \u00d7${st.orderCount} boxes` : ''}
+                                      {stokeAssign[st.key] ? ` \u00b7 ${stokeAssign[st.key]}` : ''}
+                                    </span>
+                                    <span className="stoke-route-addr">
+                                      {st.address} \u00b7 {st.postcode}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="stoke-route-pin-btn"
+                                      onClick={() => toggleStokeDone(st.key)}
+                                    >
+                                      Undo
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )
+                      })()}
                       {stokeRouteStops.length > 0 && (
                         <p className="map-intro">
                           {stokeRouteDone.length} of {stokeRouteStops.length} delivered. Done ticks
