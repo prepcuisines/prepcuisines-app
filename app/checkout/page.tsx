@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Header from '../Header'
+import { offerAdjustedPrice } from '@/lib/new-customer-offer'
 
 type OrderData = {
   windowId: string
@@ -150,8 +151,22 @@ export default function CheckoutPage() {
       .from('menu_items')
       .select('id, name, price, category, discount_exempt')
       .in('id', allIds)
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (data) {
+          // New customers (no completed orders) get the £1.99 pancake offer;
+          // the server applies the same rule when charging.
+          let isNewCustomer = true
+          try {
+            const { data: authData } = await supabase.auth.getUser()
+            if (authData.user) {
+              const { data: prof } = await supabase
+                .from('customer_profiles')
+                .select('orders_completed')
+                .eq('id', authData.user.id)
+                .maybeSingle()
+              if ((prof?.orders_completed || 0) > 0) isNewCustomer = false
+            }
+          } catch {}
           const items: LineItem[] = data.map((item) => {
             const qty =
               parsed.mealQty[item.id] ||
@@ -162,7 +177,7 @@ export default function CheckoutPage() {
               id: item.id,
               name: item.name,
               qty,
-              price: item.price,
+              price: offerAdjustedPrice(item, isNewCustomer),
               category: item.category,
               discountExempt: !!item.discount_exempt,
             }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { offerAdjustedPrice } from '@/lib/new-customer-offer'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -99,6 +100,28 @@ export async function POST(req: NextRequest) {
       if (pct > 0) permanentRate = 1 - pct / 100
     }
 
+    // New-customer offer (see lib/new-customer-offer.ts): anyone with no
+    // completed orders, checked by account first and then by email.
+    let isNewCustomer = true
+    if (userId) {
+      const { data: histProfile } = await supabase
+        .from('customer_profiles')
+        .select('orders_completed')
+        .eq('id', userId)
+        .maybeSingle()
+      if ((histProfile?.orders_completed || 0) > 0) isNewCustomer = false
+    }
+    if (isNewCustomer && customerEmail) {
+      const { data: emailProfile } = await supabase
+        .from('customer_profiles')
+        .select('orders_completed')
+        .ilike('email', customerEmail.trim())
+        .gt('orders_completed', 0)
+        .limit(1)
+        .maybeSingle()
+      if (emailProfile) isNewCustomer = false
+    }
+
     // No `recurring` on any line item anymore — both paths are now a normal
     // one-time charge. For Subscribe & Save, future weeks are charged by our
     // own weekly job using the saved card, not by a Stripe subscription object.
@@ -111,7 +134,8 @@ export async function POST(req: NextRequest) {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
       const discountMultiplier = permanentRate ?? (isReturningWelcome40Customer ? 0.8 : 0.6)
       const discountApplies = (isSubscribe || permanentRate !== null) && !item.discount_exempt
-      const unitPrice = discountApplies ? item.price * discountMultiplier : item.price
+      const basePrice = offerAdjustedPrice(item, isNewCustomer)
+      const unitPrice = discountApplies ? basePrice * discountMultiplier : basePrice
       return {
         quantity: qty,
         price_data: {

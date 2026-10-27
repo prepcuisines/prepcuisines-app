@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import Stripe from 'stripe'
 import { createClient as createServerClient } from '@/utils/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { PANCAKE_ITEM_ID, PANCAKE_NEW_CUSTOMER_PRICE } from '@/lib/new-customer-offer'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -82,10 +83,10 @@ export async function POST(req: Request) {
     .from('menu_window_items')
     .select('menu_items(id, name, price, category, discount_exempt)')
     .eq('menu_window_id', order.menu_window_id)
-  const menuByName = new Map<string, { name: string; price: number; discountExempt: boolean; category: string }>()
+  const menuByName = new Map<string, { id: string; name: string; price: number; discountExempt: boolean; category: string }>()
   for (const wi of windowItems || []) {
     const mi: any = (wi as any).menu_items
-    if (mi?.name) menuByName.set(mi.name, { name: mi.name, price: mi.price, discountExempt: !!mi.discount_exempt, category: mi.category })
+    if (mi?.name) menuByName.set(mi.name, { id: mi.id, name: mi.name, price: mi.price, discountExempt: !!mi.discount_exempt, category: mi.category })
   }
 
   for (const it of requested) {
@@ -139,7 +140,12 @@ export async function POST(req: Request) {
   const newItems = requested.map((it) => {
     const menu = menuByName.get(it.name)!
     const itemRate = menu.discountExempt ? 1 : rate
-    return { name: menu.name, price: Math.round(menu.price * itemRate * 100) / 100, qty: it.qty }
+    // A new customer's £1.99 pancakes stay at the price they were placed at.
+    const keepsOfferPrice =
+      menu.id === PANCAKE_ITEM_ID &&
+      snapshot.some((l) => l.name === menu.name && Math.abs(l.price - PANCAKE_NEW_CUSTOMER_PRICE) < 0.005)
+    const unit = keepsOfferPrice ? Math.min(menu.price, PANCAKE_NEW_CUSTOMER_PRICE) : menu.price
+    return { name: menu.name, price: Math.round(unit * itemRate * 100) / 100, qty: it.qty }
   })
   const newFood = newItems.reduce((s, it) => s + it.price * it.qty, 0)
   const isStoke = (order.ship_postcode || '').trim().toUpperCase().replace(/\s/g, '').startsWith('ST')

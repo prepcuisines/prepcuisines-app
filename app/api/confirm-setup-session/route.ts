@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer } from '@/lib/send-email'
+import { offerAdjustedPrice } from '@/lib/new-customer-offer'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -177,7 +178,7 @@ export async function GET(req: NextRequest) {
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
       const itemRate = item.discount_exempt ? 1 : discountRate
-      return sum + item.price * qty * itemRate
+      return sum + offerAdjustedPrice(item, ordersCompleted === 0) * qty * itemRate
     }, 0)
 
     const normalisedPostcode = (profile.postcode || '').trim().toUpperCase().replace(/\s/g, '')
@@ -190,7 +191,7 @@ export async function GET(req: NextRequest) {
       const itemRate = item.discount_exempt ? 1 : discountRate
       return {
         name: item.name,
-        price: Math.round(item.price * itemRate * 100) / 100,
+        price: Math.round(offerAdjustedPrice(item, ordersCompleted === 0) * itemRate * 100) / 100,
         qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
       }
     })

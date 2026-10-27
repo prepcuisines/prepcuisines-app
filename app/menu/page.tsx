@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import OrderingFlow from './OrderingFlow'
+import { offerAdjustedPrice, PANCAKE_ITEM_ID, isPancakeOfferActive } from '@/lib/new-customer-offer'
 
 // Cutoffs change by the second — never let Next.js cache this page or the
 // Supabase queries inside it, or you'll see stale/expired windows.
@@ -45,13 +46,40 @@ export default async function Page() {
     )
   }
 
+  // New customers (signed out, or signed in with no completed orders) see the
+  // £1.99 pancake offer; customers with an account and past orders see £4.49.
+  let isNewCustomer = true
+  const { data: authData } = await supabase.auth.getUser()
+  if (authData.user) {
+    const { data: prof } = await supabase
+      .from('customer_profiles')
+      .select('orders_completed')
+      .eq('id', authData.user.id)
+      .maybeSingle()
+    if ((prof?.orders_completed || 0) > 0) isNewCustomer = false
+  }
+
   const itemsByWindow: Record<string, any[]> = {}
   for (const w of dedupedWindows) {
     const { data: items } = await supabase
       .from('menu_window_items')
       .select('week_in_rotation, menu_items(id, name, description, price, category, allergens, ingredients, image_url, compare_at_price, promo_label, calories, protein_g, carbs_g, fat_g)')
       .eq('menu_window_id', w.id)
-    itemsByWindow[w.id] = items || []
+    itemsByWindow[w.id] = (items || []).map((row: any) => {
+      const mi = row.menu_items
+      if (mi && mi.id === PANCAKE_ITEM_ID && isNewCustomer && isPancakeOfferActive()) {
+        return {
+          ...row,
+          menu_items: {
+            ...mi,
+            compare_at_price: mi.price,
+            price: offerAdjustedPrice(mi, true),
+            promo_label: 'New customer offer',
+          },
+        }
+      }
+      return row
+    })
   }
 
   return <OrderingFlow windows={dedupedWindows} itemsByWindow={itemsByWindow} />

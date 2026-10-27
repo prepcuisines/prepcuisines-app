@@ -7,6 +7,7 @@ import { sendPaymentFailedEmailToCustomer, sendOrderConfirmationEmailToCustomer,
 import { klaviyoTrackEvent } from '@/lib/klaviyo'
 import { hasAdConsent } from '@/lib/consentServer'
 import { sendMetaConversionEvent } from '@/lib/metaConversionsApi'
+import { offerAdjustedPrice } from '@/lib/new-customer-offer'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
       const rate = item.discount_exempt ? 1 : discountRate
-      return sum + item.price * qty * rate
+      return sum + offerAdjustedPrice(item, ordersCompleted === 0) * qty * rate
     }, 0)
 
     const normalisedPostcode = (profile.postcode || '').trim().toUpperCase().replace(/\s/g, '')
@@ -198,7 +199,7 @@ export async function POST(req: NextRequest) {
         const itemRate = item.discount_exempt ? 1 : discountRate
         return {
           name: item.name,
-          price: Math.round(item.price * itemRate * 100) / 100,
+          price: Math.round(offerAdjustedPrice(item, ordersCompleted === 0) * itemRate * 100) / 100,
           qty: mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0,
         }
       }),
