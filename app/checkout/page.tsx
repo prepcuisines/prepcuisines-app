@@ -628,7 +628,7 @@ export default function CheckoutPage() {
     const discounted = item.discountExempt ? full : full * subscribeRate
     return (
       <span className="pc-breakdown-price">
-        <span className="pc-breakdown-price-was">£{full.toFixed(2)}</span>
+        {discounted < full && <span className="pc-breakdown-price-was">£{full.toFixed(2)}</span>}
         <span className="pc-breakdown-price-now">£{discounted.toFixed(2)}</span>
       </span>
     )
