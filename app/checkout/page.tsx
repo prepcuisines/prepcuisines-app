@@ -625,7 +625,7 @@ export default function CheckoutPage() {
 
   const ItemPrice = ({ item }: { item: LineItem }) => {
     const full = item.price * item.qty
-    const discounted = full * subscribeRate
+    const discounted = item.discountExempt ? full : full * subscribeRate
     return (
       <span className="pc-breakdown-price">
         <span className="pc-breakdown-price-was">£{full.toFixed(2)}</span>
@@ -643,7 +643,10 @@ export default function CheckoutPage() {
     : 0.6)
 
   const fullFoodTotal = lineItems.reduce((sum, item) => sum + item.price * item.qty, 0)
-  const subscribeFoodTotal = fullFoodTotal * subscribeRate
+  const subscribeFoodTotal = lineItems.reduce(
+    (sum, item) => sum + item.price * item.qty * (item.discountExempt ? 1 : subscribeRate),
+    0,
+  )
 
   const normalisedPostcode = postcode.trim().toUpperCase().replace(/\s/g, '')
   const isStokeOnTrent = normalisedPostcode.startsWith('ST')
@@ -651,7 +654,9 @@ export default function CheckoutPage() {
 
   const fullTotal = fullFoodTotal + deliveryFee
   // Pay As You Go price: only differs for customers on a permanent discount.
-  const paygTotal = fullFoodTotal * (permanentRate ?? 1) + deliveryFee
+  const paygTotal =
+    lineItems.reduce((sum, item) => sum + item.price * item.qty * (item.discountExempt ? 1 : (permanentRate ?? 1)), 0) +
+    deliveryFee
   const subscribeTotal = subscribeFoodTotal + deliveryFee
 
   return (
