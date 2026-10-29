@@ -56,6 +56,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
       'Hey {{first_name}},',
       "Payday's here, so here's the deal:",
       '<strong>40% off your first box.</strong> No code needed.<br/>Chef-made, high protein, from £4.80 a meal.',
+      '<strong>New:</strong> add protein pancakes for just <strong>£1.99</strong>. Breakfast sorted too.',
       'Treat yourself properly this month. No cooking, no washing up, no takeaway guilt.',
       ORDER_LINK,
       CUTOFFS,
@@ -71,7 +72,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     html: plain([
       'Hey {{first_name}},',
       'Quick one. If payday has landed, your <strong>40% off your first box</strong> is still waiting. No code needed.',
-      'New on the menu: <strong>Lebanese Garlic Herb Chicken Bowl</strong>. Garlic and herb chicken thigh with golden basmati rice, a fresh chopped salad and a creamy spicy garlic sauce. 555 kcal, 46g protein.',
+      '<strong>New:</strong> add protein pancakes for just <strong>£1.99</strong>. Breakfast sorted too.',
       'Chef-made, high protein, from £4.80 a meal. Heat, eat, done.',
       ORDER_LINK,
       CUTOFFS,
