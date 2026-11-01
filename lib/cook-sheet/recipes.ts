@@ -554,6 +554,19 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
+    // The menu item was renamed to this; the entry above still covers older
+    // orders that carry the old name.
+    name: 'Forté Cookie Dough - 2 per serving (nutrition per cookie)',
+    cat: 'dessert',
+    stickerColour: 'n/a',
+    meat: null,
+    ingredients: [
+      { name: 'Peanut Butter', raw: 90 },
+      { name: 'Vanilla Beef Isolate Protein Powder', raw: 44 },
+      { name: 'Ripe Banana', raw: 66 },
+    ],
+  },
+  {
     name: 'Oreo Protein Cookie Dough',
     cat: 'dessert',
     stickerColour: 'n/a',
