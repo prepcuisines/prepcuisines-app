@@ -102,8 +102,8 @@ export const HUB_RECIPES: Record<string, { name: string; grams: number }[]> = {
     { name: 'Broccoli', grams: 30 },
   ],
   'Mongolian Beef Noodles With Peppers': [
-    { name: 'Beef Steak Strips', grams: 200 },
-    { name: 'Noodles', grams: 180 },
+    { name: 'Beef Steak Strips', grams: 150 },
+    { name: 'Noodles', grams: 150 },
     { name: 'Peppers', grams: 15 },
   ],
   'Butter Chicken With Rice And Green Beans': [
