@@ -371,10 +371,10 @@ export const RECIPES: Recipe[] = [
     name: 'Mongolian Beef Noodles With Peppers',
     cat: 'high',
     stickerColour: 'light green',
-    meat: { name: 'Beef Steak (strips)', raw: 260, cookedWeight: 160 },
+    meat: { name: 'Beef Steak (strips)', raw: 195, cookedWeight: 120 },
     ingredients: [
-      { name: 'Beef Steak (strips)', raw: 260, isMeat: true },
-      { name: 'Noodles', raw: 175, cookedWeight: 150 },
+      { name: 'Beef Steak (strips)', raw: 195, isMeat: true },
+      { name: 'Noodles', raw: 146, cookedWeight: 125 },
       { name: 'Peppers & Sauce', raw: 30 },
     ],
   },
