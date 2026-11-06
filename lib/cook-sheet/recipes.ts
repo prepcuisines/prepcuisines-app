@@ -315,14 +315,15 @@ export const RECIPES: Recipe[] = [
     name: 'Peri Rosa Chicken Rigatoni With Peas',
     cat: 'low',
     stickerColour: 'pink',
-    // Confirmed per-portion spec (Oct 2026): 552 kcal, 48.9g P / 54.1g C /
-    // 15.6g F, ~400g per box. Portion each box as 125g chicken, 110g cooked
-    // rigatoni and 165g sauce (peas included). 10g of the peri peri sauce and
+    // Portion (Nov 2026): 150g cooked chicken and 150g cooked rigatoni (raw
+    // weights scaled from the old 125g/110g cooked yields). Earlier spec for
+    // reference: 552 kcal, 48.9g P / 54.1g C / 15.6g F with 125g chicken,
+    // 110g cooked rigatoni and 165g sauce (peas included). 10g of the peri peri sauce and
     // 5g of the spices are brushed onto the chicken; the rest goes in the sauce.
-    meat: { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 170, cookedWeight: 125 },
+    meat: { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 204, cookedWeight: 150 },
     ingredients: [
-      { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 170, isMeat: true },
-      { name: 'Rigatoni Pasta (dry)', raw: 48, cookedWeight: 110 },
+      { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 204, isMeat: true },
+      { name: 'Rigatoni Pasta (dry)', raw: 65, cookedWeight: 150 },
       { name: 'Light Evaporated Milk', raw: 45 },
       { name: 'Light Cream Cheese', raw: 20 },
       { name: 'Peas', raw: 40 },
