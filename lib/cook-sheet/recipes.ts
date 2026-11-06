@@ -337,16 +337,16 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    // New dish (Nov 2026): 140g cooked chicken breast, 120g cooked rice, 150g
-    // slaw and 25g bang bang sauce = ~540 kcal, 49g P / 45g C / 18g F.
-    // Raw weights are scaled from the standard chicken breast yield.
+    // New dish (Nov 2026): 115g cooked chicken thigh, 100g cooked rice, 150g
+    // slaw and 25g bang bang sauce = ~525 kcal, 35g P / 40g C / 25g F.
+    // Raw weights are scaled from the trimmed chicken thigh yield.
     name: 'Bang Bang Chicken With Rice And Cucumber Slaw',
     cat: 'low',
     stickerColour: 'pink',
-    meat: { name: 'Chicken Breast', raw: 171, cookedWeight: 140 },
+    meat: { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 156, cookedWeight: 115 },
     ingredients: [
-      { name: 'Chicken Breast', raw: 171, isMeat: true },
-      { name: 'Basmati Rice (dry)', raw: 45, cookedWeight: 120 },
+      { name: 'Chicken Thigh (boneless, skinless, trimmed)', raw: 156, isMeat: true },
+      { name: 'Basmati Rice (dry)', raw: 38, cookedWeight: 100 },
       { name: 'Cabbage', raw: 55 },
       { name: 'Cucumber', raw: 57 },
       { name: 'Carrot', raw: 15 },
