@@ -337,6 +337,34 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
+    // New dish (Nov 2026): 140g cooked chicken breast, 120g cooked rice, 150g
+    // slaw and 25g bang bang sauce = ~540 kcal, 49g P / 45g C / 18g F.
+    // Raw weights are scaled from the standard chicken breast yield.
+    name: 'Bang Bang Chicken With Rice And Cucumber Slaw',
+    cat: 'low',
+    stickerColour: 'pink',
+    meat: { name: 'Chicken Breast', raw: 171, cookedWeight: 140 },
+    ingredients: [
+      { name: 'Chicken Breast', raw: 171, isMeat: true },
+      { name: 'Basmati Rice (dry)', raw: 45, cookedWeight: 120 },
+      { name: 'Cabbage', raw: 55 },
+      { name: 'Cucumber', raw: 57 },
+      { name: 'Carrot', raw: 15 },
+      { name: 'Spring Onion', raw: 7 },
+      { name: 'Jalapeño', raw: 3 },
+      { name: 'Fresh Coriander', raw: 4 },
+      { name: 'Sesame Oil', raw: 3 },
+      { name: 'Rice Vinegar', raw: 11 },
+      { name: 'Soy Sauce', raw: 12 },
+      { name: 'Toasted Sesame Seeds', raw: 2 },
+      { name: 'Light Mayonnaise', raw: 11 },
+      { name: 'Sriracha', raw: 8 },
+      { name: 'Unsweetened Ketchup', raw: 6 },
+      { name: 'Lime Juice', raw: 8 },
+      { name: 'Dried Spices & Salt', raw: 8 },
+    ],
+  },
+  {
     name: 'Crispy Chickpeas & Hot Honey Halloumi Salad',
     cat: 'low',
     stickerColour: 'pink',
