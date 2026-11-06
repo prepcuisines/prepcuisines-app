@@ -198,19 +198,28 @@ export function sheetsFor(count: number, perSheet: number): number {
 
 /* ── Shopping list bucketing ───────────────────────────────────────────── */
 
-const BEEF_MINCE_KEYWORDS = ['minced beef', 'beef mince', 'mince beef'];
-
 function shoppingBucket(cat: RecipeCategory): ShoppingSection['key'] {
   if (cat === 'breakfast') return 'breakfast';
   if (cat === 'dessert') return 'desserts';
   return 'meals';
 }
 
-/** Different recipes buy the same mince — roll the variants into one line. */
+// Different recipes buy the same product under slightly different names, so
+// roll them into one line per product. Order matters: first match wins.
+// Chicken Tikka (the tikka wraps) deliberately matches none of these, so it
+// stays on its own line.
+const MEAT_GROUPS: { label: string; keywords: string[] }[] = [
+  { label: 'Chicken Breast', keywords: ['chicken breast'] },
+  { label: 'Chicken Thigh (all variants)', keywords: ['chicken thigh'] },
+  { label: 'Beef Mince (all variants)', keywords: ['minced beef', 'beef mince', 'mince beef', 'ground beef'] },
+  { label: 'Beef Steak (all variants)', keywords: ['beef steak', 'steak bites', 'steak'] },
+];
+
 function shoppingKey(name: string, isMeat: boolean): string {
   if (!isMeat) return name;
   const lower = name.toLowerCase();
-  return BEEF_MINCE_KEYWORDS.some((k) => lower.includes(k)) ? 'Beef Mince (all variants)' : name;
+  const group = MEAT_GROUPS.find((g) => g.keywords.some((k) => lower.includes(k)));
+  return group ? group.label : name;
 }
 
 /* ── Main builder ──────────────────────────────────────────────────────── */
