@@ -3318,6 +3318,8 @@ Bukr / prepcuisines`
       const colours = ['#2d3510', '#c2410c', '#1d4ed8', '#7e22ce', '#0f766e', '#be123c']
       const allPts: number[][] = [[STOKE_HQ.lat, STOKE_HQ.lon]]
       stokeRouteGroups.forEach((g, gi) => {
+        // Picking a driver shows only their stops and route; All shows everyone.
+        if (stokeViewDriver !== 'all' && g.driver !== stokeViewDriver) return
         g.stops.forEach((st, i) =>
           mk(st.lat, st.lon, String(i + 1), '').bindTooltip(
             `${g.driver ? g.driver + ' \u00b7 ' : ''}${i + 1}. ${st.name} \u2014 ${st.postcode}`
@@ -3354,7 +3356,7 @@ Bukr / prepcuisines`
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
     script.onload = render
     document.body.appendChild(script)
-  }, [showStokeRoute, stokeRouteStatus, stokeRouteStops, stokeRouteGroups])
+  }, [showStokeRoute, stokeRouteStatus, stokeRouteStops, stokeRouteGroups, stokeViewDriver])
 
   const matchesOrderState = (o: Order, state: 'all' | 'live' | 'skipped' | 'cancelled' | 'cash') =>
     state === 'all'
