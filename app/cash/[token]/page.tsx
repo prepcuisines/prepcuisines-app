@@ -32,5 +32,19 @@ export default async function Page({ params }: { params: Promise<{ token: string
   }
 
   const windows = await getOpenCashWindows(supabase, link.meal_price)
-  return <CashOrderForm token={token} customerName={link.name} deliveryFee={link.delivery_fee} mealPrice={link.meal_price === null || link.meal_price === undefined ? 6 : Number(link.meal_price)} windows={windows} />
+  // Orders this link has already placed (not cancelled) for the open windows.
+  // A cancelled order frees the day up again.
+  const { data: placed } = windows.length
+    ? await supabase
+        .from('customer_window_orders')
+        .select('menu_window_id, order_number, items, total_amount')
+        .eq('cash_link_id', link.id)
+        .eq('cancelled', false)
+        .in('menu_window_id', windows.map((w) => w.id))
+    : { data: [] as any[] }
+  const existing: Record<string, { orderNumber: number; total: number; items: { qty: number; name: string; price: number }[] }> = {}
+  for (const o of placed || [])
+    existing[o.menu_window_id] = { orderNumber: o.order_number, total: Number(o.total_amount), items: Array.isArray(o.items) ? o.items : [] }
+
+  return <CashOrderForm token={token} customerName={link.name} deliveryFee={link.delivery_fee} mealPrice={link.meal_price === null || link.meal_price === undefined ? 6 : Number(link.meal_price)} windows={windows} existing={existing} />
 }

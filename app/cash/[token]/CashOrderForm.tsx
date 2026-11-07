@@ -32,14 +32,16 @@ export default function CashOrderForm({
   deliveryFee,
   mealPrice,
   windows,
+  existing,
 }: {
   token: string
   customerName: string
   deliveryFee: number | null
   mealPrice: number
   windows: CashWindow[]
+  existing: Record<string, { orderNumber: number; total: number; items: { qty: number; name: string; price: number }[] }>
 }) {
-  const [windowId, setWindowId] = useState(windows[0]?.id || '')
+  const [windowId, setWindowId] = useState((windows.find((w) => !existing[w.id]) || windows[0])?.id || '')
   const [qty, setQty] = useState<Record<string, Record<string, number>>>({})
   const [details, setDetails] = useState<Details>({ name: customerName, phone: '', email: '', houseNumber: '', street: '', postcode: '', instructions: '' })
   const [step, setStep] = useState<'menu' | 'details'>('menu')
@@ -57,6 +59,7 @@ export default function CashOrderForm({
   }, [storeKey])
 
   const win = windows.find((w) => w.id === windowId)
+  const placedOrder = win ? existing[win.id] : undefined
   const cart = qty[windowId] || {}
   const lines = useMemo(
     () => (win?.items || []).filter((i) => (cart[i.id] || 0) > 0).map((i) => ({ item: i, qty: cart[i.id] })),
@@ -160,6 +163,7 @@ export default function CashOrderForm({
               style={{ flex: 1, padding: '12px 8px', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', border: `2px solid ${GREEN}`, background: w.id === windowId ? GREEN : '#fff', color: w.id === windowId ? CREAM : GREEN }}
             >
               {w.delivery_day}
+              {existing[w.id] && <span style={{ display: 'block', fontSize: 11, fontWeight: 400, marginTop: 2 }}>✓ Ordered</span>}
             </button>
           ))}
         </div>
@@ -167,7 +171,26 @@ export default function CashOrderForm({
           Delivery {dayLabel(win)}. Order by <strong>{cutoffLabel(win)}</strong>.
         </p>
 
-        {step === 'menu' &&
+        {placedOrder && (
+          <section>
+            <h2 style={{ fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b7a6b', margin: '0 0 8px' }}>You already have an order</h2>
+            <div style={{ background: '#fff', borderRadius: 10, padding: 14, border: `2px solid ${GREEN}` }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Order #PC-{placedOrder.orderNumber} · {win.delivery_day}</div>
+              {placedOrder.items.map((l, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '5px 0', gap: 10, color: l.name === 'Delivery' ? '#666' : undefined }}>
+                  <span>{l.name === 'Delivery' ? 'Delivery' : `${l.qty} × ${l.name}`}</span>
+                  <span>{money(l.qty * l.price)}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontWeight: 700, borderTop: '1px solid #eee', marginTop: 6, paddingTop: 10 }}>
+                <span>Total (cash)</span><span>{money(placedOrder.total)}</span>
+              </div>
+            </div>
+            <p style={{ fontSize: 14, color: '#555', lineHeight: 1.6, marginTop: 14 }}>To change this order, message prepcuisines.</p>
+          </section>
+        )}
+
+        {!placedOrder && step === 'menu' &&
           SECTIONS.map((sec) => {
             const items = win.items.filter((i) => i.category === sec.key).sort((a, b) => a.name.localeCompare(b.name))
             if (items.length === 0) return null
@@ -201,7 +224,7 @@ export default function CashOrderForm({
             )
           })}
 
-        {step === 'details' && (
+        {!placedOrder && step === 'details' && (
           <section>
             <h2 style={{ fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b7a6b', margin: '0 0 8px' }}>Your order</h2>
             <div style={{ background: '#fff', borderRadius: 10, padding: 14, marginBottom: 18 }}>
@@ -237,7 +260,7 @@ export default function CashOrderForm({
         )}
       </div>
 
-      {step === 'menu' && (
+      {!placedOrder && step === 'menu' && (
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: '#fff', borderTop: '1px solid #ddd', padding: '12px 16px', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
           <div style={{ maxWidth: 560, margin: '0 auto' }}>
             <button
