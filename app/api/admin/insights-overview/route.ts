@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
   if (nextWindow) {
     const { data: windowOrders } = await supabase
       .from('customer_window_orders')
-      .select('items, total_amount, status, cancelled')
+      .select('items, total_amount, status')
       .eq('menu_window_id', nextWindow.id)
 
     const orders = windowOrders || []
@@ -87,9 +87,9 @@ export async function GET(req: NextRequest) {
       0
     )
     const revenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
-    // Averages only count real paid orders: free promo/creator orders (£0) and
-    // cancelled orders would otherwise drag the average down.
-    const paidOrders = orders.filter((o) => !o.cancelled && Number(o.total_amount || 0) > 0)
+    // Averages only count paid orders: free promo/content orders (£0) still go
+    // out and still count in the totals, but would drag the average down.
+    const paidOrders = orders.filter((o) => Number(o.total_amount || 0) > 0)
     const paidMeals = paidOrders.reduce(
       (sum, o) =>
         sum + (o.items || []).reduce((s: number, i: any) => s + (i.name !== 'Delivery' ? i.qty || 0 : 0), 0),
