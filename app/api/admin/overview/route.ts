@@ -97,6 +97,8 @@ export async function GET(req: NextRequest) {
       ),
     0
   )
+  // Free promo/creator orders (£0) stay in the order count but don't pull the average basket down.
+  const paidRangeOrders = realRangeOrders.filter((o) => Number(o.total_amount || 0) > 0)
   const { count: rangeNewCustomers } = await supabase
     .from('customer_profiles')
     .select('id', { count: 'exact', head: true })
@@ -109,7 +111,7 @@ export async function GET(req: NextRequest) {
     sales: rangeSales,
     orders: realRangeOrders.length,
     meals: rangeMeals,
-    avgBasket: realRangeOrders.length ? rangeSales / realRangeOrders.length : 0,
+    avgBasket: paidRangeOrders.length ? rangeSales / paidRangeOrders.length : 0,
     newCustomers: rangeNewCustomers || 0,
   }
 
