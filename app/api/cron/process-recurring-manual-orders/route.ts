@@ -104,6 +104,8 @@ export async function POST(req: NextRequest) {
           ship_full_name: ro.customer_name,
           ship_email: ro.email,
           ship_phone: ro.phone,
+          ship_house_number: (ro as any).ship_house_number ?? null,
+          ship_street: (ro as any).ship_street ?? null,
           ship_postcode: ro.postcode,
         })
         results.push({ id: ro.id, createdUnpaidOrder: true })
@@ -186,6 +188,8 @@ export async function POST(req: NextRequest) {
               ship_full_name: ro.customer_name,
               ship_email: ro.email,
               ship_phone: ro.phone,
+              ship_house_number: (ro as any).ship_house_number ?? null,
+              ship_street: (ro as any).ship_street ?? null,
               ship_postcode: ro.postcode,
             })
             results.push({ id: ro.id, charged: true })
