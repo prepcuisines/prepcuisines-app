@@ -2860,6 +2860,9 @@ export default function AdminDashboard() {
   const [stokeAssign, setStokeAssign] = useState<Record<string, string>>({})
   const [stokeViewDriver, setStokeViewDriver] = useState<string>('all')
   const [stokeNewDriver, setStokeNewDriver] = useState('')
+  // Multi-select mode: tick several stops, then assign them all to a driver in one tap.
+  const [stokeSelectMode, setStokeSelectMode] = useState(false)
+  const [stokeSelected, setStokeSelected] = useState<string[]>([])
   const stokeRouteHydratedFor = useRef<string | null>(null)
   const [stokeEmailsCopied, setStokeEmailsCopied] = useState(false)
   const [stokeTemplateCopied, setStokeTemplateCopied] = useState(false)
@@ -6054,6 +6057,70 @@ Bukr / prepcuisines`
                           separately.
                         </p>
                       )}
+                      {stokeDrivers.length > 0 && (
+                        <div className="pc-modal-inline-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            className={`segment-pill ${stokeSelectMode ? 'segment-pill-active' : ''}`}
+                            onClick={() => {
+                              setStokeSelectMode((v) => !v)
+                              setStokeSelected([])
+                            }}
+                          >
+                            {stokeSelectMode ? 'Done selecting' : 'Select multiple'}
+                          </button>
+                          {stokeSelectMode && (
+                            <>
+                              <button
+                                className="segment-pill"
+                                onClick={() =>
+                                  setStokeSelected(
+                                    (stokeRouteStops.length ? stokeRouteGroups.flatMap((g) => g.stops) : stokeRouteBaseStops)
+                                      .filter((st) => stokeViewDriver === 'all' || (stokeAssign[st.key] || '') === stokeViewDriver)
+                                      .map((st) => st.key)
+                                  )
+                                }
+                              >
+                                Select all shown
+                              </button>
+                              <button className="segment-pill" onClick={() => setStokeSelected([])}>
+                                Clear
+                              </button>
+                              <span className="cook-sheet-collapse-meta">{stokeSelected.length} selected · assign to:</span>
+                              {stokeDrivers.map((d) => (
+                                <button
+                                  key={d}
+                                  className="segment-pill"
+                                  disabled={!stokeSelected.length}
+                                  onClick={() => {
+                                    setStokeAssign((prev) => {
+                                      const next = { ...prev }
+                                      for (const k of stokeSelected) next[k] = d
+                                      return next
+                                    })
+                                    setStokeSelected([])
+                                  }}
+                                >
+                                  {d}
+                                </button>
+                              ))}
+                              <button
+                                className="segment-pill"
+                                disabled={!stokeSelected.length}
+                                onClick={() => {
+                                  setStokeAssign((prev) => {
+                                    const next = { ...prev }
+                                    for (const k of stokeSelected) delete next[k]
+                                    return next
+                                  })
+                                  setStokeSelected([])
+                                }}
+                              >
+                                Unassign
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                       <ul className="stoke-route-list">
                         {(stokeRouteStops.length ? stokeRouteGroups.flatMap((g) => g.stops) : stokeRouteBaseStops)
                           .filter(
@@ -6065,17 +6132,30 @@ Bukr / prepcuisines`
                           (st, i) => (
                             <li key={st.key} style={stokeRouteDone.includes(st.key) ? { opacity: 0.5 } : undefined}>
                               <label className="stoke-route-row">
-                                <input
-                                  type="checkbox"
-                                  checked={!stokeRouteExcluded.includes(st.key)}
-                                  onChange={() =>
-                                    setStokeRouteExcluded((prev) =>
-                                      prev.includes(st.key)
-                                        ? prev.filter((k) => k !== st.key)
-                                        : [...prev, st.key]
-                                    )
-                                  }
-                                />
+                                {stokeSelectMode ? (
+                                  <input
+                                    type="checkbox"
+                                    aria-label="Select stop"
+                                    checked={stokeSelected.includes(st.key)}
+                                    onChange={() =>
+                                      setStokeSelected((prev) =>
+                                        prev.includes(st.key) ? prev.filter((k) => k !== st.key) : [...prev, st.key]
+                                      )
+                                    }
+                                  />
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    checked={!stokeRouteExcluded.includes(st.key)}
+                                    onChange={() =>
+                                      setStokeRouteExcluded((prev) =>
+                                        prev.includes(st.key)
+                                          ? prev.filter((k) => k !== st.key)
+                                          : [...prev, st.key]
+                                      )
+                                    }
+                                  />
+                                )}
                                 <span className="stoke-route-num">
                                   {stokeRouteStops.length ? `${stokeNumByKey.get(st.key) ?? i + 1}.` : '\u2022'}
                                 </span>
