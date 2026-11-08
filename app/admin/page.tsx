@@ -2861,6 +2861,7 @@ export default function AdminDashboard() {
   const [stokeViewDriver, setStokeViewDriver] = useState<string>('all')
   const [stokeNewDriver, setStokeNewDriver] = useState('')
   // Multi-select mode: tick several stops, then assign them all to a driver in one tap.
+  const [stokeDriverLinksMsg, setStokeDriverLinksMsg] = useState<string | null>(null)
   const [stokeSelectMode, setStokeSelectMode] = useState(false)
   const [stokeSelected, setStokeSelected] = useState<string[]>([])
   const stokeRouteHydratedFor = useRef<string | null>(null)
@@ -3264,6 +3265,69 @@ Bukr / prepcuisines`
       : app === 'apple'
         ? `https://maps.apple.com/?daddr=${lat.toFixed(6)},${lon.toFixed(6)}&dirflg=d`
         : `https://waze.com/ul?ll=${lat.toFixed(6)},${lon.toFixed(6)}&navigate=yes`
+
+  // One private link per driver. Waits for the route to be saved first so the
+  // driver page always reads the latest stops, then copies "Name: link" lines.
+  const shareDriverLinks = async () => {
+    const date = stokeRouteSingleDate
+    if (!date || !stokeDrivers.length) return
+    setStokeDriverLinksMsg('Creating links…')
+    try {
+      await fetch('/api/admin/stoke-route', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          state: {
+            stops: stokeRouteStops,
+            done: stokeRouteDone,
+            excluded: stokeRouteExcluded,
+            firsts: stokeRouteFirsts,
+            lasts: stokeRouteLasts,
+            drivers: stokeDrivers,
+            assign: stokeAssign,
+          },
+        }),
+      })
+      const res = await fetch('/api/admin/driver-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, drivers: stokeDrivers }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'failed')
+      const text = (data.links as { driver: string; token: string }[])
+        .map((l) => `${l.driver}: ${window.location.origin}/driver/${l.token}`)
+        .join('\n')
+      await navigator.clipboard.writeText(text)
+      setStokeDriverLinksMsg(`Copied ${data.links.length} driver link${data.links.length === 1 ? '' : 's'}`)
+    } catch {
+      setStokeDriverLinksMsg('Could not create links, try again')
+    }
+    setTimeout(() => setStokeDriverLinksMsg(null), 3000)
+  }
+
+  // Stops a driver ticks done on their phone show up here too.
+  useEffect(() => {
+    const date = stokeRouteSingleDate
+    if (!showStokeRoute || !date || !stokeDrivers.length) return
+    const pull = async () => {
+      try {
+        const res = await fetch(`/api/admin/driver-links?date=${encodeURIComponent(date)}`, { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        const fromDrivers: string[] = (data.links || []).flatMap((l: { done: string[] }) => l.done || [])
+        if (!fromDrivers.length) return
+        setStokeRouteDone((prev) => {
+          const add = fromDrivers.filter((k) => !prev.includes(k))
+          return add.length ? [...prev, ...add] : prev
+        })
+      } catch {}
+    }
+    pull()
+    const t = setInterval(pull, 30000)
+    return () => clearInterval(t)
+  }, [showStokeRoute, stokeRouteSingleDate, stokeDrivers.length])
 
   const copyStokeRouteLinks = async () => {
     const appName =
@@ -6056,6 +6120,16 @@ Bukr / prepcuisines`
                           Pick a driver on each stop, then hit Rebuild route to optimise each driver's run
                           separately.
                         </p>
+                      )}
+                      {stokeDrivers.length > 0 && stokeRouteStops.length > 0 && (
+                        <div className="pc-modal-inline-row" style={{ alignItems: 'center' }}>
+                          <button className="segment-pill" onClick={shareDriverLinks}>
+                            {stokeDriverLinksMsg || '📲 Copy driver links'}
+                          </button>
+                          <span className="cook-sheet-collapse-meta">
+                            Each driver gets a private page with just their stops. It works for 3 hours after they first open it.
+                          </span>
+                        </div>
                       )}
                       {stokeDrivers.length > 0 && (
                         <div className="pc-modal-inline-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
