@@ -3268,7 +3268,7 @@ Bukr / prepcuisines`
 
   // One private link per driver. Waits for the route to be saved first so the
   // driver page always reads the latest stops, then copies "Name: link" lines.
-  const shareDriverLinks = async () => {
+  const shareDriverLinks = async (only?: string) => {
     const date = stokeRouteSingleDate
     if (!date || !stokeDrivers.length) return
     setStokeDriverLinksMsg('Creating links…')
@@ -3296,11 +3296,13 @@ Bukr / prepcuisines`
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'failed')
-      const text = (data.links as { driver: string; token: string }[])
-        .map((l) => `${l.driver}: ${window.location.origin}/driver/${l.token}`)
-        .join('\n')
+      const picked = (data.links as { driver: string; token: string }[]).filter((l) => !only || l.driver === only)
+      // A single driver's copy is just the link, so it can be pasted straight into a message.
+      const text = only
+        ? picked.map((l) => `${window.location.origin}/driver/${l.token}`).join('\n')
+        : picked.map((l) => `${l.driver}: ${window.location.origin}/driver/${l.token}`).join('\n')
       await navigator.clipboard.writeText(text)
-      setStokeDriverLinksMsg(`Copied ${data.links.length} driver link${data.links.length === 1 ? '' : 's'}`)
+      setStokeDriverLinksMsg(only ? `Copied ${only}'s link` : `Copied ${picked.length} driver link${picked.length === 1 ? '' : 's'}`)
     } catch {
       setStokeDriverLinksMsg('Could not create links, try again')
     }
@@ -6123,9 +6125,12 @@ Bukr / prepcuisines`
                       )}
                       {stokeDrivers.length > 0 && stokeRouteStops.length > 0 && (
                         <div className="pc-modal-inline-row" style={{ alignItems: 'center' }}>
-                          <button className="segment-pill" onClick={shareDriverLinks}>
-                            {stokeDriverLinksMsg || '📲 Copy driver links'}
-                          </button>
+                          {stokeDrivers.map((d) => (
+                            <button key={d} className="segment-pill" onClick={() => shareDriverLinks(d)}>
+                              📲 Copy {d}&apos;s link
+                            </button>
+                          ))}
+                          {stokeDriverLinksMsg && <span className="cook-sheet-collapse-meta">{stokeDriverLinksMsg}</span>}
                           <span className="cook-sheet-collapse-meta">
                             Each driver gets a private page with just their stops. It works for 3 hours after they first open it.
                           </span>
