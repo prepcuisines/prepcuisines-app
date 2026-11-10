@@ -1,5 +1,7 @@
 'use client'
 
+import HomeChart from './HomeChart'
+
 import { PROTEIN_GROUPS, proteinGroupFor } from '@/lib/protein-groups'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
@@ -4077,6 +4079,8 @@ Bukr / prepcuisines`
                 <span className="pc-home-tile-label">Failed payments →</span>
               </button>
             </div>
+
+            <HomeChart from={homeRangeDates().from} to={homeRangeDates().to} />
 
             <div className="stat-grid">
               <button
