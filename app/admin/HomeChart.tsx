@@ -42,6 +42,14 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
       if (localStorage.getItem('pc_home_chart_closed') === '1') setOpen(false)
     } catch {}
   }, [])
+  // Holding a finger on the graph must scrub, never start text selection / copy.
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const stop = (e: Event) => e.preventDefault()
+    el.addEventListener('selectstart', stop)
+    return () => el.removeEventListener('selectstart', stop)
+  })
   const toggleOpen = () => {
     setOpen((v) => {
       try {
@@ -166,7 +174,8 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
       {open && (<>
       <div
         ref={wrap}
-        style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'crosshair', marginTop: 6 }}
+        style={{ touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent', cursor: 'crosshair', marginTop: 6 }}
+        onContextMenu={(e) => e.preventDefault()}
         onPointerDown={(e) => {
           if (e.pointerType === 'mouse') return
           pick(e.clientX)
@@ -176,7 +185,7 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
         onPointerUp={(e) => e.pointerType !== 'mouse' && setIdx(null)}
         onPointerCancel={() => setIdx(null)}
       >
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block' }} role="img" aria-label="This month's graph compared with last month">
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', pointerEvents: 'auto' }} role="img" aria-label="This month's graph compared with last month">
           {[0.25, 0.5, 0.75].map((f) => (
             <line key={f} x1={PAD.left} x2={W - PAD.right} y1={PAD.top + f * (H - PAD.top - PAD.bottom)} y2={PAD.top + f * (H - PAD.top - PAD.bottom)} stroke="#eee" />
           ))}
