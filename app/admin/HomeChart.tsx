@@ -14,7 +14,7 @@ const METRICS: { key: Metric; label: string }[] = [
 ]
 
 const W = 600
-const H = 190
+const H = 150
 const PAD = { top: 14, right: 8, bottom: 22, left: 8 }
 
 const fmt = (m: Metric, v: number) =>
@@ -100,7 +100,7 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
       </span>
     </div>
   )
-  const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: 14, margin: '0 0 14px' }
+  const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: 12, margin: '0 0 10px' }
 
   if (!data) {
     return (
@@ -158,8 +158,8 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
       {toolbar}
       {belowToolbar}
 
-      <div style={{ minHeight: 64 }}>
-        <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>{curVal === null ? '—' : fmt(metric, curVal)}</div>
+      <div style={{ minHeight: 56 }}>
+        <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.1 }}>{curVal === null ? '—' : fmt(metric, curVal)}</div>
         <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{headLabel}</div>
         <div style={{ fontSize: 13, marginTop: 2, color: '#888' }}>
           {prevLabel}: {prevVal === null ? '—' : fmt(metric, prevVal)}

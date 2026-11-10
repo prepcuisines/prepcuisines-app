@@ -798,3 +798,15 @@ html, body { margin: 0; padding: 0; }
   cursor: pointer;
   padding: 0 2px;
 }
+
+/* Admin home: tighten up on phones so the whole page fits without scrolling. */
+@media (max-width: 700px) {
+  .pc-home-compact .pc-home-tiles { gap: 8px; margin-bottom: 10px; }
+  .pc-home-compact .pc-home-tile { min-height: 0; padding: 9px 11px; gap: 2px; border-radius: 12px; }
+  .pc-home-compact .pc-home-tile-value { font-size: 21px; }
+  .pc-home-compact .pc-home-tile-label { font-size: 10px; letter-spacing: 0.03em; }
+  .pc-home-compact .stat-grid { gap: 8px; margin-bottom: 0; grid-template-columns: 1fr 1fr; }
+  .pc-home-compact .stat-card { padding: 9px 12px; }
+  .pc-home-compact .stat-label { font-size: 10px; margin-bottom: 4px; }
+  .pc-home-compact .stat-value { font-size: 21px; }
+}

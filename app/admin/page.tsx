@@ -3974,7 +3974,7 @@ Bukr / prepcuisines`
 
       <main className="main-content">
         {tab === 'overview' && overview && (
-          <>
+          <div className="pc-home-compact">
             <HomeChart
               toolbarRight={
                 <button
@@ -4141,15 +4141,6 @@ Bukr / prepcuisines`
               />
               <StatCard label="Revenue (7d)" value={money(overview.revenueThisWeek)} accent />
             </div>
-          </>
-        )}
-
-        {tab === 'overview' && (
-          <div className="empty-panel">
-            <p>
-              Top-line numbers update every time this page loads. Switch to Customers or Orders
-              for full detail, filtering, and search.
-            </p>
           </div>
         )}
 
