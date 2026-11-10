@@ -575,6 +575,14 @@ export default function AdminDashboard() {
     } catch {}
   }
 
+  const [showHomePresets, setShowHomePresets] = useState(false)
+  // The date chip shows the dates the tiles are covering ("10 Nov" or "4 – 10 Nov").
+  const homeRangeLabel = () => {
+    const r = homeRangeDates()
+    const f = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+    return r.from === r.to ? f(r.from) : `${f(r.from)} – ${f(r.to)}`
+  }
+
   const homeRangeDates = (): { from: string; to: string } => {
     const iso = (d: Date) => d.toISOString().slice(0, 10)
     const today = new Date()
@@ -3965,9 +3973,22 @@ Bukr / prepcuisines`
       </aside>
 
       <main className="main-content">
-        {tab === 'overview' && (
-          <div className="pc-home-range">
-            <div className="pc-modal-inline-row" style={{ flexWrap: 'wrap' }}>
+        {tab === 'overview' && overview && (
+          <>
+            <HomeChart
+              toolbarRight={
+                <button
+                  className="segment-pill"
+                  aria-label="Change dates"
+                  onClick={() => setShowHomePresets((v) => !v)}
+                >
+                  📅 {homeRangeLabel()} ▾
+                </button>
+              }
+              belowToolbar={
+                showHomePresets ? (
+                  <div className="pc-home-range" style={{ margin: '0 0 12px' }}>
+<div className="pc-modal-inline-row" style={{ flexWrap: 'wrap' }}>
               {(
                 [
                   ['today', 'Today'],
@@ -3980,7 +4001,10 @@ Bukr / prepcuisines`
                 <button
                   key={key}
                   className={`segment-pill ${homeRangePreset === key ? 'segment-pill-active' : ''}`}
-                  onClick={() => setHomeRangePreset(key)}
+                  onClick={() => {
+                    setHomeRangePreset(key)
+                    setShowHomePresets(false)
+                  }}
                 >
                   {label}
                 </button>
@@ -4037,11 +4061,11 @@ Bukr / prepcuisines`
                 </button>
               </div>
             )}
-          </div>
-        )}
+                  </div>
+                ) : null
+              }
+            />
 
-        {tab === 'overview' && overview && (
-          <>
             <div className="pc-home-tiles">
               <div className="pc-home-tile">
                 <span className="pc-home-tile-value">{money(overview.range?.sales || 0)}</span>
@@ -4079,8 +4103,6 @@ Bukr / prepcuisines`
                 <span className="pc-home-tile-label">Failed payments →</span>
               </button>
             </div>
-
-            <HomeChart from={homeRangeDates().from} to={homeRangeDates().to} />
 
             <div className="stat-grid">
               <button

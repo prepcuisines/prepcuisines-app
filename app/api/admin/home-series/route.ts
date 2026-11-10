@@ -31,6 +31,15 @@ const minusMonth = (iso: string) => {
   const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
   return `${first.getUTCFullYear()}-${String(first.getUTCMonth() + 1).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`
 }
+const monthEnd = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number)
+  return `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`
+}
+const prevMonthOf = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(Date.UTC(y, m - 2, 1))
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+}
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000)
 
 type Bucket = { label: string; sales: number; orders: number; meals: number }
@@ -86,6 +95,24 @@ function series(orders: any[], from: string, to: string, hourly: boolean): Bucke
 // A single day comes back hourly, anything longer comes back daily.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  // ?month=YYYY-MM → the whole month day by day, against the whole previous month.
+  const month = req.nextUrl.searchParams.get('month')
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    const pm = prevMonthOf(month)
+    const from = `${month}-01`
+    const to = monthEnd(month)
+    const prevFrom = `${pm}-01`
+    const prevTo = monthEnd(pm)
+    const earliest = new Date(`${addDays(prevFrom, -1)}T00:00:00Z`).toISOString()
+    const latest = new Date(`${addDays(to, 2)}T00:00:00Z`).toISOString()
+    const orders = await loadOrders(earliest, latest)
+    return NextResponse.json({
+      hourly: false,
+      current: { from, to, buckets: series(orders, from, to, false) },
+      previous: { from: prevFrom, to: prevTo, buckets: series(orders, prevFrom, prevTo, false) },
+    })
+  }
+
   const from = req.nextUrl.searchParams.get('from')
   const to = req.nextUrl.searchParams.get('to') || from
   if (!validDate(from) || !validDate(to) || to < from || daysBetween(from, to) > 400)
