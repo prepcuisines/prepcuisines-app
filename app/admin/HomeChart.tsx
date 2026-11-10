@@ -35,6 +35,22 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
   const [metric, setMetric] = useState<Metric>('sales')
   const [idx, setIdx] = useState<number | null>(null)
   const wrap = useRef<HTMLDivElement>(null)
+  // Open by default; stays closed only if it was closed on purpose (remembered on this device).
+  const [open, setOpen] = useState(true)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('pc_home_chart_closed') === '1') setOpen(false)
+    } catch {}
+  }, [])
+  const toggleOpen = () => {
+    setOpen((v) => {
+      try {
+        localStorage.setItem('pc_home_chart_closed', v ? '1' : '0')
+      } catch {}
+      return !v
+    })
+    setIdx(null)
+  }
   const today = ukToday()
   const month = today.slice(0, 7)
 
@@ -68,7 +84,12 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
           {m.label}
         </button>
       ))}
-      <span style={{ marginLeft: 'auto' }}>{toolbarRight}</span>
+      <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+        {toolbarRight}
+        <button className="segment-pill" aria-label={open ? 'Hide graph' : 'Show graph'} aria-expanded={open} onClick={toggleOpen}>
+          {open ? '▴' : '▾'}
+        </button>
+      </span>
     </div>
   )
   const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 12, padding: 14, margin: '0 0 14px' }
@@ -142,6 +163,7 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
         </div>
       </div>
 
+      {open && (<>
       <div
         ref={wrap}
         style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'crosshair', marginTop: 6 }}
@@ -176,6 +198,7 @@ export default function HomeChart({ toolbarRight, belowToolbar }: { toolbarRight
         <span><span style={{ display: 'inline-block', width: 16, borderTop: '2.5px solid #1a2e1a', marginRight: 5, verticalAlign: 'middle' }} />{new Date(`${data.current.from}T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })}</span>
         <span><span style={{ display: 'inline-block', width: 16, borderTop: '2px dashed #b5b5b5', marginRight: 5, verticalAlign: 'middle' }} />{new Date(`${data.previous.from}T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })}</span>
       </div>
+      </>)}
     </div>
   )
 }
