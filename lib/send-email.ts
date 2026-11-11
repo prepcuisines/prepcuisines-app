@@ -41,7 +41,7 @@ export async function sendGraceNoticeEmailToCustomer(
   )
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+export async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY is not set — skipping email send:', subject, 'to', to)
     return
