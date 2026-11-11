@@ -1,6 +1,7 @@
 'use client'
 
 import HomeChart from './HomeChart'
+import ReminderPopup from './ReminderPopup'
 
 import { PROTEIN_GROUPS, proteinGroupFor } from '@/lib/protein-groups'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -3973,6 +3974,7 @@ Bukr / prepcuisines`
       </aside>
 
       <main className="main-content">
+        <ReminderPopup />
         {tab === 'overview' && overview && (
           <div className="pc-home-compact">
             <HomeChart
