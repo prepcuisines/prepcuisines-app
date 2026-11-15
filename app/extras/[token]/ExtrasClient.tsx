@@ -52,11 +52,20 @@ export default function ExtrasClient({ initial, token }: { initial: ExtrasDrop |
         if (data.soldOut) {
           const r = await fetch(`/api/extras?t=${token}`, { cache: 'no-store' }).then((x) => x.json()).catch(() => null)
           if (r?.drop) {
-            setDrop(r.drop)
-            setQty({})
+            const fresh = r.drop as ExtrasDrop
+            setDrop(fresh)
+            // keep what's still available, trim or drop only what sold out
+            setQty((prev) => {
+              const next: Record<string, number> = {}
+              for (const it of fresh.items) {
+                const want = prev[it.id] || 0
+                if (want > 0 && it.available > 0) next[it.id] = Math.min(want, it.available)
+              }
+              return next
+            })
           }
         }
-        throw new Error(data.error || 'Something went wrong, please try again.')
+        throw new Error(data.soldOut ? `${data.error} We've kept everything that's still available, so check your basket and press pay again.` : data.error || 'Something went wrong, please try again.')
       }
       window.location.href = data.url
     } catch (err: any) {

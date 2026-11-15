@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const msg = rpcError.message || ''
     if (msg.includes('sold_out:')) {
       const item = msg.split('sold_out:')[1]?.split('\n')[0]?.trim()
-      return NextResponse.json({ error: `Sorry, ${item || 'one of your meals'} just sold out or there aren't enough left. Please update your basket.`, soldOut: true }, { status: 409 })
+      return NextResponse.json({ error: `Sorry, ${item || 'one of your meals'} just sold out or there aren't enough left.`, soldOut: true }, { status: 409 })
     }
     if (msg.includes('closed')) return NextResponse.json({ error: 'This extras drop has closed.' }, { status: 409 })
     console.error('extras reserve error:', msg)
