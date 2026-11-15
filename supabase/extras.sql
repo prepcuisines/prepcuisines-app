@@ -129,3 +129,9 @@ begin
   return v_order;
 end;
 $$;
+
+-- Private link: /extras/<share_token>. A new drop gets a new token, so last
+-- week's link stops working.
+alter table extras_drops add column if not exists share_token text unique default replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+update extras_drops set share_token = replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') where share_token is null;
+alter table extras_drops alter column share_token set not null;

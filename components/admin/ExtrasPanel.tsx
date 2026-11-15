@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-type Drop = { id: string; title: string; note: string | null; active: boolean; delivery_fee: number }
+type Drop = { id: string; title: string; note: string | null; active: boolean; delivery_fee: number; share_token: string }
 type Item = { id: string; name: string; price: number; qtyTotal: number; available: number }
 type Order = {
   id: string
@@ -24,7 +24,7 @@ type Order = {
 type Stats = { paidOrders: number; newCustomers: number; returningCustomers: number; revenue: number; mealsSold: number; toDeliver: number }
 type MenuItem = { id: string; name: string; category: string }
 
-const LINK = 'https://prepcuisines.co.uk/extras'
+const linkFor = (token: string) => `https://prepcuisines.co.uk/extras/${token}`
 const gbp = (n: number) => `£${Number(n).toFixed(2)}`
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim()
 
@@ -74,11 +74,13 @@ export default function ExtrasPanel() {
   }
 
   const copyLink = async () => {
+    if (!drop) return
+    const link = linkFor(drop.share_token)
     try {
-      await navigator.clipboard.writeText(LINK)
-      setMsg('Link copied.')
+      await navigator.clipboard.writeText(link)
+      setMsg('Private link copied. Only people you send it to can open it.')
     } catch {
-      setMsg(LINK)
+      setMsg(link)
     }
   }
 
@@ -147,7 +149,7 @@ export default function ExtrasPanel() {
       <p style={{ color: '#666', fontSize: 14, margin: '0 0 14px' }}>Spare meals sold through one link, for Stoke delivery. Stock goes to sold out by itself.</p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-        <button style={btn} onClick={copyLink}>Copy link</button>
+        {drop && drop.active && <button style={btn} onClick={copyLink}>Copy private link</button>}
         <button style={ghost} onClick={() => setCreating((v) => !v)}>{creating ? 'Cancel' : 'New week'}</button>
         {drop && <button style={ghost} onClick={toggleActive}>{drop.active ? 'Close sales' : 'Reopen sales'}</button>}
       </div>
@@ -156,7 +158,7 @@ export default function ExtrasPanel() {
       {creating && (
         <div style={{ ...card, marginBottom: 16 }}>
           <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>New week</h3>
-          <p style={{ fontSize: 13, color: '#666', margin: '0 0 10px' }}>Type how many of each you have. Leave blank for none. This replaces last week&apos;s list. Price is £6.40 each.</p>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 10px' }}>Type how many of each you have. Leave blank for none. This replaces last week&apos;s list and gives you a new private link, so last week&apos;s link stops working. Price is £6.40 each.</p>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" style={{ width: '100%', boxSizing: 'border-box', padding: 10, marginBottom: 8, borderRadius: 8, border: '1px solid #d8d2c4', fontSize: 15 }} />
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Short note (optional), e.g. Delivered Monday" style={{ width: '100%', boxSizing: 'border-box', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid #d8d2c4', fontSize: 15 }} />
           <div style={{ maxHeight: 360, overflowY: 'auto', borderTop: '1px solid #eee' }}>

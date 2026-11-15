@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { getLiveExtras } from '@/lib/extras-data'
 import ExtrasClient from './ExtrasClient'
 
@@ -15,7 +16,6 @@ export const metadata: Metadata = {
   openGraph: {
     title: TITLE,
     description: DESC,
-    url: 'https://prepcuisines.co.uk/extras',
     siteName: 'prepcuisines',
     type: 'website',
     images: [{ url: '/trade-preview.jpg', width: 1200, height: 630, alt: 'prepcuisines meals in branded tubs' }],
@@ -23,7 +23,9 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', title: TITLE, description: DESC, images: ['/trade-preview.jpg'] },
 }
 
-export default async function ExtrasPage() {
-  const drop = await getLiveExtras()
-  return <ExtrasClient initial={drop} />
+export default async function ExtrasPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params
+  const drop = await getLiveExtras(token)
+  if (!drop) notFound()
+  return <ExtrasClient initial={drop} token={token} />
 }

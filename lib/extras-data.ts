@@ -23,15 +23,15 @@ export type ExtrasDrop = {
   items: ExtrasItem[]
 }
 
-// The live drop shown at /extras: the newest active one, with how many of
-// each meal are still available right now.
-export async function getLiveExtras(): Promise<ExtrasDrop | null> {
+// The live drop behind a private link (/extras/<token>): only the active drop
+// whose secret token matches, with how many of each meal are still available.
+export async function getLiveExtras(token: string): Promise<ExtrasDrop | null> {
+  if (!/^[a-f0-9]{32,80}$/.test(token)) return null
   const { data: drop } = await supabase
     .from('extras_drops')
     .select('id, title, note, delivery_fee')
     .eq('active', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
+    .eq('share_token', token)
     .maybeSingle()
   if (!drop) return null
 

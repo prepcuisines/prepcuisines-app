@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const street = clean(body.street, 160)
   const postcode = clean(body.postcode, 12).toUpperCase()
   const notes = clean(body.notes, 500)
-  const dropId = clean(body.dropId, 60)
+  const token = clean(body.token, 80)
 
   if (!name || !phone || !house || !postcode || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
     return NextResponse.json({ error: 'Please fill in your name, email, phone and delivery address.' }, { status: 400 })
@@ -36,7 +36,13 @@ export async function POST(req: NextRequest) {
     .map((l: any) => ({ item_id: clean(l?.itemId, 60), qty: Math.floor(Number(l?.qty)) }))
     .filter((l: { item_id: string; qty: number }) => l.item_id && l.qty > 0 && l.qty <= 50)
     .slice(0, 40)
-  if (!dropId || lines.length === 0) return NextResponse.json({ error: 'Please choose at least one meal.' }, { status: 400 })
+  if (lines.length === 0) return NextResponse.json({ error: 'Please choose at least one meal.' }, { status: 400 })
+
+  const { data: drop } = /^[a-f0-9]{32,80}$/.test(token)
+    ? await supabase.from('extras_drops').select('id').eq('share_token', token).eq('active', true).maybeSingle()
+    : { data: null }
+  if (!drop) return NextResponse.json({ error: 'This link is no longer active.' }, { status: 404 })
+  const dropId = drop.id as string
 
   // New vs returning: any past paid order under this email.
   const [{ data: prof }, { data: prevExtras }] = await Promise.all([
@@ -88,7 +94,7 @@ export async function POST(req: NextRequest) {
       line_items: lineItems,
       customer_email: email,
       success_url: `${siteUrl}/extras/thanks?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/extras`,
+      cancel_url: `${siteUrl}/extras/${token}`,
       expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
       metadata: { type: 'extras', extrasOrderId: order.id, orderNumber: String(order.order_number) },
     })

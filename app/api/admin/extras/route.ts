@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   const { data: drop } = await supabase
     .from('extras_drops')
-    .select('id, title, note, active, delivery_fee, created_at')
+    .select('id, title, note, active, delivery_fee, created_at, share_token')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()

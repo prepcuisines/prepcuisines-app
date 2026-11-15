@@ -10,7 +10,7 @@ const CREAM = '#f5f0e8'
 const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: 10, border: '1px solid #d8d2c4', fontSize: 16, fontFamily: 'inherit', background: '#fff', color: GREEN }
 const gbp = (n: number) => `£${n.toFixed(2)}`
 
-export default function ExtrasClient({ initial }: { initial: ExtrasDrop | null }) {
+export default function ExtrasClient({ initial, token }: { initial: ExtrasDrop | null; token: string }) {
   const [drop, setDrop] = useState<ExtrasDrop | null>(initial)
   const [qty, setQty] = useState<Record<string, number>>({})
   const [f, setF] = useState({ name: '', email: '', phone: '', house: '', street: '', postcode: '', notes: '', website: '' })
@@ -20,13 +20,13 @@ export default function ExtrasClient({ initial }: { initial: ExtrasDrop | null }
   // Keep stock live while the page is open.
   useEffect(() => {
     const t = setInterval(() => {
-      fetch('/api/extras', { cache: 'no-store' })
+      fetch(`/api/extras?t=${token}`, { cache: 'no-store' })
         .then((r) => r.json())
-        .then((d) => d?.drop && setDrop(d.drop))
+        .then((d) => setDrop(d?.drop || null))
         .catch(() => {})
     }, 20000)
     return () => clearInterval(t)
-  }, [])
+  }, [token])
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }))
   const items = drop?.items || []
@@ -45,12 +45,12 @@ export default function ExtrasClient({ initial }: { initial: ExtrasDrop | null }
       const res = await fetch('/api/extras/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...f, dropId: drop.id, lines: chosen.map((i) => ({ itemId: i.id, qty: qty[i.id] })) }),
+        body: JSON.stringify({ ...f, token, lines: chosen.map((i) => ({ itemId: i.id, qty: qty[i.id] })) }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.url) {
         if (data.soldOut) {
-          const r = await fetch('/api/extras', { cache: 'no-store' }).then((x) => x.json()).catch(() => null)
+          const r = await fetch(`/api/extras?t=${token}`, { cache: 'no-store' }).then((x) => x.json()).catch(() => null)
           if (r?.drop) {
             setDrop(r.drop)
             setQty({})
