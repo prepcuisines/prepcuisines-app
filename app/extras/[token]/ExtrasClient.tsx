@@ -86,8 +86,8 @@ export default function ExtrasClient({ initial, token }: { initial: ExtrasDrop |
         <div style={{ display: 'inline-block', background: GOLD, color: GREEN, fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', padding: '5px 12px', borderRadius: 20, marginBottom: 12 }}>LIMITED PORTIONS</div>
         <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: 32, lineHeight: 1.2, margin: '0 0 12px' }}>{drop?.title || 'Extra meals'}</h1>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', margin: '0 0 14px' }}>
-          <span style={pill}>100% Halal · <span lang="ar" dir="rtl" style={arabic}>حلال</span></span>
-          <span style={pill}>High protein · <span lang="ar" dir="rtl" style={arabic}>عالي البروتين</span></span>
+          <span style={pill}><span lang="ar" dir="rtl" style={arabic}>حلال</span></span>
+          <span style={pill}>High protein</span>
         </div>
         <p style={{ fontSize: 17, lineHeight: 1.6, margin: '0 auto 8px', maxWidth: 560 }}>
           Fresh, chef-made meals, ready now. Delivered today in Stoke-on-Trent, within 1 hour of your order. Once a meal is sold out, it&apos;s gone.
