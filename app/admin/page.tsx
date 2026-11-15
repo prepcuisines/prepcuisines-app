@@ -11,6 +11,7 @@ import CostsPanel from '../../components/admin/CostsPanel'
 import BillsPanel from '../../components/admin/BillsPanel'
 import EmailMarketingPanel from '../../components/admin/EmailMarketingPanel'
 import CashLinksPanel from '../../components/admin/CashLinksPanel'
+import ExtrasPanel from '../../components/admin/ExtrasPanel'
 
 type Overview = {
   range?: {
@@ -241,6 +242,7 @@ export default function AdminDashboard() {
     | 'ops-hub'
     | 'costs'
     | 'bills'
+    | 'extras'
     | 'email-marketing'
     | 'payment-issues'
   >('overview')
@@ -3943,6 +3945,7 @@ Bukr / prepcuisines`
               { key: 'overview', label: 'Home' },
               { key: 'orders', label: 'Orders' },
               { key: 'delivery', label: 'Delivery' },
+              { key: 'extras', label: 'Extras' },
               { key: 'cook-sheet', label: 'Kitchen' },
               { key: 'costs', label: 'Costs' },
               { key: 'bills', label: 'Bills' },
@@ -5587,6 +5590,12 @@ Bukr / prepcuisines`
         {tab === 'costs' && (
           <section>
             <CostsPanel />
+          </section>
+        )}
+
+        {tab === 'extras' && (
+          <section>
+            <ExtrasPanel />
           </section>
         )}
 
