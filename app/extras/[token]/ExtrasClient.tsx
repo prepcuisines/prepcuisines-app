@@ -85,8 +85,12 @@ export default function ExtrasClient({ initial, token }: { initial: ExtrasDrop |
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px 8px', textAlign: 'center' }}>
         <div style={{ display: 'inline-block', background: GOLD, color: GREEN, fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', padding: '5px 12px', borderRadius: 20, marginBottom: 12 }}>LIMITED PORTIONS</div>
         <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: 32, lineHeight: 1.2, margin: '0 0 12px' }}>{drop?.title || 'Extra meals'}</h1>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', margin: '0 0 14px' }}>
+          <span style={pill}>100% Halal · <span lang="ar" dir="rtl" style={arabic}>حلال</span></span>
+          <span style={pill}>High protein · <span lang="ar" dir="rtl" style={arabic}>عالي البروتين</span></span>
+        </div>
         <p style={{ fontSize: 17, lineHeight: 1.6, margin: '0 auto 8px', maxWidth: 560 }}>
-          Fresh, chef-made, 100% halal high-protein meals, ready now. Delivered today in Stoke-on-Trent, within 1 hour of your order. Once a meal is sold out, it&apos;s gone.
+          Fresh, chef-made meals, ready now. Delivered today in Stoke-on-Trent, within 1 hour of your order. Once a meal is sold out, it&apos;s gone.
         </p>
         {drop?.note && <p style={{ fontSize: 15, color: '#555', margin: 0 }}>{drop.note}</p>}
       </section>
@@ -176,6 +180,9 @@ export default function ExtrasClient({ initial, token }: { initial: ExtrasDrop |
     </main>
   )
 }
+
+const pill: React.CSSProperties = { background: GREEN, color: CREAM, fontSize: 13, fontWeight: 700, letterSpacing: '0.03em', padding: '7px 14px', borderRadius: 20 }
+const arabic: React.CSSProperties = { fontSize: 16, fontWeight: 700, color: GOLD, fontFamily: 'Geeza Pro, Noto Naskh Arabic, Arial, sans-serif' }
 
 const stepBtn: React.CSSProperties = { width: 36, height: 36, borderRadius: 18, border: `1px solid ${GREEN}`, background: '#fff', color: GREEN, fontSize: 20, lineHeight: 1, cursor: 'pointer' }
 
