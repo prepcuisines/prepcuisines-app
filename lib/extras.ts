@@ -10,6 +10,16 @@ export const STOKE_POSTCODE = /^ST\d{1,2}\s?\d[A-Z]{2}$/i
 export const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 export const gbp = (n: number) => `£${Number(n).toFixed(2)}`
 
+// "within the hour": an order paid at 2:05pm is promised for before 3:05pm (UK time).
+export function deliverByLabel(paidAtIso: string | null | undefined): string {
+  const base = paidAtIso ? new Date(paidAtIso) : new Date()
+  const t = new Date(base.getTime() + 60 * 60 * 1000)
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: 'numeric', minute: '2-digit', hour12: true })
+    .format(t)
+    .replace(/\s/g, '')
+    .toLowerCase()
+}
+
 type OrderRow = {
   id: string
   order_number: number
@@ -25,6 +35,7 @@ type OrderRow = {
   delivery_fee: number
   total: number
   is_new_customer: boolean
+  paid_at?: string | null
 }
 
 // Marks a pending extras order paid once Stripe says so, and sends the two
@@ -63,7 +74,8 @@ async function sendExtrasEmails(o: OrderRow) {
     <ul>${lines}</ul>
     <p>Delivery: ${gbp(o.delivery_fee)}<br/><strong>Total paid: ${gbp(o.total)}</strong></p>
     <p>Delivering to: ${address}</p>
-    <p>We'll deliver these to you in Stoke-on-Trent shortly. Your reheating instructions, macros and use-by date are on every label. Meals are freezer safe for up to 1 month.</p>
+    <p><strong>Your meals will be with you before ${deliverByLabel(o.paid_at)} today.</strong> If anything changes, or there's any problem with your delivery, we'll be in touch with you straight away.</p>
+    <p>Your reheating instructions, macros and use-by date are on every label. Meals are freezer safe for up to 1 month.</p>
     <p>Bukr<br/>prepcuisines</p></div>`
   await sendEmail(o.email, `Your prepcuisines extras order #E${o.order_number}`, customerHtml)
 

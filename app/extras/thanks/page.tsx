@@ -10,6 +10,7 @@ const CREAM = '#f5f0e8'
 function Inner() {
   const sessionId = useSearchParams().get('session_id')
   const [state, setState] = useState<'checking' | 'paid' | 'unpaid'>('checking')
+  const [deliverBy, setDeliverBy] = useState('')
 
   useEffect(() => {
     if (!sessionId) {
@@ -18,7 +19,10 @@ function Inner() {
     }
     fetch(`/api/extras/confirm?session_id=${encodeURIComponent(sessionId)}`)
       .then((r) => r.json())
-      .then((d) => setState(d.paid ? 'paid' : 'unpaid'))
+      .then((d) => {
+        setDeliverBy(d.deliverBy || '')
+        setState(d.paid ? 'paid' : 'unpaid')
+      })
       .catch(() => setState('unpaid'))
   }, [sessionId])
 
@@ -32,7 +36,9 @@ function Inner() {
         {state === 'paid' && (
           <>
             <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: 28, marginTop: 0 }}>You&apos;re all set</h1>
-            <p style={{ lineHeight: 1.6 }}>Thank you, your payment went through and your extra meals are reserved. A confirmation email is on its way. We&apos;ll deliver to you in Stoke-on-Trent shortly.</p>
+            <p style={{ lineHeight: 1.6 }}>Thank you, your payment went through and your extra meals are reserved. A confirmation email is on its way.</p>
+            <p style={{ lineHeight: 1.6, fontWeight: 700 }}>Your meals will be with you {deliverBy ? `before ${deliverBy}` : 'within the hour'} today.</p>
+            <p style={{ lineHeight: 1.6, fontSize: 14, color: '#555' }}>If anything changes, or there&apos;s any problem with your delivery, we&apos;ll be in touch with you straight away.</p>
           </>
         )}
         {state === 'unpaid' && (
