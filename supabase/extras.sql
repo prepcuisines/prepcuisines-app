@@ -144,3 +144,11 @@ alter table extras_orders add column if not exists cash_collected boolean not nu
 -- Items added to a hand-made order only (e.g. a spare from the shop): kept for
 -- stock and order records but not shown on the public page.
 alter table extras_items add column if not exists hidden boolean not null default false;
+
+-- Creators we send free meals to (names only).
+create table if not exists creators (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz not null default now()
+);
+alter table creators enable row level security;
