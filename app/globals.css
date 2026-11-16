@@ -810,3 +810,21 @@ html, body { margin: 0; padding: 0; }
   .pc-home-compact .stat-label { font-size: 10px; margin-bottom: 4px; }
   .pc-home-compact .stat-value { font-size: 21px; }
 }
+
+/* Delivery day cards on mobile. These sit after the base .pc-day-* rules so
+   they actually win (the earlier mobile overrides were being overridden). */
+@media (max-width: 640px) {
+  .pc-day-grid { gap: 10px; }
+  .pc-day-card { padding: 18px 14px 16px; }
+  .pc-day-name { font-size: clamp(18px, 5.4vw, 25px); }
+  .pc-day-date { font-size: 17px; margin-bottom: 8px; }
+  .pc-day-countdown { font-size: 11px; gap: 5px; }
+  .pc-day-countdown-time { font-size: 16px; }
+}
+@media (max-width: 400px) {
+  .pc-day-grid { gap: 8px; }
+  .pc-day-card { padding: 14px 10px 12px; }
+  .pc-day-date { font-size: 15px; margin-bottom: 6px; }
+  .pc-day-countdown { font-size: 10px; gap: 4px; }
+  .pc-day-countdown-time { font-size: 13px; }
+}
