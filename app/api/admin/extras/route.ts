@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     supabase.rpc('extras_available', { p_drop: drop.id }),
     supabase
       .from('extras_orders')
-      .select('id, order_number, status, full_name, email, phone, house, street, postcode, notes, items, total, is_new_customer, delivered, created_at, paid_at')
+      .select('id, order_number, status, full_name, email, phone, house, street, postcode, notes, items, total, is_new_customer, delivered, cash, cash_collected, created_at, paid_at')
       .eq('drop_id', drop.id)
       .in('status', ['paid', 'pending'])
       .order('created_at', { ascending: false }),
@@ -68,7 +68,8 @@ export async function GET(req: NextRequest) {
     paidOrders: paid.length,
     newCustomers: paid.filter((o: any) => o.is_new_customer).length,
     returningCustomers: paid.filter((o: any) => !o.is_new_customer).length,
-    revenue: paid.reduce((s: number, o: any) => s + Number(o.total), 0),
+    revenue: paid.filter((o: any) => !o.cash || o.cash_collected).reduce((s: number, o: any) => s + Number(o.total), 0),
+    cashOwed: paid.filter((o: any) => o.cash && !o.cash_collected).reduce((s: number, o: any) => s + Number(o.total), 0),
     mealsSold: paid.reduce((s: number, o: any) => s + (o.items || []).reduce((a: number, i: any) => a + i.qty, 0), 0),
     toDeliver: paid.filter((o: any) => !o.delivered).length,
   }
@@ -133,6 +134,13 @@ export async function POST(req: NextRequest) {
     if (!body.dropId) return NextResponse.json({ error: 'Missing drop' }, { status: 400 })
     if (body.action === 'reopen') await supabase.from('extras_drops').update({ active: false }).eq('active', true)
     const { error } = await supabase.from('extras_drops').update({ active: body.action === 'reopen' }).eq('id', body.dropId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (body.action === 'cash-collected') {
+    if (!body.orderId) return NextResponse.json({ error: 'Missing order' }, { status: 400 })
+    const { error } = await supabase.from('extras_orders').update({ cash_collected: !!body.collected }).eq('id', body.orderId).eq('cash', true)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }

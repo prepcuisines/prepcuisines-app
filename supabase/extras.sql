@@ -135,3 +135,8 @@ $$;
 alter table extras_drops add column if not exists share_token text unique default replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
 update extras_drops set share_token = replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') where share_token is null;
 alter table extras_drops alter column share_token set not null;
+
+-- Cash orders added by hand: counted as sold stock straight away, but money
+-- only counts as taken once cash_collected is ticked.
+alter table extras_orders add column if not exists cash boolean not null default false;
+alter table extras_orders add column if not exists cash_collected boolean not null default false;

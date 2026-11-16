@@ -19,9 +19,11 @@ type Order = {
   total: number
   is_new_customer: boolean
   delivered: boolean
+  cash: boolean
+  cash_collected: boolean
   created_at: string
 }
-type Stats = { paidOrders: number; newCustomers: number; returningCustomers: number; revenue: number; mealsSold: number; toDeliver: number }
+type Stats = { paidOrders: number; newCustomers: number; returningCustomers: number; revenue: number; cashOwed: number; mealsSold: number; toDeliver: number }
 type MenuItem = { id: string; name: string; category: string }
 
 const linkFor = (token: string) => `https://prepcuisines.co.uk/extras/${token}`
@@ -125,6 +127,17 @@ export default function ExtrasPanel() {
     }
   }
 
+  const toggleCash = async (o: Order) => {
+    setOrders((prev) => prev.map((x) => (x.id === o.id ? { ...x, cash_collected: !x.cash_collected } : x)))
+    try {
+      await post({ action: 'cash-collected', orderId: o.id, collected: !o.cash_collected })
+      await load()
+    } catch (e: any) {
+      setMsg(e.message)
+      load()
+    }
+  }
+
   const toggleActive = async () => {
     if (!drop) return
     try {
@@ -181,6 +194,7 @@ export default function ExtrasPanel() {
             <div className="pc-home-tile"><span className="pc-home-tile-value">{stats.returningCustomers}</span><span className="pc-home-tile-label">Returning</span></div>
             <div className="pc-home-tile"><span className="pc-home-tile-value">{stats.mealsSold}</span><span className="pc-home-tile-label">Meals sold</span></div>
             <div className="pc-home-tile"><span className="pc-home-tile-value">{gbp(stats.revenue)}</span><span className="pc-home-tile-label">Taken</span></div>
+            {stats.cashOwed > 0 && <div className="pc-home-tile"><span className="pc-home-tile-value">{gbp(stats.cashOwed)}</span><span className="pc-home-tile-label">Cash owed</span></div>}
             <div className="pc-home-tile"><span className="pc-home-tile-value">{stats.toDeliver}</span><span className="pc-home-tile-label">To deliver</span></div>
           </div>
 
@@ -203,7 +217,7 @@ export default function ExtrasPanel() {
             {paidOrders.map((o) => (
               <div key={o.id} style={{ ...card, opacity: o.delivered ? 0.6 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                  <strong>#E{o.order_number} · {o.full_name}</strong>
+                  <strong>#E{o.order_number} · {o.full_name}{o.cash ? ' · CASH' : ''}</strong>
                   <span style={{ fontSize: 12, fontWeight: 800, color: o.is_new_customer ? '#1a6b2e' : '#555' }}>{o.is_new_customer ? 'NEW' : 'RETURNING'}</span>
                 </div>
                 <div style={{ fontSize: 13, color: '#444', margin: '4px 0' }}>{o.items.map((i) => `${i.qty} × ${clean(i.name)}`).join(', ')}</div>
@@ -211,8 +225,11 @@ export default function ExtrasPanel() {
                 <div style={{ fontSize: 13, color: '#666' }}>{o.phone} · {o.email}</div>
                 {o.notes && <div style={{ fontSize: 13, color: '#8a7a4a' }}>Note: {o.notes}</div>}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                  <strong>{gbp(o.total)}</strong>
-                  <button style={{ ...ghost, padding: '5px 10px', fontSize: 12 }} onClick={() => toggleDelivered(o)}>{o.delivered ? 'Delivered ✓ (undo)' : 'Mark delivered'}</button>
+                  <strong>{gbp(o.total)}{o.cash && !o.cash_collected ? ' to collect' : ''}</strong>
+                  <span style={{ display: 'flex', gap: 6 }}>
+                    {o.cash && <button style={{ ...ghost, padding: '5px 10px', fontSize: 12 }} onClick={() => toggleCash(o)}>{o.cash_collected ? 'Cash collected ✓ (undo)' : 'Mark cash collected'}</button>}
+                    <button style={{ ...ghost, padding: '5px 10px', fontSize: 12 }} onClick={() => toggleDelivered(o)}>{o.delivered ? 'Delivered ✓ (undo)' : 'Mark delivered'}</button>
+                  </span>
                 </div>
               </div>
             ))}
