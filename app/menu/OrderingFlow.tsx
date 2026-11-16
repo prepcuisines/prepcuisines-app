@@ -316,7 +316,7 @@ export default function OrderingFlow({
           <h1 className="pc-mp-title">
             Choose Your <em>Weekly Meal Plan</em>
           </h1>
-          <p className="pc-mp-subtitle">Fresh meals cooked in the morning, delivered in the afternoon.</p>
+          <p className="pc-mp-subtitle">Fresh chef-made meals, delivered to your door on Sundays and Wednesdays.</p>
         </div>
 
         <div className="pc-day-selector">
