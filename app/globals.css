@@ -830,14 +830,20 @@ html, body { margin: 0; padding: 0; }
   .pc-day-countdown-time { font-size: 15px; }
 }
 
-/* Home hero on mobile: show the whole background picture (zoomed out) instead
-   of cropping it to the tall screen; the top and bottom fade into the green. */
+/* Home hero on mobile: zoomed out a little from the full-height crop, but not
+   all the way out. The picture is wider than the screen and centred, and its
+   top and bottom fade into the green. */
 @media (max-width: 640px) {
   .pc-hero-bg { background: #2d3510; }
   .pc-hero-bg-img {
-    object-fit: contain;
-    object-position: center;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 165%;
+    max-width: none;
+    height: auto;
+    transform: translate(-50%, -50%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 82%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 82%, transparent 100%);
   }
 }
