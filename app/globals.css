@@ -829,3 +829,15 @@ html, body { margin: 0; padding: 0; }
   .pc-day-countdown { font-size: 10px; }
   .pc-day-countdown-time { font-size: 15px; }
 }
+
+/* Home hero on mobile: show the whole background picture (zoomed out) instead
+   of cropping it to the tall screen; the top and bottom fade into the green. */
+@media (max-width: 640px) {
+  .pc-hero-bg { background: #2d3510; }
+  .pc-hero-bg-img {
+    object-fit: contain;
+    object-position: center;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  }
+}
