@@ -36,7 +36,7 @@ export async function getLiveExtras(token: string): Promise<ExtrasDrop | null> {
   if (!drop) return null
 
   const [{ data: items }, { data: avail }] = await Promise.all([
-    supabase.from('extras_items').select('id, name, price, menu_item_id, sort').eq('drop_id', drop.id).order('sort'),
+    supabase.from('extras_items').select('id, name, price, menu_item_id, sort').eq('drop_id', drop.id).eq('hidden', false).order('sort'),
     supabase.rpc('extras_available', { p_drop: drop.id }),
   ])
   const left = new Map<string, number>((avail || []).map((a: any) => [a.item_id as string, a.available as number]))

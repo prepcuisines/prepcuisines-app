@@ -140,3 +140,7 @@ alter table extras_drops alter column share_token set not null;
 -- only counts as taken once cash_collected is ticked.
 alter table extras_orders add column if not exists cash boolean not null default false;
 alter table extras_orders add column if not exists cash_collected boolean not null default false;
+
+-- Items added to a hand-made order only (e.g. a spare from the shop): kept for
+-- stock and order records but not shown on the public page.
+alter table extras_items add column if not exists hidden boolean not null default false;
