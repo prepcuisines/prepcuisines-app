@@ -174,6 +174,14 @@ function orderTypePillStyle(status: string): React.CSSProperties {
   return {}
 }
 
+// Cash orders (incl. cash-link orders) are purple so you can see at a glance
+// who still owes cash: solid purple = still owes, soft purple = cash collected.
+function cashPillStyle(collected: boolean): React.CSSProperties {
+  return collected
+    ? { background: '#E6DAF5', color: '#4b2a85' }
+    : { background: '#6b3fb5', color: '#ffffff' }
+}
+
 const segmentFilters = [
   { key: 'skipped_week', label: 'Skipped this week' },
   { key: 'lapsed_30', label: 'Lapsed 30+' },
@@ -4987,6 +4995,7 @@ Bukr / prepcuisines`
                     <div
                       key={o.id}
                       className={`pc-order-card ${selectedOrderIds.includes(o.id) ? 'pc-order-card-selected' : ''}`}
+                      style={o.cash_order && !o.cancelled ? { borderLeft: `4px solid ${o.cash_collected ? '#cdb8ec' : '#6b3fb5'}` } : undefined}
                       onClick={() => openOrderDetail(o.id)}
                     >
                       <div className="pc-order-card-top">
@@ -5016,11 +5025,21 @@ Bukr / prepcuisines`
                       <div className="pc-order-card-meta">
                         <span
                           className={`pill ${o.cancelled ? 'pill-danger' : 'pill-muted'}`}
-                          style={o.cancelled ? undefined : orderTypePillStyle(o.status)}
+                          style={
+                            o.cancelled
+                              ? undefined
+                              : o.cash_order
+                                ? cashPillStyle(!!o.cash_collected)
+                                : orderTypePillStyle(o.status)
+                          }
                         >
                           {o.cancelled
                             ? `Cancelled — was ${statusLabels[o.status] || o.status}`
-                            : statusLabels[o.status] || o.status}
+                            : o.cash_order
+                              ? o.cash_collected
+                                ? `Cash — collected ${money(o.total_amount)}`
+                                : `Cash — owes ${money(o.total_amount)}`
+                              : statusLabels[o.status] || o.status}
                         </span>
                         <span>{o.delivery_day ? dayNameOf(o.delivery_day) : '—'}</span>
                         <span>
