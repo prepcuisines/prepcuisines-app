@@ -152,3 +152,8 @@ create table if not exists creators (
   created_at timestamptz not null default now()
 );
 alter table creators enable row level security;
+
+-- Creators tracking: when meals were last sent (3-month cycle) and whether they posted.
+alter table creators add column if not exists last_sent_date date;
+alter table creators add column if not exists story_posted boolean not null default false;
+alter table creators add column if not exists video_posted boolean not null default false;

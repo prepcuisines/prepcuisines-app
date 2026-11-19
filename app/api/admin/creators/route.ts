@@ -10,12 +10,19 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
-// Creators we send free meals to (names only, for future collabs).
+// Today's date in the UK (YYYY-MM-DD), so "sent today" is right late at night too.
+const londonToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date())
+
+// Creators we send free meals to: who's been sent meals, whether they've posted
+// a story and a video, and when the next 3-monthly send is due.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
-  const { data, error } = await supabase.from('creators').select('id, name').order('name')
+  const { data, error } = await supabase
+    .from('creators')
+    .select('id, name, last_sent_date, story_posted, video_posted')
+    .order('name')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ creators: data || [] })
+  return NextResponse.json({ creators: data || [], today: londonToday() })
 }
 
 export async function POST(req: NextRequest) {
@@ -33,6 +40,23 @@ export async function POST(req: NextRequest) {
   if (body.action === 'remove') {
     if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
     const { error } = await supabase.from('creators').delete().eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+  // Sent today: starts a new 3-month cycle and clears the story/video ticks.
+  if (body.action === 'sent') {
+    if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+    const { error } = await supabase
+      .from('creators')
+      .update({ last_sent_date: londonToday(), story_posted: false, video_posted: false })
+      .eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+  if (body.action === 'tick') {
+    const field = body.field === 'story' ? 'story_posted' : body.field === 'video' ? 'video_posted' : null
+    if (!body.id || !field) return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+    const { error } = await supabase.from('creators').update({ [field]: !!body.value }).eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
