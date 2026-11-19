@@ -157,3 +157,6 @@ alter table creators enable row level security;
 alter table creators add column if not exists last_sent_date date;
 alter table creators add column if not exists story_posted boolean not null default false;
 alter table creators add column if not exists video_posted boolean not null default false;
+
+-- Recurring manual orders for cash customers: weekly orders are created as cash owed.
+alter table recurring_manual_orders add column if not exists cash_order boolean not null default false;

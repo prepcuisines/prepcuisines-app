@@ -107,6 +107,9 @@ export async function POST(req: NextRequest) {
           ship_house_number: (ro as any).ship_house_number ?? null,
           ship_street: (ro as any).ship_street ?? null,
           ship_postcode: ro.postcode,
+          // Cash customers: weekly orders show as cash owed (purple) until collected.
+          cash_order: !!(ro as any).cash_order,
+          cash_collected: false,
         })
         results.push({ id: ro.id, createdUnpaidOrder: true })
         continue
