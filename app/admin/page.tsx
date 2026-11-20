@@ -3710,6 +3710,51 @@ Bukr / prepcuisines`
     setFillManualBusyId(null)
   }
 
+  // Re-print labels that are ALREADY generated (have a DPD shipment): fetches
+  // each existing label and prints it with its packing slip. Never creates a
+  // shipment and never changes printed status, so it is safe to run any time
+  // and never touches the orders that are still failing/outstanding.
+  const printGeneratedShippingLabels = async () => {
+    const generated = deliverableOrders
+      .filter((o) => !isStokeOrder(o) && !!o.dpd_shipment_id)
+      .sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''))
+    if (!generated.length) {
+      setPrintLabelsError('No generated shipping labels yet for the selected date.')
+      return
+    }
+    const shell = openPrintShell()
+    if (!shell) {
+      setPrintLabelsError('Pop-up blocked — allow pop-ups for this site, then try again.')
+      return
+    }
+    setPrintLabelsStatus('working')
+    setPrintLabelsError(null)
+    const pages: string[] = []
+    const skipped: string[] = []
+    for (let i = 0; i < generated.length; i++) {
+      const o = generated[i]
+      setPrintLabelsProgress(`${i + 1} of ${generated.length} — ${o.customer_name}`)
+      try {
+        const res = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data.labels?.[0]) {
+          skipped.push(`${o.customer_name}: ${data.error || 'could not fetch label'}`)
+          continue
+        }
+        pages.push(generatePackingSlipHtml(o), data.labels[0])
+      } catch {
+        skipped.push(`${o.customer_name}: network error`)
+      }
+    }
+    setPrintLabelsStatus('idle')
+    setPrintLabelsProgress('')
+    if (pages.length > 0) finishPrintShell(shell, pages)
+    else shell.close()
+    if (skipped.length > 0) {
+      setPrintLabelsError(`${skipped.length} generated label${skipped.length === 1 ? '' : 's'} could not be pulled up: ${skipped.join('; ')}`)
+    }
+  }
+
   const printAllShippingLabels = async () => {
     // Only orders whose label hasn't been printed yet — already-done ones
     // keep their ✓ and never get redone (reprint individually if needed).
@@ -5949,6 +5994,13 @@ Bukr / prepcuisines`
                   {printLabelsStatus === 'working'
                     ? `Working… ${printLabelsProgress}`
                     : `🚚 Print outstanding Shipping Labels (${outstandingShippingCount} left of ${deliverableOrders.length - printLabelsStokeCount})`}
+                </button>
+                <button
+                  className="segment-pill"
+                  onClick={printGeneratedShippingLabels}
+                  disabled={printLabelsStatus === 'working'}
+                >
+                  🏷️ Print generated Shipping Labels ({deliverableOrders.filter((o) => !isStokeOrder(o) && !!o.dpd_shipment_id).length})
                 </button>
                 <button
                   className="segment-pill"
