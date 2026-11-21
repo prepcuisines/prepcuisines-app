@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { data: order } = await supabase
     .from('customer_window_orders')
-    .select('dpd_shipment_id')
+    .select('dpd_shipment_id, dpd_label_html')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -33,6 +33,11 @@ export async function GET(req: NextRequest) {
       { error: 'No DPD shipment exists for this order yet' },
       { status: 400 }
     )
+  }
+
+  // Already saved from an earlier fetch — serve instantly, no DPD call.
+  if (order.dpd_label_html) {
+    return NextResponse.json({ success: true, labels: [order.dpd_label_html], cached: true })
   }
 
   // DPD can take a few seconds after shipment creation before the label
@@ -46,6 +51,13 @@ export async function GET(req: NextRequest) {
 
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 500 })
+  }
+
+  if (result.labels?.[0]) {
+    await supabase
+      .from('customer_window_orders')
+      .update({ dpd_label_html: result.labels[0] })
+      .eq('id', orderId)
   }
 
   return NextResponse.json({ success: true, labels: result.labels })

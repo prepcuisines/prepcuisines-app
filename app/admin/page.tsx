@@ -234,6 +234,21 @@ function StatusBadge({ status }: { status: string | null }) {
   return <span className={`pill pill-${entry.tone}`}>{entry.label}</span>
 }
 
+
+// Run async work over a list with limited concurrency, keeping result order.
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++
+      out[i] = await fn(items[i], i)
+    }
+  })
+  await Promise.all(workers)
+  return out
+}
+
 export default function AdminDashboard() {
   const [authenticated, setAuthenticated] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -3630,22 +3645,30 @@ Bukr / prepcuisines`
     setPrintLabelsStatus('working')
     const pages: string[] = []
     const noLabel: string[] = []
-    for (let i = 0; i < regionOrders.length; i++) {
-      const o = regionOrders[i]
-      setPrintLabelsProgress(`${i + 1} of ${regionOrders.length} — ${o.customer_name}`)
-      pages.push(generatePackingSlipHtml(o))
+    let done = 0
+    const results = await mapLimit(regionOrders, 5, async (o) => {
+      let label: string | null = null
+      let err: string | null = null
       if (!o.dpd_shipment_id) {
-        noLabel.push(`${o.customer_name}: no label generated yet`)
-        continue
+        err = `${o.customer_name}: no label generated yet`
+      } else {
+        try {
+          const res = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
+          const data = await res.json().catch(() => ({}))
+          if (res.ok && data.labels?.[0]) label = data.labels[0]
+          else err = `${o.customer_name}: ${data.error || 'could not fetch label'}`
+        } catch {
+          err = `${o.customer_name}: network error`
+        }
       }
-      try {
-        const res = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
-        const data = await res.json().catch(() => ({}))
-        if (res.ok && data.labels?.[0]) pages.push(data.labels[0])
-        else noLabel.push(`${o.customer_name}: ${data.error || 'could not fetch label'}`)
-      } catch {
-        noLabel.push(`${o.customer_name}: network error`)
-      }
+      done++
+      setPrintLabelsProgress(`${done} of ${regionOrders.length}`)
+      return { o, label, err }
+    })
+    for (const r of results) {
+      pages.push(generatePackingSlipHtml(r.o))
+      if (r.label) pages.push(r.label)
+      else if (r.err) noLabel.push(r.err)
     }
     setPrintLabelsStatus('idle')
     setPrintLabelsProgress('')
@@ -3787,20 +3810,25 @@ Bukr / prepcuisines`
     setPrintLabelsError(null)
     const pages: string[] = []
     const skipped: string[] = []
-    for (let i = 0; i < generated.length; i++) {
-      const o = generated[i]
-      setPrintLabelsProgress(`${i + 1} of ${generated.length} — ${o.customer_name}`)
+    let done = 0
+    const results = await mapLimit(generated, 5, async (o) => {
+      let label: string | null = null
+      let err: string | null = null
       try {
         const res = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
         const data = await res.json().catch(() => ({}))
-        if (!res.ok || !data.labels?.[0]) {
-          skipped.push(`${o.customer_name}: ${data.error || 'could not fetch label'}`)
-          continue
-        }
-        pages.push(generatePackingSlipHtml(o), data.labels[0])
+        if (!res.ok || !data.labels?.[0]) err = `${o.customer_name}: ${data.error || 'could not fetch label'}`
+        else label = data.labels[0]
       } catch {
-        skipped.push(`${o.customer_name}: network error`)
+        err = `${o.customer_name}: network error`
       }
+      done++
+      setPrintLabelsProgress(`${done} of ${generated.length}`)
+      return { o, label, err }
+    })
+    for (const r of results) {
+      if (r.label) pages.push(generatePackingSlipHtml(r.o), r.label)
+      else if (r.err) skipped.push(r.err)
     }
     setPrintLabelsStatus('idle')
     setPrintLabelsProgress('')

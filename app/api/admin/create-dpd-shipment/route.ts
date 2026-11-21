@@ -167,6 +167,7 @@ export async function POST(req: NextRequest) {
     .update({
       dpd_shipment_id: result.shipmentId,
       dpd_consignment_number: result.consignmentNumber,
+      dpd_label_html: null, // new shipment → old saved label is stale
     })
     .eq('id', orderId)
 

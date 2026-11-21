@@ -160,3 +160,6 @@ alter table creators add column if not exists video_posted boolean not null defa
 
 -- Recurring manual orders for cash customers: weekly orders are created as cash owed.
 alter table recurring_manual_orders add column if not exists cash_order boolean not null default false;
+
+-- DPD label cache: saved on first fetch so reprints are instant
+alter table customer_window_orders add column if not exists dpd_label_html text;
