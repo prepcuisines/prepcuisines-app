@@ -304,6 +304,21 @@ export default function AdminDashboard() {
   >([])
   const [dpdLookupError, setDpdLookupError] = useState<string | null>(null)
   const [printLabelsStatus, setPrintLabelsStatus] = useState<'idle' | 'working'>('idle')
+  // Nationwide packing slips (all / by box size): include each order's DPD label
+  // right after its slip. Remembered between visits.
+  const [includeDpdLabels, setIncludeDpdLabels] = useState(true)
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem('pc_include_dpd_labels')
+      if (v !== null) setIncludeDpdLabels(v === '1')
+    } catch {}
+  }, [])
+  const toggleIncludeDpdLabels = (v: boolean) => {
+    setIncludeDpdLabels(v)
+    try {
+      window.localStorage.setItem('pc_include_dpd_labels', v ? '1' : '0')
+    } catch {}
+  }
   const [printLabelsProgress, setPrintLabelsProgress] = useState('')
   const [printLabelsError, setPrintLabelsError] = useState<string | null>(null)
   const [dpdTestResult, setDpdTestResult] = useState<{
@@ -3582,7 +3597,7 @@ Bukr / prepcuisines`
   // shipping/packing-label counters above are unaffected. Safe to re-run.
   // boxSize only applies to nationwide (Stoke uses bags, not boxes) - lets
   // slips be printed grouped by box size so they can be packed together.
-  const printPackingSlipsForRegion = (region: 'stoke' | 'nationwide', boxSize?: 'small' | 'medium' | 'large') => {
+  const printPackingSlipsForRegion = async (region: 'stoke' | 'nationwide', boxSize?: 'small' | 'medium' | 'large') => {
     const regionOrders = deliverableOrders
       .filter((o) => (region === 'stoke' ? isStokeOrder(o) : !isStokeOrder(o)))
       .filter((o) => (region === 'nationwide' && boxSize ? boxSizeForOrder(o) === boxSize : true))
@@ -3598,7 +3613,48 @@ Bukr / prepcuisines`
       return
     }
     setPrintLabelsError(null)
-    printHtmlPages(regionOrders.map(generatePackingSlipHtml))
+    // Slips only (Stoke, or DPD labels switched off): as before.
+    if (region !== 'nationwide' || !includeDpdLabels) {
+      printHtmlPages(regionOrders.map(generatePackingSlipHtml))
+      return
+    }
+    // Nationwide with DPD labels: each slip is followed by its already-generated
+    // label. Only existing labels are fetched, no DPD shipment is created and
+    // printed status is untouched. Orders with no generated label get their
+    // slip only, and are listed so nothing is missed.
+    const shell = openPrintShell()
+    if (!shell) {
+      setPrintLabelsError('Pop-up blocked — allow pop-ups for this site, then try again.')
+      return
+    }
+    setPrintLabelsStatus('working')
+    const pages: string[] = []
+    const noLabel: string[] = []
+    for (let i = 0; i < regionOrders.length; i++) {
+      const o = regionOrders[i]
+      setPrintLabelsProgress(`${i + 1} of ${regionOrders.length} — ${o.customer_name}`)
+      pages.push(generatePackingSlipHtml(o))
+      if (!o.dpd_shipment_id) {
+        noLabel.push(`${o.customer_name}: no label generated yet`)
+        continue
+      }
+      try {
+        const res = await fetch(`/api/admin/get-dpd-label?orderId=${o.id}`, { cache: 'no-store' })
+        const data = await res.json().catch(() => ({}))
+        if (res.ok && data.labels?.[0]) pages.push(data.labels[0])
+        else noLabel.push(`${o.customer_name}: ${data.error || 'could not fetch label'}`)
+      } catch {
+        noLabel.push(`${o.customer_name}: network error`)
+      }
+    }
+    setPrintLabelsStatus('idle')
+    setPrintLabelsProgress('')
+    finishPrintShell(shell, pages)
+    if (noLabel.length > 0) {
+      setPrintLabelsError(
+        `${noLabel.length} order${noLabel.length === 1 ? '' : 's'} printed without a DPD label: ${noLabel.join('; ')}`
+      )
+    }
   }
 
   // ── Bulk order selection & actions ───────────────────────────────
@@ -6010,6 +6066,17 @@ Bukr / prepcuisines`
                   📦 Print outstanding Stoke Packing Labels ({outstandingStokeCount} left of {printLabelsStokeCount})
                 </button>
               </div>
+              <label
+                style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 14, cursor: 'pointer' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={includeDpdLabels}
+                  onChange={(e) => toggleIncludeDpdLabels(e.target.checked)}
+                  style={{ width: 18, height: 18 }}
+                />
+                Include DPD labels with Nationwide packing slips (all sizes)
+              </label>
               <div className="pc-modal-inline-row" style={{ marginTop: 8 }}>
                 <button
                   className="segment-pill"
