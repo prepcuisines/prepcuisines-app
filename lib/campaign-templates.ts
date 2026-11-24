@@ -53,8 +53,10 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 <tr><td align="center">
 <table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;">
 
+  <tr><td align="center" style="background:#f5f0e8;padding:18px 30px 8px;">
+    <img alt="prepcuisines" src="https://cdn.shopify.com/s/files/1/0962/3348/8716/files/PrepCuisines_21_x_29.7_cm_2_x_1_in_12.png" height="90" style="display:block;height:90px;width:auto;margin:0 auto;border:0;"/>
+  </td></tr>
   <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
-    <p style="margin:0 0 22px;font-family:Georgia,'Times New Roman',serif;font-size:30px;line-height:1;color:#c9a84c;">prepcuisines</p>
     <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">WE'D LOVE TO FEED YOU AGAIN</p>
     <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">Your 40% off is still waiting.</h1>
   </td></tr>
