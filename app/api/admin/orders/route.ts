@@ -40,9 +40,21 @@ export async function GET(req: NextRequest) {
   const { data: profiles } = customerIds.length
     ? await supabase
         .from('customer_profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, subscription_cancelled_at')
         .in('id', customerIds)
     : { data: [] }
+
+  // Win-back orders: customers who came back after cancelling. Either the
+  // order was placed after their cancellation date, or it used their
+  // one-off win-back discount (logged at the moment the order was charged).
+  const { data: usedLogs } = customerIds.length
+    ? await supabase
+        .from('winback_discount_log')
+        .select('customer_id, created_at')
+        .eq('event', 'used')
+        .in('customer_id', customerIds)
+    : { data: [] }
+  const WINBACK_MATCH_MS = 15 * 60 * 1000
 
   const withNames = (orders || []).map((o: any) => {
     const profile = (profiles || []).find((p) => p.id === o.customer_id)
@@ -50,8 +62,18 @@ export async function GET(req: NextRequest) {
       ? o.menu_windows[0] ?? null
       : o.menu_windows ?? null
 
+    const orderTime = Date.parse(o.created_at)
+    const cancelledAt = profile?.subscription_cancelled_at ? Date.parse(profile.subscription_cancelled_at) : null
+    const isWinback =
+      !!o.customer_id &&
+      ((cancelledAt !== null && orderTime > cancelledAt) ||
+        (usedLogs || []).some(
+          (l: any) => l.customer_id === o.customer_id && Math.abs(Date.parse(l.created_at) - orderTime) <= WINBACK_MATCH_MS
+        ))
+
     return {
       ...o,
+      is_winback: isWinback,
       menu_windows: menuWindow,
       // PAYG orders have customer_id null — shipping fields carry the name/contact instead.
       customer_name: profile?.full_name || o.ship_full_name || 'Guest (PAYG)',

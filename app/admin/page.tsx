@@ -83,6 +83,7 @@ type Order = {
   total_amount: number | null
   cash_order?: boolean
   cash_collected?: boolean
+  is_winback?: boolean
   delivery_day: string | null
   created_at: string
   delivery_instructions: string | null
@@ -173,6 +174,10 @@ function orderTypePillStyle(status: string): React.CSSProperties {
   if (status === 'payg_order') return { background: '#F7CAD0', color: '#7a2e42' }
   return {}
 }
+
+// Win-back orders (a customer who came back after cancelling) are amber, so
+// they stand out from normal repeat orders.
+const winbackPillStyle: React.CSSProperties = { background: '#F6C453', color: '#4a3200' }
 
 // Cash orders (incl. cash-link orders) are purple so you can see at a glance
 // who still owes cash: solid purple = still owes, soft purple = cash collected.
@@ -5159,7 +5164,9 @@ Bukr / prepcuisines`
                               ? undefined
                               : o.cash_order
                                 ? cashPillStyle(!!o.cash_collected)
-                                : orderTypePillStyle(o.status)
+                                : o.is_winback
+                                  ? winbackPillStyle
+                                  : orderTypePillStyle(o.status)
                           }
                         >
                           {o.cancelled
@@ -5168,7 +5175,9 @@ Bukr / prepcuisines`
                               ? o.cash_collected
                                 ? `Cash — collected ${money(o.total_amount)}`
                                 : `Cash — owes ${money(o.total_amount)}`
-                              : statusLabels[o.status] || o.status}
+                              : o.is_winback
+                                ? `Win-back — ${statusLabels[o.status] || o.status}`
+                                : statusLabels[o.status] || o.status}
                         </span>
                         <span>{o.delivery_day ? dayNameOf(o.delivery_day) : '—'}</span>
                         <span>
