@@ -403,7 +403,7 @@ export const RECIPES: Recipe[] = [
     meat: { name: 'Beef Steak (strips)', raw: 195, cookedWeight: 120 },
     ingredients: [
       { name: 'Beef Steak (strips)', raw: 195, isMeat: true },
-      { name: 'Noodles', raw: 146, cookedWeight: 125 },
+      { name: 'Noodles', raw: 175, cookedWeight: 150 },
       { name: 'Peppers & Sauce', raw: 30 },
     ],
   },
