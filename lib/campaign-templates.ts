@@ -10,7 +10,7 @@ export type CampaignTemplate = {
   defaultSubject: string
   // Which audience this email is written for, so the admin can warn if
   // it's sent to the wrong group (e.g. a 40%-off email to past customers).
-  intendedFor: 'not_subscribed' | 'past_customers' | 'subscribers' | 'cancelled_40' | 'any'
+  intendedFor: 'not_subscribed' | 'past_customers' | 'subscribers' | 'cancelled_40' | 'cancelled_20' | 'any'
   // Used for {{first_name}} when we don't know someone's name.
   nameFallback?: string
   html: string
@@ -31,6 +31,72 @@ const CUTOFFS = 'Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: 
 const ORDER_LINK = 'Order here: <a href="https://prepcuisines.co.uk/menu" style="color:#1a2e1a;font-weight:600;">prepcuisines.co.uk/menu</a>'
 
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
+  {
+    key: 'winback-20-dpd',
+    name: 'Win-back - DPD fixed, 20% to 31 Dec',
+    defaultSubject: '{{first_name}}, 20% off every order until 31 December',
+    intendedFor: 'cancelled_20',
+    nameFallback: 'there',
+    html: `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>20% off until 31 December</title>
+<style>
+@media only screen and (max-width:520px){
+  .pad{padding-left:20px !important;padding-right:20px !important;}
+  .h1{font-size:28px !important;}
+  .stack{display:block !important;width:100% !important;padding:0 0 14px !important;}
+}
+</style></head>
+<body style="margin:0;padding:0;background:#f5f0e8;">
+<div style="display:none;max-height:0;overflow:hidden;">20% off every order until 31 December, and DPD is more reliable than ever.</div>
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;padding:20px 10px;">
+<tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;">
+
+  <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
+    <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="400" style="display:block;width:400px;max-width:100%;height:auto;margin:0 auto 26px;border:0;"/>
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">WE'D LOVE TO FEED YOU AGAIN</p>
+    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">20% off every order until 31 December.</h1>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:34px 36px 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
+    <p style="margin:0 0 14px;">Hey {{first_name}},</p>
+    <p style="margin:0 0 14px;">We'd love to feed you again, so we've put 20% off on your account:</p>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:20px 36px 8px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#c9a84c;border-radius:12px;">
+      <tr><td align="center" style="padding:28px 16px;">
+        <p style="margin:0;font-family:Georgia,serif;font-size:56px;line-height:1;color:#1a2e1a;">20%</p>
+        <p style="margin:6px 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:16px;font-weight:800;color:#1a2e1a;">off every order</p>
+        <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#1a2e1a;">until 31 December, applied automatically</p>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:20px 36px 40px;text-align:center;font-family:Helvetica,Arial,sans-serif;">
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#555555;">Chef-made, high protein, from £4.80 a meal. Heat, eat, done.</p>
+    <table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
+      <tr><td align="center" style="background:#1a2e1a;border-radius:40px;">
+        <a href="https://prepcuisines.co.uk/login" style="display:inline-block;padding:16px 36px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.06em;color:#f5f0e8;text-decoration:none;">LOG IN AND ORDER</a>
+      </td></tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#777777;">Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: order by Sunday 8pm</p>
+    <p style="margin:18px 0 0;font-size:15px;color:#333333;">Hope to feed you again soon,<br/><strong>Bukr</strong></p>
+    <p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#888888;">P.S. If you ever had an issue with a delivery, we're sorry. DPD is back up and running and more reliable than ever.</p>
+  </td></tr>
+
+  <tr><td align="center" style="background:#1a2e1a;padding:24px 30px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:rgba(245,240,232,0.5);">
+    prepcuisines &middot; 102A Sun Street, Stoke-on-Trent, ST1 4JR<br/>
+    <a href="{{unsubscribe_url}}" style="color:rgba(245,240,232,0.5);">Unsubscribe</a>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>
+`,
+  },
   {
     key: 'winback-40-dpd',
     name: 'Win-back - DPD fixed, 40% then 20% to 31 Dec',

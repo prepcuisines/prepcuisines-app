@@ -27,6 +27,11 @@ export const CAMPAIGN_AUDIENCES = [
     label: 'Cancelled — 40% waiting',
     hint: 'Cancelled customers who still have their one-off 40% off waiting on their next order',
   },
+  {
+    key: 'cancelled_20',
+    label: 'Cancelled — 20% until 31 Dec',
+    hint: 'Cancelled customers with no one-off 40% waiting (already used it, or cancelled after 6+ orders). They get 20% off every order until 31 Dec',
+  },
 ] as const
 
 export type CampaignAudienceKey = (typeof CAMPAIGN_AUDIENCES)[number]['key']
@@ -159,6 +164,12 @@ export async function buildCampaignAudience(
   if (audience === 'cancelled_40') {
     for (const p of profiles) {
       if (p.subscription_status === 'cancelled' && p.winback_discount_pending) add(p.email, p.full_name)
+    }
+  }
+
+  if (audience === 'cancelled_20') {
+    for (const p of profiles) {
+      if (p.subscription_status === 'cancelled' && !p.winback_discount_pending) add(p.email, p.full_name)
     }
   }
 
