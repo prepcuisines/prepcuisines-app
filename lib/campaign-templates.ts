@@ -45,6 +45,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   .pad{padding-left:20px !important;padding-right:20px !important;}
   .h1{font-size:28px !important;}
   .stack{display:block !important;width:100% !important;padding:0 0 14px !important;}
+  .mealimg{width:120px !important;}
+  .mealimg img{width:120px !important;}
 }
 </style></head>
 <body style="margin:0;padding:0;background:#f5f0e8;">
@@ -85,6 +87,115 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
         </table>
       </td>
     </tr></table>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">THIS WEEK'S FAVOURITES</p>
+    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Pick from chef-made meals like these</h2>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Bang Bang Chicken" src="https://prepcuisines.co.uk/bang-bang-chicken.jpg" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Bang Bang Chicken with Rice and Cucumber Slaw</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">525 kcal &middot; 35g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Peri Rosa Chicken Rigatoni" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/54E9D387-545B-4D9B-AA99-3F93705571BF.png" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Peri Rosa Chicken Rigatoni with Peas</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">528 kcal &middot; 50g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Lebanese Garlic Herb Chicken Bowl" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/IMG_0466.jpeg" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Lebanese Garlic Herb Chicken Bowl</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">555 kcal &middot; 46g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Turkish Beef Pasta" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%201,%202026,%2006_09_24%20PM.png" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Turkish Beef Pasta with Garlic Yoghurt</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">503 kcal &middot; 51g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">WHAT YOU GET</p>
+    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Healthy eating, without the effort</h2>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 8px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:12px;">
+      <tr><td style="padding:22px 24px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#f5f0e8;">
+        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>Chef-made from fresh</strong>, cooked by our chefs in Stoke-on-Trent</p>
+        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>High protein</strong>, macros on every single meal</p>
+        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>Heat, eat, done</strong>, no cooking, no washing up</p>
+        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>You choose the meals</strong>, from a rotating weekly menu</p>
+        <p style="margin:0;padding:10px 0 0;"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>Skip or change any week</strong>, no lock-in</p>
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">HOW MUCH YOU'LL SAVE</p>
+    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Your first 6 boxes, side by side</h2>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 8px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:2px solid #1a2e1a;border-radius:12px;">
+      <tr><td style="padding:20px 24px 4px;font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#6b7a6b;">A box of 6 meals</td></tr>
+      <tr><td style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#1a2e1a;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Normal price</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:400;"><span style="text-decoration:line-through;color:#999999;">&pound;48.00</span></td></tr>
+          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Your first box (40% off)</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:700;">&pound;28.80</td></tr>
+          <tr><td style="padding:11px 0;">Orders 2 to 6 (20% off)</td><td align="right" style="padding:11px 0;font-weight:400;">&pound;38.40 each</td></tr>
+        </table>
+      </td></tr>
+      <tr><td align="center" style="background:#1a2e1a;border-radius:0 0 10px 10px;padding:18px 24px;">
+        <p style="margin:0;font-family:Georgia,serif;font-size:28px;line-height:1.1;color:#c9a84c;">Save &pound;67.20</p>
+        <p style="margin:4px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#f5f0e8;">across your first 6 boxes</p>
+      </td></tr>
+    </table>
+    <p style="margin:10px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;color:#999999;text-align:center;">Based on 6 meals at &pound;8.00 each. Delivery is charged separately and isn't discounted.</p>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">YOUR TIME</p>
+    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Get your week back</h2>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 8px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:2px solid #1a2e1a;border-radius:12px;">
+      <tr><td style="padding:20px 24px 4px;font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#6b7a6b;">Where your week goes</td></tr>
+      <tr><td style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#1a2e1a;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Food shop</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:700;">1 hr</td></tr>
+          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Prep and cooking</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:700;">3 hrs</td></tr>
+          <tr><td style="padding:11px 0;">Cleaning and washing up</td><td align="right" style="padding:11px 0;font-weight:700;">1 hr</td></tr>
+        </table>
+      </td></tr>
+      <tr><td align="center" style="background:#c9a84c;border-radius:0 0 10px 10px;padding:18px 24px;">
+        <p style="margin:0;font-family:Georgia,serif;font-size:28px;line-height:1.1;color:#1a2e1a;">5 hours back</p>
+        <p style="margin:4px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#1a2e1a;">every single week</p>
+      </td></tr>
+    </table>
   </td></tr>
 
   <tr><td class="pad" style="background:#ffffff;padding:20px 36px 40px;text-align:center;font-family:Helvetica,Arial,sans-serif;">
