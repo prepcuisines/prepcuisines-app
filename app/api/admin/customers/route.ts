@@ -203,10 +203,10 @@ export async function POST(req: NextRequest) {
     }
     const update =
       discountPercent === 40
-        ? { winback_discount_pending: true, bonus_discount_orders_remaining: 0 }
+        ? { winback_discount_pending: true, winback_discount_percent: 40, bonus_discount_orders_remaining: 0 }
         : discountPercent === 20
-          ? { winback_discount_pending: false, bonus_discount_orders_remaining: 1 }
-          : { winback_discount_pending: false, bonus_discount_orders_remaining: 0 }
+          ? { winback_discount_pending: false, winback_discount_percent: 40, bonus_discount_orders_remaining: 1 }
+          : { winback_discount_pending: false, winback_discount_percent: 40, bonus_discount_orders_remaining: 0 }
     const { data: updated, error: updError } = await supabase
       .from('customer_profiles')
       .update(update)

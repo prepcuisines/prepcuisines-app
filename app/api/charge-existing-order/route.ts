@@ -1,3 +1,4 @@
+import { discountRate } from '@/lib/discount-rate'
 import { logWinback } from '@/lib/winbackLog'
 import { buildPurchaseConversion } from '@/lib/purchaseConversion'
 import { NextRequest, NextResponse } from 'next/server'
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     const { data: profile, error: profileError } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, phone, house_number, street, stripe_customer_id, stripe_payment_method_id, orders_completed, subscription_status, postcode, skip_next_order, standing_delivery_instructions, second_delivery_day, deliveries_per_week, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent'
+        'full_name, email, phone, house_number, street, stripe_customer_id, stripe_payment_method_id, orders_completed, subscription_status, postcode, skip_next_order, standing_delivery_instructions, second_delivery_day, deliveries_per_week, winback_discount_pending, winback_discount_percent, promo_discount_until, bonus_discount_orders_remaining, permanent_discount_percent'
       )
       .eq('id', userId)
       .single()
@@ -171,16 +172,18 @@ export async function POST(req: NextRequest) {
 
     const ordersCompleted = profile.orders_completed || 0
     const hasBonusDiscount = (profile.bonus_discount_orders_remaining || 0) > 0
-    const discountRate = profile.winback_discount_pending
-      ? 0.6
-      : ordersCompleted <= 5 || hasBonusDiscount
-        ? 0.8
-        : 1
+    const rate = discountRate({
+      ordersCompleted,
+      winbackPending: !!profile.winback_discount_pending,
+      winbackPercent: profile.winback_discount_percent,
+      bonusOrders: profile.bonus_discount_orders_remaining || 0,
+      promoUntil: profile.promo_discount_until,
+    })
 
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
-      const rate = item.discount_exempt ? 1 : discountRate
-      return sum + offerAdjustedPrice(item, ordersCompleted === 0) * qty * rate
+      const itemRate = item.discount_exempt ? 1 : rate
+      return sum + offerAdjustedPrice(item, ordersCompleted === 0) * qty * itemRate
     }, 0)
 
     const normalisedPostcode = (profile.postcode || '').trim().toUpperCase().replace(/\s/g, '')
@@ -196,7 +199,7 @@ export async function POST(req: NextRequest) {
     // broke the edit page's discount inference).
     const orderItemsSnapshot = [
       ...items.map((item) => {
-        const itemRate = item.discount_exempt ? 1 : discountRate
+        const itemRate = item.discount_exempt ? 1 : rate
         return {
           name: item.name,
           price: Math.round(offerAdjustedPrice(item, ordersCompleted === 0) * itemRate * 100) / 100,
@@ -266,6 +269,7 @@ export async function POST(req: NextRequest) {
       }
       if (profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40) {
         updates.winback_discount_pending = false
+        updates.winback_discount_percent = 40
       }
       if (ordersCompleted > 5 && hasBonusDiscount) {
         updates.bonus_discount_orders_remaining = (profile.bonus_discount_orders_remaining || 0) - 1

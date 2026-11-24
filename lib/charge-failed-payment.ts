@@ -191,7 +191,7 @@ export async function chargeFailedPayment(failureId: string): Promise<ChargeFail
         .from('customer_profiles')
         .update({
           orders_completed: ordersCompleted + 1,
-          ...(profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40 ? { winback_discount_pending: false } : {}),
+          ...(profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40 ? { winback_discount_pending: false, winback_discount_percent: 40 } : {}),
           ...(ordersCompleted > 5 && (profile.bonus_discount_orders_remaining || 0) > 0
             ? { bonus_discount_orders_remaining: (profile.bonus_discount_orders_remaining || 0) - 1 }
             : {}),

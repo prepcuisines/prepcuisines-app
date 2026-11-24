@@ -418,7 +418,7 @@ export async function POST(req: NextRequest) {
       await sendWinBackEmailToCustomer(person.email, (person.full_name || 'there').split(' ')[0])
       await supabase
         .from('customer_profiles')
-        .update({ winback_last_sent_at: new Date().toISOString(), winback_discount_pending: true })
+        .update({ winback_last_sent_at: new Date().toISOString(), winback_discount_pending: true })  // winback_discount_percent is left as-is (40, or 50 if set)
         .eq('id', person.id)
       await logWinback(supabase, { customerId: person.id, email: person.email, event: 'flagged', source: 'winback_email' })
     } else if (person.kind === 'leadsPayday') {

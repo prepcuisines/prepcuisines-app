@@ -163,3 +163,8 @@ alter table recurring_manual_orders add column if not exists cash_order boolean 
 
 -- DPD label cache: saved on first fetch so reprints are instant
 alter table customer_window_orders add column if not exists dpd_label_html text;
+
+-- Win-back size (40 normally, 50 for the Nov 2026 comeback offer) and the
+-- end-of-year 20% promo window. Applied via migration winback_percent_and_promo_until.
+alter table customer_profiles add column if not exists winback_discount_percent integer not null default 40;
+alter table customer_profiles add column if not exists promo_discount_until timestamptz;

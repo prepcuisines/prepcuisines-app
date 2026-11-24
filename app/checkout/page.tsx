@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Header from '../Header'
 import { offerAdjustedPrice } from '@/lib/new-customer-offer'
+import { discountRate, isPromoActive } from '@/lib/discount-rate'
 
 type OrderData = {
   windowId: string
@@ -46,6 +47,10 @@ export default function CheckoutPage() {
   const [subscriberOrdersCompleted, setSubscriberOrdersCompleted] = useState(0)
   const [subscriberWinbackPending, setSubscriberWinbackPending] = useState(false)
   const [subscriberBonusOrders, setSubscriberBonusOrders] = useState(0)
+  const [subscriberWinbackPercent, setSubscriberWinbackPercent] = useState(40)
+  const [subscriberPromoUntil, setSubscriberPromoUntil] = useState<string | null>(null)
+  const [returningWinbackPercent, setReturningWinbackPercent] = useState(40)
+  const [returningPromoUntil, setReturningPromoUntil] = useState<string | null>(null)
   const [subscriberPostcode, setSubscriberPostcode] = useState('')
   const [deliveryInstructions, setDeliveryInstructions] = useState('')
   const [makeInstructionsPermanent, setMakeInstructionsPermanent] = useState(false)
@@ -70,7 +75,7 @@ export default function CheckoutPage() {
       if (!data.user) return
       const { data: profile } = await supabase
         .from('customer_profiles')
-        .select('email, subscription_status, standing_delivery_day, second_delivery_day, deliveries_per_week, standing_plan_size, orders_completed, postcode, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent')
+        .select('email, subscription_status, standing_delivery_day, second_delivery_day, deliveries_per_week, standing_plan_size, orders_completed, postcode, standing_delivery_instructions, winback_discount_pending, winback_discount_percent, promo_discount_until, bonus_discount_orders_remaining, permanent_discount_percent')
         .eq('id', data.user.id)
         .single()
       if (!profile) return
@@ -91,6 +96,8 @@ export default function CheckoutPage() {
         setSubscriberOrdersCompleted(profile.orders_completed || 0)
         setSubscriberWinbackPending(!!profile.winback_discount_pending)
         setSubscriberBonusOrders(profile.bonus_discount_orders_remaining || 0)
+        setSubscriberWinbackPercent(profile.winback_discount_percent || 40)
+        setSubscriberPromoUntil(profile.promo_discount_until || null)
         setSubscriberPostcode(profile.postcode || '')
         setDeliveryInstructions(profile.standing_delivery_instructions || '')
         return
@@ -117,6 +124,8 @@ export default function CheckoutPage() {
         setReturningOrdersCompleted(profile.orders_completed || 0)
         setReturningWinbackPending(!!profile.winback_discount_pending)
         setReturningBonusOrders(profile.bonus_discount_orders_remaining || 0)
+        setReturningWinbackPercent(profile.winback_discount_percent || 40)
+        setReturningPromoUntil(profile.promo_discount_until || null)
         setReturningDeliveriesPerWeek(profile.deliveries_per_week)
       }
     })
@@ -204,14 +213,14 @@ export default function CheckoutPage() {
     // they were shown. Catch that here and make them confirm the real
     // price rather than ever charging a surprise amount.
     if (!priceChangedNeedsReconfirm) {
-      const rateFor = (winback: boolean, ordersCompleted: number, bonusOrders: number) =>
-        winback ? 0.6 : ordersCompleted <= 5 || bonusOrders > 0 ? 0.8 : 1
-      const currentRate = rateFor(subscriberWinbackPending, subscriberOrdersCompleted, subscriberBonusOrders)
+      const rateFor = (winback: boolean, ordersCompleted: number, bonusOrders: number, winbackPercent: number, promoUntil: string | null) =>
+        discountRate({ ordersCompleted, winbackPending: winback, winbackPercent, bonusOrders, promoUntil })
+      const currentRate = rateFor(subscriberWinbackPending, subscriberOrdersCompleted, subscriberBonusOrders, subscriberWinbackPercent, subscriberPromoUntil)
 
       const supabase = createClient()
       const { data: freshProfile } = await supabase
         .from('customer_profiles')
-        .select('orders_completed, winback_discount_pending, bonus_discount_orders_remaining')
+        .select('orders_completed, winback_discount_pending, winback_discount_percent, promo_discount_until, bonus_discount_orders_remaining')
         .eq('id', subscriberUserId)
         .maybeSingle()
 
@@ -219,12 +228,16 @@ export default function CheckoutPage() {
         const freshRate = rateFor(
           !!freshProfile.winback_discount_pending,
           freshProfile.orders_completed || 0,
-          freshProfile.bonus_discount_orders_remaining || 0
+          freshProfile.bonus_discount_orders_remaining || 0,
+          freshProfile.winback_discount_percent || 40,
+          freshProfile.promo_discount_until || null
         )
         if (freshRate !== currentRate) {
           setSubscriberWinbackPending(!!freshProfile.winback_discount_pending)
           setSubscriberOrdersCompleted(freshProfile.orders_completed || 0)
           setSubscriberBonusOrders(freshProfile.bonus_discount_orders_remaining || 0)
+          setSubscriberWinbackPercent(freshProfile.winback_discount_percent || 40)
+          setSubscriberPromoUntil(freshProfile.promo_discount_until || null)
           setPriceChangedNeedsReconfirm(true)
           setCheckoutLoading(false)
           setCheckoutError(
@@ -330,6 +343,8 @@ export default function CheckoutPage() {
     setSubscriberOrdersCompleted(returningOrdersCompleted)
     setSubscriberWinbackPending(returningWinbackPending)
     setSubscriberBonusOrders(returningBonusOrders)
+    setSubscriberWinbackPercent(returningWinbackPercent)
+    setSubscriberPromoUntil(returningPromoUntil)
     setSubscriberPostcode(postcode.trim())
     setNeedsReactivationOnPlace(true)
     setCheckoutError(null)
@@ -438,8 +453,15 @@ export default function CheckoutPage() {
     }
 
     const hasBonusDiscount = subscriberBonusOrders > 0
-    const isDiscounted = subscriberOrdersCompleted <= 5 || hasBonusDiscount
-    const rate = subscriberWinbackPending ? 0.6 : isDiscounted ? 0.8 : 1
+    const promoActive = isPromoActive(subscriberPromoUntil)
+    const isDiscounted = subscriberOrdersCompleted <= 5 || hasBonusDiscount || promoActive
+    const rate = discountRate({
+      ordersCompleted: subscriberOrdersCompleted,
+      winbackPending: subscriberWinbackPending,
+      winbackPercent: subscriberWinbackPercent,
+      bonusOrders: subscriberBonusOrders,
+      promoUntil: subscriberPromoUntil,
+    })
     const foodTotal = lineItems.reduce(
       (sum, i) => sum + i.price * i.qty * (i.discountExempt ? 1 : rate),
       0,
@@ -449,10 +471,12 @@ export default function CheckoutPage() {
     const total = foodTotal + subDeliveryFee
     const discountedOrdersRemaining = Math.max(0, 6 - subscriberOrdersCompleted)
     const tierLabel = subscriberWinbackPending
-      ? '40% off applied — stay-subscribed offer'
+      ? `${subscriberWinbackPercent}% off applied — stay-subscribed offer`
       : hasBonusDiscount
         ? `20% off applied (${subscriberBonusOrders} bonus order${subscriberBonusOrders === 1 ? '' : 's'} left at this rate)`
-        : isDiscounted
+        : promoActive && subscriberOrdersCompleted > 5
+          ? '20% off applied until 31 December'
+          : isDiscounted
           ? `Order ${subscriberOrdersCompleted + 1} — 20% off applied (${discountedOrdersRemaining} left at this rate)`
           : 'Full price — loyalty discount period ended'
 

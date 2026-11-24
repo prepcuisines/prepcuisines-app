@@ -132,10 +132,10 @@ export async function POST(req: Request) {
   // Infer the discount rate this order was priced at (comparing the
   // snapshot's unit prices to current menu prices for the same items) so
   // added items get the same rate, and editing never strips or downgrades
-  // a customer's discount. Three tiers exist: 0.6 (win-back/stay offer),
+  // a customer's discount. Four tiers exist: 0.5 (50% comeback offer), 0.6 (win-back/stay offer),
   // 0.8 (first-5-orders or bonus discount orders), 1 (full price).
   let rate = menuSum > 0 ? paidSum / menuSum : 1
-  rate = rate < 0.7 ? 0.6 : rate < 0.9 ? 0.8 : 1
+  rate = rate < 0.55 ? 0.5 : rate < 0.7 ? 0.6 : rate < 0.9 ? 0.8 : 1
 
   const newItems = requested.map((it) => {
     const menu = menuByName.get(it.name)!

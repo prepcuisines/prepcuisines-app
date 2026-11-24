@@ -1,4 +1,5 @@
 import { logWinback } from '@/lib/winbackLog'
+import { promoUntilForNewCancellation } from '@/lib/discount-rate'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendCancelledRetentionEmailToCustomer } from '@/lib/send-email'
@@ -54,6 +55,9 @@ export async function POST(req: NextRequest) {
     if (hasUsedAllInitialDiscountOrders) update.bonus_discount_orders_remaining = 5
     else update.winback_discount_pending = true
   }
+  // Everyone who cancels also gets 20% off every order until 31 Dec.
+  const promoUntil = promoUntilForNewCancellation()
+  if (promoUntil) update.promo_discount_until = promoUntil
 
   const { error } = await supabase.from('customer_profiles').update(update).eq('id', customerId)
 

@@ -1,3 +1,4 @@
+import { discountRate } from '@/lib/discount-rate'
 import { logWinback } from '@/lib/winbackLog'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
     const { data: profile } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, phone, house_number, street, postcode, stripe_customer_id, orders_completed, standing_delivery_instructions, winback_discount_pending, bonus_discount_orders_remaining, permanent_discount_percent'
+        'full_name, email, phone, house_number, street, postcode, stripe_customer_id, orders_completed, standing_delivery_instructions, winback_discount_pending, winback_discount_percent, promo_discount_until, bonus_discount_orders_remaining, permanent_discount_percent'
       )
       .eq('id', userId)
       .single()
@@ -169,15 +170,17 @@ export async function GET(req: NextRequest) {
     // declined card replaced mid-order) used to ignore the 40% and the bonus
     // orders, so people were charged more than the price they were shown.
     const hasBonusDiscount = (profile.bonus_discount_orders_remaining || 0) > 0
-    const discountRate = profile.winback_discount_pending
-      ? 0.6
-      : ordersCompleted <= 5 || hasBonusDiscount
-        ? 0.8
-        : 1
+    const rate = discountRate({
+      ordersCompleted,
+      winbackPending: !!profile.winback_discount_pending,
+      winbackPercent: profile.winback_discount_percent,
+      bonusOrders: profile.bonus_discount_orders_remaining || 0,
+      promoUntil: profile.promo_discount_until,
+    })
 
     const foodTotal = items.reduce((sum, item) => {
       const qty = mealQty[item.id] || breakfastQty[item.id] || dessertQty[item.id] || 0
-      const itemRate = item.discount_exempt ? 1 : discountRate
+      const itemRate = item.discount_exempt ? 1 : rate
       return sum + offerAdjustedPrice(item, ordersCompleted === 0) * qty * itemRate
     }, 0)
 
@@ -188,7 +191,7 @@ export async function GET(req: NextRequest) {
     const totalAmount = Math.round((foodTotal + deliveryFee) * 100)
 
     const orderItemsSnapshot = items.map((item) => {
-      const itemRate = item.discount_exempt ? 1 : discountRate
+      const itemRate = item.discount_exempt ? 1 : rate
       return {
         name: item.name,
         price: Math.round(offerAdjustedPrice(item, ordersCompleted === 0) * itemRate * 100) / 100,
@@ -235,6 +238,7 @@ export async function GET(req: NextRequest) {
       // The one-off 40% is used up by this order.
       if (profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40) {
         updates.winback_discount_pending = false
+        updates.winback_discount_percent = 40
       }
       if (ordersCompleted > 5 && hasBonusDiscount) {
         updates.bonus_discount_orders_remaining = (profile.bonus_discount_orders_remaining || 0) - 1

@@ -79,6 +79,8 @@ type Profile = {
   stripe_payment_method_id: string | null
   retention_discount_last_claimed_at: string | null
   winback_discount_pending: boolean
+  winback_discount_percent?: number | null
+  promo_discount_until?: string | null
   bonus_discount_orders_remaining: number
 }
 
@@ -112,7 +114,7 @@ export default function DashboardPage() {
     const { data } = await supabase
       .from('customer_profiles')
       .select(
-        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id, retention_discount_last_claimed_at, winback_discount_pending, bonus_discount_orders_remaining'
+        'full_name, email, subscription_status, orders_completed, standing_plan_size, second_plan_size, standing_delivery_day, second_delivery_day, deliveries_per_week, skip_next_order, standing_breakfast_qty, standing_dessert_qty, standing_skip_breakfast, standing_skip_dessert, stripe_payment_method_id, retention_discount_last_claimed_at, winback_discount_pending, winback_discount_percent, promo_discount_until, bonus_discount_orders_remaining'
       )
       .eq('id', user.id)
       .single()
@@ -565,8 +567,14 @@ export default function DashboardPage() {
 
           {profile.winback_discount_pending && (
             <div className="pc-discount-banner">
-              You have <strong>40% off</strong> your next order — it'll be applied automatically, whether
+              You have <strong>{profile.winback_discount_percent || 40}% off</strong> your next order — it'll be applied automatically, whether
               you order yourself or it's auto-filled.
+            </div>
+          )}
+
+          {profile.promo_discount_until && new Date(profile.promo_discount_until) > new Date() && (
+            <div className="pc-discount-banner">
+              You have <strong>20% off every order until 31 December</strong> — applied automatically.
             </div>
           )}
 
