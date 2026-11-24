@@ -32,6 +32,85 @@ const ORDER_LINK = 'Order here: <a href="https://prepcuisines.co.uk/menu" style=
 
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   {
+    key: 'first-box-40',
+    name: 'First box - 40% off, then 20% for 5 orders',
+    defaultSubject: '{{first_name}}, 40% off your first box',
+    intendedFor: 'not_subscribed',
+    nameFallback: 'there',
+    html: `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>40% off your first box</title>
+<style>
+@media only screen and (max-width:520px){
+  .pad{padding-left:20px !important;padding-right:20px !important;}
+  .h1{font-size:28px !important;}
+  .stack{display:block !important;width:100% !important;padding:0 0 14px !important;}
+}
+</style></head>
+<body style="margin:0;padding:0;background:#f5f0e8;">
+<div style="display:none;max-height:0;overflow:hidden;">40% off your first box, then 20% off your next 5 orders when you subscribe.</div>
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;padding:20px 10px;">
+<tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;">
+
+  <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
+    <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="400" style="display:block;width:400px;max-width:100%;height:auto;margin:0 auto 26px;border:0;"/>
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">YOUR FIRST BOX</p>
+    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">40% off your first box.</h1>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:34px 36px 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
+    <p style="margin:0 0 14px;">Hey {{first_name}},</p>
+    <p style="margin:0 0 14px;">Chef-made, high protein meals, delivered fresh to your door. Here's your welcome offer:</p>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:20px 36px 8px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>
+      <td class="stack" valign="top" width="50%" style="padding:0 8px 0 0;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#c9a84c;border-radius:12px;">
+          <tr><td align="center" style="padding:26px 14px;">
+            <p style="margin:0;font-family:Georgia,serif;font-size:50px;line-height:1;color:#1a2e1a;">40%</p>
+            <p style="margin:6px 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#1a2e1a;">off your first box</p>
+            <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#1a2e1a;">applied automatically at checkout</p>
+          </td></tr>
+        </table>
+      </td>
+      <td class="stack" valign="top" width="50%" style="padding:0 0 0 8px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:12px;">
+          <tr><td align="center" style="padding:26px 14px;">
+            <p style="margin:0;font-family:Georgia,serif;font-size:50px;line-height:1;color:#c9a84c;">20%</p>
+            <p style="margin:6px 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#f5f0e8;">off your next 5 orders</p>
+            <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#f5f0e8;">when you subscribe</p>
+          </td></tr>
+        </table>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:20px 36px 40px;text-align:center;font-family:Helvetica,Arial,sans-serif;">
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#555555;">Chef-made, high protein, from £4.80 a meal. Heat, eat, done.</p>
+    <table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
+      <tr><td align="center" style="background:#1a2e1a;border-radius:40px;">
+        <a href="https://prepcuisines.co.uk/menu" style="display:inline-block;padding:16px 36px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.06em;color:#f5f0e8;text-decoration:none;">PICK MY MEALS</a>
+      </td></tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#777777;">Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: order by Sunday 8pm</p>
+    <p style="margin:18px 0 0;font-size:15px;color:#333333;">Hope to feed you soon,<br/><strong>Bukr</strong></p>
+    <p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#888888;">P.S. New customers can add protein pancakes for just £1.99 until 30 November.</p>
+  </td></tr>
+
+  <tr><td align="center" style="background:#1a2e1a;padding:24px 30px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:rgba(245,240,232,0.5);">
+    prepcuisines &middot; 102A Sun Street, Stoke-on-Trent, ST1 4JR<br/>
+    <a href="{{unsubscribe_url}}" style="color:rgba(245,240,232,0.5);">Unsubscribe</a>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>
+`,
+  },
+  {
     key: 'winback-20-dpd',
     name: 'Win-back - DPD fixed, 20% to 31 Dec',
     defaultSubject: '{{first_name}}, 20% off every order until 31 December',
