@@ -55,14 +55,13 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 
   <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
     <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" width="170" style="display:block;height:auto;margin:0 auto 22px;"/>
-    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">DELIVERY UPDATE</p>
-    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">DPD is back, and more reliable than ever.</h1>
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">WE'D LOVE TO FEED YOU AGAIN</p>
+    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">Your 40% off is still waiting.</h1>
   </td></tr>
 
   <tr><td class="pad" style="background:#ffffff;padding:34px 36px 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
     <p style="margin:0 0 14px;">Hey {{first_name}},</p>
-    <p style="margin:0 0 14px;">We know some of you had a rough time with deliveries, and we're sorry. Our DPD service is back up and running and more reliable than ever, so your meals turn up when they should.</p>
-    <p style="margin:0;">And your discount is still waiting for you:</p>
+    <p style="margin:0 0 14px;">We've kept your discount safe for you, and there's a bit more on top:</p>
   </td></tr>
 
   <tr><td class="pad" style="background:#ffffff;padding:20px 36px 8px;">
@@ -97,6 +96,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     </table>
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#777777;">Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: order by Sunday 8pm</p>
     <p style="margin:18px 0 0;font-size:15px;color:#333333;">Hope to feed you again soon,<br/><strong>Bukr</strong></p>
+    <p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#888888;">P.S. If you ever had an issue with a delivery, we're sorry. DPD is back up and running and more reliable than ever.</p>
   </td></tr>
 
   <tr><td align="center" style="background:#1a2e1a;padding:24px 30px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:rgba(245,240,232,0.5);">
