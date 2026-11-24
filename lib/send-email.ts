@@ -241,7 +241,7 @@ export function buildOrderReceiptEmailHtml(o: {
   const SERIF = "Georgia,'Times New Roman',serif"
   const SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif"
   const LOGO =
-    'https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png'
+    'https://prepcuisines.co.uk/logo-email.png'
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prepcuisines.co.uk'
 
   const name = o.firstName || 'there'
@@ -355,7 +355,7 @@ export function buildOrderConfirmationEmailHtml(o: {
   const SERIF = "Georgia,'Times New Roman',serif"
   const SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif"
   const LOGO =
-    'https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png'
+    'https://prepcuisines.co.uk/logo-email.png'
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prepcuisines.co.uk'
 
   const name = o.firstName || 'there'
@@ -649,7 +649,7 @@ export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstNa
           <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
             <tr>
               <td align="center" style="background:#1a2e1a;padding:20px 32px;">
-                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+                <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
               </td>
             </tr>
             <tr>
@@ -706,7 +706,7 @@ export async function sendOrderFulfilledEmailToCustomer(toEmail: string, firstNa
             </tr>
             <tr>
               <td align="center" style="background:#1a2e1a;padding:24px 32px;">
-                <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+                <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
                 <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">
                   Chef-made · Fresh · Delivered
                 </p>
@@ -778,7 +778,7 @@ export async function sendWeeklyOrderLinkToCustomer(
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
           <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
           </td></tr>
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
             <span style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">⏰ TIME TO PICK YOUR MEALS</span>
@@ -830,7 +830,7 @@ export async function sendWeeklyOrderLinkToCustomer(
             </table>
           </td></tr>
           <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 14px;" width="150"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto 14px;" width="150"/>
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 14px;"><tr>
               <td style="padding:0 6px;">
                 <a href="https://www.instagram.com/prepcuisines?igsi=M3Rsdno0YmVqOWtn&utm_source=qr" style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#c9a84c;text-align:center;font-family:'Outfit',Arial,sans-serif;font-size:11px;font-weight:800;color:#1a2e1a;text-decoration:none;">IG</a>
@@ -919,7 +919,7 @@ export async function sendComeOrderInviteEmailToCustomer(
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
           <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
           </td></tr>
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
             <span style="font-family:'Outfit',Arial,sans-serif;font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🍽️ FRESH MENU, READY WHEN YOU ARE</span>
@@ -982,7 +982,7 @@ export async function sendComeOrderInviteEmailToCustomer(
             </table>
           </td></tr>
           <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 14px;" width="150"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto 14px;" width="150"/>
             <table border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 14px;"><tr>
               <td style="padding:0 6px;">
                 <a href="https://www.instagram.com/prepcuisines?igsi=M3Rsdno0YmVqOWtn&utm_source=qr" style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#c9a84c;text-align:center;font-family:'Outfit',Arial,sans-serif;font-size:11px;font-weight:800;color:#1a2e1a;text-decoration:none;">IG</a>
@@ -1060,7 +1060,7 @@ export function buildCancelledRetentionEmailHtml(
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
           <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
           </td></tr>
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
             <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">${bannerText}</span>
@@ -1089,7 +1089,7 @@ export function buildCancelledRetentionEmailHtml(
             </table>
           </td></tr>
           <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
             <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
           </td></tr>
         </table>
@@ -1268,7 +1268,7 @@ export async function sendWinBackEmailToCustomer(toEmail: string, firstName: str
       <tr><td align="center">
         <table border="0" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;" width="560">
           <tr><td align="center" style="background:#1a2e1a;padding:20px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto;" width="200"/>
           </td></tr>
           <tr><td align="center" style="background:#c9a84c;padding:12px 20px;">
             <span style="font-size:13px;font-weight:700;color:#1a2e1a;letter-spacing:0.05em;">🎉 40% OFF YOUR NEXT ORDER</span>
@@ -1301,7 +1301,7 @@ export async function sendWinBackEmailToCustomer(toEmail: string, firstName: str
             </table>
           </td></tr>
           <tr><td align="center" style="background:#1a2e1a;padding:24px 32px;">
-            <img alt="prepcuisines" src="https://d3k81ch9hvuctc.cloudfront.net/company/XHCPYp/images/5fabe72d-89bc-419d-8bd8-b12fdfdf04ad.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
+            <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" style="display:block;height:auto;margin:0 auto 10px;" width="150"/>
             <p style="font-size:11px;color:rgba(245,240,232,0.4);margin:0;line-height:1.7;">Chef-made &middot; Fresh &middot; Delivered<br/><a href="${buildUnsubscribeUrl(toEmail)}" style="color:rgba(245,240,232,0.4);text-decoration:underline;">Unsubscribe</a></p>
           </td></tr>
         </table>
