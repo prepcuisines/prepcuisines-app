@@ -54,7 +54,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 <table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;">
 
   <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
-    <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="260" style="display:block;width:260px;max-width:100%;height:auto;margin:0 auto 24px;border:0;"/>
+    <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="400" style="display:block;width:400px;max-width:100%;height:auto;margin:0 auto 26px;border:0;"/>
     <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">WE'D LOVE TO FEED YOU AGAIN</p>
     <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">Your 40% off is still waiting.</h1>
   </td></tr>
