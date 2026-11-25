@@ -147,6 +147,10 @@ export async function sendCampaignBatchChunk(
 
   let sent = 0
   let failed = 0
+  // If the mailbox itself is blocked (daily/hourly bounce limit, rate limit),
+  // stop right away and leave everyone not yet emailed as pending, so they
+  // aren't marked failed and can be sent once the block lifts.
+  let blockedNote: string | null = null
   for (const r of pending || []) {
     if (Date.now() - started > budgetMs) break
     if (suppressedNow.has((r.email || '').trim().toLowerCase())) {
@@ -184,6 +188,10 @@ export async function sendCampaignBatchChunk(
       await supabase.from('email_campaign_recipients').update({ sent_at: new Date().toISOString() }).eq('id', r.id)
       sent += 1
     } catch (err: any) {
+      if (/bounce limit|sender (daily|hourly)|rate limit|too many (messages|emails|connections)|will not be allowed to send/i.test(String(err?.message || err))) {
+        blockedNote = `Your mailbox has been blocked from sending (${String(err?.message || err).slice(0, 160)}). Nobody was marked failed, so press send again once the block lifts.`
+        break
+      }
       await supabase
         .from('email_campaign_recipients')
         .update({ failed_at: new Date().toISOString(), error: String(err?.message || err).slice(0, 300) })
@@ -231,5 +239,12 @@ export async function sendCampaignBatchChunk(
     })
     .eq('id', batch.id)
 
-  return { ok: true, status: done ? 'sent' : 'sending', sentThisRun: sent, failedThisRun: failed, remaining: remaining || 0 }
+  return {
+    ok: true,
+    status: done ? 'sent' : 'sending',
+    sentThisRun: sent,
+    failedThisRun: failed,
+    remaining: remaining || 0,
+    ...(blockedNote ? { note: blockedNote } : {}),
+  }
 }
