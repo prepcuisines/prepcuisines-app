@@ -458,7 +458,8 @@ export default function CheckoutPage() {
 
     const hasBonusDiscount = subscriberBonusOrders > 0
     const promoActive = isPromoActive(subscriberPromoUntil)
-    const isDiscounted = subscriberOrdersCompleted <= 5 || hasBonusDiscount || promoActive
+    const hasPermanent = permanentPercent > 0 && permanentPercent < 100
+    const isDiscounted = subscriberOrdersCompleted <= 5 || hasBonusDiscount || promoActive || subscriberWinbackPending || hasPermanent
     const rate = discountRate({
       ordersCompleted: subscriberOrdersCompleted,
       winbackPending: subscriberWinbackPending,
@@ -475,7 +476,10 @@ export default function CheckoutPage() {
     const subDeliveryFee = normalisedPostcode.startsWith('ST') ? 2.99 : 7.95
     const total = foodTotal + subDeliveryFee
     const discountedOrdersRemaining = Math.max(0, 6 - subscriberOrdersCompleted)
-    const tierLabel = subscriberWinbackPending
+    const permanentIsBest = hasPermanent && rate === 1 - permanentPercent / 100
+    const tierLabel = permanentIsBest
+      ? `${permanentPercent}% off applied — your permanent discount`
+      : subscriberWinbackPending
       ? `${subscriberWinbackPercent}% off applied — stay-subscribed offer`
       : hasBonusDiscount
         ? `20% off applied (${subscriberBonusOrders} bonus order${subscriberBonusOrders === 1 ? '' : 's'} left at this rate)`
