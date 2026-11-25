@@ -249,7 +249,7 @@ export default function CampaignBatchesPanel() {
       <CampaignList kind="marketing" refreshKey={refreshKey} />
 
       <p style={{ fontSize: 12, color: '#999' }}>
-        Every batch is capped at 400 people, only one batch sends at a time, and batches go at least an hour apart.
+        Batches are capped at 5,000 people and only one batch sends at a time. There is no waiting time between batches.
       </p>
     </div>
   )

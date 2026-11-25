@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000)
     return NextResponse.json({ error: 'Pick a time in the future' }, { status: 400 })
 
-  // Keep every batch at least an hour apart from the others.
+  // Gap between batches (currently none; see MIN_GAP_MINUTES).
   const gap = MIN_GAP_MINUTES * 60_000
   const lo = new Date(when.getTime() - gap).toISOString()
   const hi = new Date(when.getTime() + gap).toISOString()

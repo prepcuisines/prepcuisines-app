@@ -10,7 +10,7 @@ import { isPermanentBounce, suppressBouncedEmail, loadSuppressedEmails } from '@
 // batch, only one batch sending at a time), so even a bug here can't
 // exceed them.
 export const MAX_BATCH_SIZE = 5000
-export const MIN_GAP_MINUTES = 60
+export const MIN_GAP_MINUTES = 0
 
 export type ChunkResult = {
   ok: boolean
