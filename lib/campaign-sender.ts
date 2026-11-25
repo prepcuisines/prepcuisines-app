@@ -147,6 +147,18 @@ export async function sendCampaignBatchChunk(
 
   let sent = 0
   let failed = 0
+  // So the admin page can show live progress, write the running totals to the
+  // batch every few emails instead of only at the end of each chunk.
+  const [{ count: sentBefore }, { count: failedBefore }] = await Promise.all([
+    supabase.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).eq('batch_id', batch.id).not('sent_at', 'is', null),
+    supabase.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).eq('batch_id', batch.id).not('failed_at', 'is', null),
+  ])
+  const saveProgress = async () => {
+    await supabase
+      .from('email_campaign_batches')
+      .update({ sent_count: (sentBefore || 0) + sent, failed_count: (failedBefore || 0) + failed })
+      .eq('id', batch.id)
+  }
   // If the mailbox itself is blocked (daily/hourly bounce limit, rate limit),
   // stop right away and leave everyone not yet emailed as pending, so they
   // aren't marked failed and can be sent once the block lifts.
@@ -187,6 +199,7 @@ export async function sendCampaignBatchChunk(
       await sendCampaignEmailStrict(r.email, subject, html, buildUnsubscribeUrl(r.email))
       await supabase.from('email_campaign_recipients').update({ sent_at: new Date().toISOString() }).eq('id', r.id)
       sent += 1
+      if (sent % 15 === 0) await saveProgress()
     } catch (err: any) {
       if (/bounce limit|sender (daily|hourly)|rate limit|too many (messages|emails|connections)|will not be allowed to send/i.test(String(err?.message || err))) {
         blockedNote = `Your mailbox has been blocked from sending (${String(err?.message || err).slice(0, 160)}). Nobody was marked failed, so press send again once the block lifts.`

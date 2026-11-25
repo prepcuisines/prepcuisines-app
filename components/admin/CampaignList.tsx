@@ -101,7 +101,7 @@ export default function CampaignList({ kind, refreshKey }: { kind: 'marketing' |
   const anyActive = campaigns.some((c) => c.email_campaign_batches.some((b) => b.status !== 'sent' && b.status !== 'ready'))
   useEffect(() => {
     if (!anyActive) return
-    const t = setInterval(load, 20_000)
+    const t = setInterval(load, 6_000)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anyActive])
