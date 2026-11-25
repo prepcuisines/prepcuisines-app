@@ -222,6 +222,123 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 `,
   },
   {
+    key: 'weekly-menu',
+    name: "This week's menu - fresh meals, order by Thursday",
+    defaultSubject: "{{first_name}}, this week's menu is live",
+    intendedFor: 'any',
+    nameFallback: 'there',
+    html: `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>This week's menu</title>
+<style>
+@media only screen and (max-width:520px){
+  .pad{padding-left:20px !important;padding-right:20px !important;}
+  .h1{font-size:28px !important;}
+  .mealimg{width:120px !important;}
+  .mealimg img{width:120px !important;}
+}
+</style></head>
+<body style="margin:0;padding:0;background:#f5f0e8;">
+<div style="display:none;max-height:0;overflow:hidden;">Fresh chef-made meals, macros on every one. Order by Thursday 8pm for Sunday delivery.</div>
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;padding:20px 10px;">
+<tr><td align="center">
+<table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;">
+
+  <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
+    <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="400" style="display:block;width:400px;max-width:100%;height:auto;margin:0 auto 26px;border:0;"/>
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">THIS WEEK'S MENU</p>
+    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">This week's menu is live.</h1>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:34px 36px 20px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
+    <p style="margin:0 0 14px;">Hey {{first_name}},</p>
+    <p style="margin:0;">Chef-made, high protein meals, cooked fresh in Stoke-on-Trent and delivered to your door. Here's some of what's on this week, with the macros on every one:</p>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Bang Bang Chicken" src="https://prepcuisines.co.uk/bang-bang-chicken.jpg" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Bang Bang Chicken with Rice and Cucumber Slaw</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">525 kcal &middot; 35g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><strong>&pound;8.00</strong></p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Peri Rosa Chicken Rigatoni" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/54E9D387-545B-4D9B-AA99-3F93705571BF.png" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Peri Rosa Chicken Rigatoni with Peas</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">528 kcal &middot; 50g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><strong>&pound;8.00</strong></p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Turkish Beef Pasta" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%201,%202026,%2006_09_24%20PM.png" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Turkish Beef Pasta with Garlic Yoghurt</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">503 kcal &middot; 51g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><strong>&pound;8.00</strong></p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Protein Pancakes with Strawberries" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/CB1E6F27-C090-4571-A6FC-4BF56089FA02.png" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
+        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Protein Pancakes with Strawberries</p>
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">374 kcal &middot; 25g protein</p>
+          <p style="margin:0;font-size:13px;color:#1a2e1a;"><strong>&pound;4.49</strong></p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:16px 36px 8px;text-align:center;">
+    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">ALSO ON THIS WEEK</p>
+  </td></tr>
+  <tr><td class="pad" style="background:#ffffff;padding:8px 36px 8px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:12px;">
+      <tr><td style="padding:18px 24px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#f5f0e8;">
+        <p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Chicken Alfredo Pasta with Broccoli</p><p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Chicken Burrito Bowl</p><p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Creamy Cajun Chicken with Rice and Peas</p><p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Crispy Chickpeas &amp; Hot Honey Halloumi</p><p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Garlic Herb Cajun Chicken with Mash and Green Beans</p><p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Jerk Chicken with Rice, Kidney Beans and Carrots</p><p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Mexican Chicken Rice Cazuela with Peppers</p><p style="margin:0;padding:9px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Mexicano Burrito</p><p style="margin:0;padding:9px 0 0;"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; Sweet Chilli Chicken with Rice, Peppers and Green Beans</p>
+      </td></tr>
+    </table>
+    <p style="margin:12px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#555555;text-align:center;">Plus overnight oats and protein cookie dough, to make it a full week.</p>
+  </td></tr>
+
+  <tr><td class="pad" style="background:#ffffff;padding:26px 36px 40px;text-align:center;font-family:Helvetica,Arial,sans-serif;">
+    <table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
+      <tr><td align="center" style="background:#1a2e1a;border-radius:40px;">
+        <a href="https://prepcuisines.co.uk/menu" style="display:inline-block;padding:16px 36px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.06em;color:#f5f0e8;text-decoration:none;">SEE THE FULL MENU</a>
+      </td></tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:14px;line-height:1.7;color:#555555;">If you have a discount waiting on your account, it's applied automatically at checkout.</p>
+    <p style="margin:14px 0 0;font-size:13px;line-height:1.7;color:#777777;">Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: order by Sunday 8pm</p>
+    <p style="margin:18px 0 0;font-size:15px;color:#333333;">Hope to feed you soon,<br/><strong>Bukr</strong></p>
+  </td></tr>
+
+  <tr><td align="center" style="background:#1a2e1a;padding:24px 30px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:rgba(245,240,232,0.5);">
+    prepcuisines &middot; 102A Sun Street, Stoke-on-Trent, ST1 4JR<br/>
+    <a href="{{unsubscribe_url}}" style="color:rgba(245,240,232,0.5);">Unsubscribe</a>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>
+`,
+  },
+  {
     key: 'winback-20-dpd',
     name: 'Win-back - DPD fixed, 20% to 31 Dec',
     defaultSubject: '{{first_name}}, 20% off every order until 31 December',

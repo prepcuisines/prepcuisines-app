@@ -23,6 +23,11 @@ export const CAMPAIGN_AUDIENCES = [
   },
   { key: 'subscribers', label: 'Active subscribers', hint: 'Currently subscribed' },
   {
+    key: 'everyone',
+    label: 'Everyone on the email list',
+    hint: 'Leads, Pay As You Go, active, past and cancelled customers. Opted-out and bounced addresses are excluded',
+  },
+  {
     key: 'cancelled_40',
     label: 'Cancelled — 40% waiting',
     hint: 'Cancelled customers who still have their one-off 40% off waiting on their next order',
@@ -156,6 +161,12 @@ export async function buildCampaignAudience(
   if (audience === 'latest_leads') addLatestSignups(LATEST_LEADS_COUNT)
   if (audience === 'leads' || audience === 'not_subscribed') addLeads()
   if (audience === 'payg' || audience === 'not_subscribed') addPayg()
+
+  if (audience === 'everyone') {
+    for (const l of leads) add(l.email, l.full_name)
+    for (const [e, name] of paygEmails) add(e, name || profileByEmail.get(e)?.full_name)
+    for (const p of profiles) add(p.email, p.full_name)
+  }
 
   if (audience === 'subscribers') {
     for (const p of profiles) if (p.subscription_status === 'active') add(p.email, p.full_name)
