@@ -207,7 +207,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     </table>
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#777777;">Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: order by Sunday 8pm</p>
     <p style="margin:18px 0 0;font-size:15px;color:#333333;">Hope to feed you soon,<br/><strong>Bukr</strong></p>
-    <p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#888888;">P.S. New customers can add protein pancakes for just £1.99 until 30 November.</p>
+    <p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#888888;">P.S. New customers can add protein pancakes for just £1.99 until 31 December.</p>
   </td></tr>
 
   <tr><td align="center" style="background:#1a2e1a;padding:24px 30px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:rgba(245,240,232,0.5);">
@@ -303,7 +303,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
           <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
             <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Bang Bang Chicken with Rice and Cucumber Slaw</p>
             <p style="margin:0 0 4px;font-size:12px;color:#555555;">525 kcal &middot; 35g protein</p>
-            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;8.00</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong style="font-size:15px;">&pound;4.80</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">on your first box</p>
           </td></tr>
         </table>
       </td>
@@ -313,7 +314,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
           <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
             <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Peri Rosa Chicken Rigatoni with Peas</p>
             <p style="margin:0 0 4px;font-size:12px;color:#555555;">528 kcal &middot; 50g protein</p>
-            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;8.00</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong style="font-size:15px;">&pound;4.80</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">on your first box</p>
           </td></tr>
         </table>
       </td>
@@ -325,7 +327,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
           <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
             <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Turkish Beef Pasta with Garlic Yoghurt</p>
             <p style="margin:0 0 4px;font-size:12px;color:#555555;">503 kcal &middot; 51g protein</p>
-            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;8.00</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong style="font-size:15px;">&pound;4.80</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">on your first box</p>
           </td></tr>
         </table>
       </td>
@@ -335,7 +338,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
           <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
             <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Protein Pancakes with Strawberries</p>
             <p style="margin:0 0 4px;font-size:12px;color:#555555;">374 kcal &middot; 25g protein</p>
-            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;4.49</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;4.49</span>&nbsp; <strong style="font-size:15px;">&pound;1.99</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">new customers, until 31 December</p>
           </td></tr>
         </table>
       </td>
