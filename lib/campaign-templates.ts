@@ -223,8 +223,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   },
   {
     key: 'december-time-money',
-    name: 'December - save 5 hours and £67 before Christmas',
-    defaultSubject: '{{first_name}}, save 5 hours a week this December',
+    name: 'December - save 5 hours and £67.20 before Christmas',
+    defaultSubject: '{{first_name}}, save 5 hours a week and £67.20 this December',
     intendedFor: 'not_subscribed',
     nameFallback: 'there',
     html: `<!DOCTYPE html>
@@ -240,7 +240,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 }
 </style></head>
 <body style="margin:0;padding:0;background:#f5f0e8;">
-<div style="display:none;max-height:0;overflow:hidden;">December is busy. Get 5 hours a week back, and save £67 on your first 6 boxes.</div>
+<div style="display:none;max-height:0;overflow:hidden;">December is busy. Get 5 hours a week back and save £67.20 across your first 6 boxes.</div>
 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;padding:20px 10px;">
 <tr><td align="center">
 <table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;">
@@ -248,7 +248,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
     <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="400" style="display:block;width:400px;max-width:100%;height:auto;margin:0 auto 26px;border:0;"/>
     <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">DECEMBER IS COMING</p>
-    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">Get 5 hours a week back this December.</h1>
+    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">Get 5 hours a week back and save &pound;67.20 this December.</h1>
   </td></tr>
 
   <tr><td class="pad" style="background:#ffffff;padding:34px 36px 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
