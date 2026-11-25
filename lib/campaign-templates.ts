@@ -253,8 +253,8 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 
   <tr><td class="pad" style="background:#ffffff;padding:34px 36px 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
     <p style="margin:0 0 14px;">Hey {{first_name}},</p>
-    <p style="margin:0 0 14px;">December gets busy and it gets expensive. With Christmas coming up, the last thing you need is a food shop, an hour of cooking and a pile of washing up every night.</p>
-    <p style="margin:0 0 14px;">Chef-made, high protein meals, delivered fresh to your door, give you the time back, and your first box is 40% off:</p>
+    <img alt="December gets busy. Food shop 1 hr, cooking 3 hrs, washing up 1 hr. Get 5 hours a week back with prepcuisines. 40% off your first box, then 20% off your next 5 orders. Save £67.20 on your first 6 boxes." src="https://prepcuisines.co.uk/december-email.gif" width="488" style="display:block;width:100%;max-width:488px;height:auto;margin:0 0 16px;border:0;border-radius:12px;"/>
+    <p style="margin:0 0 14px;">December gets busy and it gets expensive. Chef-made, high protein meals, delivered fresh to your door, take the food shop, the cooking and the washing up off your plate.</p>
   </td></tr>
 
   <tr><td class="pad" style="background:#ffffff;padding:20px 36px 8px;">
