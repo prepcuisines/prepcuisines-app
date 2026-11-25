@@ -231,183 +231,132 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Save time and money this December</title>
 <style>
-@media only screen and (max-width:520px){
-  .pad{padding-left:20px !important;padding-right:20px !important;}
-  .h1{font-size:28px !important;}
+@media only screen and (max-width:560px){
+  .outer{padding:10px 8px !important;}
+  .inner{padding:22px 16px !important;}
+  .h1{font-size:32px !important;line-height:1.08 !important;}
   .stack{display:block !important;width:100% !important;padding:0 0 14px !important;}
-  .mealimg{width:120px !important;}
-  .mealimg img{width:120px !important;}
+  .col{display:block !important;width:100% !important;padding:0 0 12px !important;}
+  .navpills{display:none !important;}
 }
 </style></head>
-<body style="margin:0;padding:0;background:#f5f0e8;">
+<body style="margin:0;padding:0;background:#ffffff;">
 <div style="display:none;max-height:0;overflow:hidden;">December is busy. Get 5 hours a week back and save £67.20 across your first 6 boxes.</div>
-<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;padding:20px 10px;">
-<tr><td align="center">
-<table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff;"><tr><td align="center" class="outer" style="padding:20px 10px;">
+<table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;background:#ece3d0;border-radius:36px;"><tr><td style="padding:16px;">
 
-  <tr><td class="pad" style="background:#1a2e1a;padding:30px 30px 34px;text-align:center;">
-    <img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="400" style="display:block;width:400px;max-width:100%;height:auto;margin:0 auto 26px;border:0;"/>
-    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">DECEMBER IS COMING</p>
-    <h1 class="h1" style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:32px;line-height:1.15;color:#f5f0e8;">Get 5 hours a week back and save &pound;67.20 this December.</h1>
-  </td></tr>
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:28px;"><tr><td class="inner" style="padding:28px 28px 32px;">
 
-  <tr><td class="pad" style="background:#ffffff;padding:34px 36px 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#333333;">
-    <p style="margin:0 0 14px;">Hey {{first_name}},</p>
-    <img alt="December gets busy. Food shop 1 hr, cooking 3 hrs, washing up 1 hr. Get 5 hours a week back with prepcuisines. 40% off your first box, then 20% off your next 5 orders. Save £67.20 on your first 6 boxes." src="https://prepcuisines.co.uk/december-email.gif" width="488" style="display:block;width:100%;max-width:488px;height:auto;margin:0 0 16px;border:0;border-radius:12px;"/>
-    <p style="margin:0 0 14px;">December gets busy and it gets expensive. Chef-made, high protein meals, delivered fresh to your door, take the food shop, the cooking and the washing up off your plate.</p>
-  </td></tr>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>
+    <td valign="middle"><img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="190" style="display:block;width:190px;max-width:100%;height:auto;border:0;"/></td>
+    <td class="navpills" align="right" valign="middle" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;">
+      <a href="https://prepcuisines.co.uk/menu" style="display:inline-block;background:#f5f0e8;color:#1a2e1a;text-decoration:none;border-radius:20px;padding:9px 16px;">MENU</a>
+      <a href="https://prepcuisines.co.uk/" style="display:inline-block;background:#f5f0e8;color:#1a2e1a;text-decoration:none;border-radius:20px;padding:9px 16px;margin-left:6px;">HOW IT WORKS</a>
+    </td>
+  </tr></table>
 
-  <tr><td class="pad" style="background:#ffffff;padding:20px 36px 8px;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:22px;"><tr><td style="font-size:0;line-height:0;"><img alt="Chef-made, high protein meal prep bowls" src="https://prepcuisines.co.uk/december-hero.jpg" width="500" style="display:block;width:100%;height:auto;border:0;border-radius:90px;"/></td></tr></table>
+
+  <h1 class="h1" style="margin:30px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:42px;line-height:1.05;font-weight:800;letter-spacing:-1.5px;text-align:center;color:#f5f0e8;">Get 5 hours a week back and save <span style="color:#c9a84c;">&pound;67.20</span> this December.</h1>
+  <p style="margin:18px 8px 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;text-align:center;color:#dfe6dc;">Hey {{first_name}}, December gets busy and it gets expensive. Chef-made, high protein meals, delivered fresh to your door, take the food shop, the cooking and the washing up off your plate.</p>
+  <div style="margin:26px 0 0;"><table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr><td align="center" style="background:#f5f0e8;border-radius:40px;"><a href="https://prepcuisines.co.uk/menu" style="display:inline-block;padding:16px 34px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.04em;color:#1a2e1a;text-decoration:none;">GET MY 40% OFF FIRST BOX</a></td></tr></table></div>
+
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:34px;background:#f5f0e8;border-radius:24px;"><tr><td style="padding:16px;">
     <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>
-      <td class="stack" valign="top" width="50%" style="padding:0 8px 0 0;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#c9a84c;border-radius:12px;">
-          <tr><td align="center" style="padding:26px 14px;">
-            <p style="margin:0;font-family:Georgia,serif;font-size:50px;line-height:1;color:#1a2e1a;">40%</p>
-            <p style="margin:6px 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#1a2e1a;">off your first box</p>
-            <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#1a2e1a;">applied automatically at checkout</p>
-          </td></tr>
-        </table>
+      <td class="stack" valign="middle" width="56%" style="padding:6px 14px 6px 8px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1a2e1a;">
+        <p style="margin:0 0 12px;font-size:17px;font-weight:800;">Whether you're:</p>
+        <p style="margin:0 0 8px;"><span style="color:#c9a84c;font-weight:800;">&#10003;</span>&nbsp; Working late</p>
+        <p style="margin:0 0 8px;"><span style="color:#c9a84c;font-weight:800;">&#10003;</span>&nbsp; Out doing the Christmas shop</p>
+        <p style="margin:0 0 8px;"><span style="color:#c9a84c;font-weight:800;">&#10003;</span>&nbsp; Hosting, travelling or both</p>
+        <p style="margin:0 0 14px;"><span style="color:#c9a84c;font-weight:800;">&#10003;</span>&nbsp; Just done with cooking every night</p>
+        <p style="margin:0;font-weight:700;">Heat it, eat it, done. Chef-cooked fresh in Stoke-on-Trent, macros on every meal.</p>
       </td>
-      <td class="stack" valign="top" width="50%" style="padding:0 0 0 8px;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:12px;">
-          <tr><td align="center" style="padding:26px 14px;">
-            <p style="margin:0;font-family:Georgia,serif;font-size:50px;line-height:1;color:#c9a84c;">20%</p>
-            <p style="margin:6px 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#f5f0e8;">off your next 5 orders</p>
-            <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#f5f0e8;">when you subscribe</p>
-          </td></tr>
-        </table>
-      </td>
+      <td class="stack" valign="middle" width="44%" style="font-size:0;line-height:0;"><img alt="Our chef at work" src="https://prepcuisines.co.uk/december-chef.jpg" width="210" style="display:block;width:100%;height:auto;border:0;border-radius:18px;"/></td>
     </tr></table>
-  </td></tr>
+  </td></tr></table>
 
-  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
-    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">THIS WEEK'S FAVOURITES</p>
-    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Pick from chef-made meals like these</h2>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
-      <tr>
-        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Bang Bang Chicken" src="https://prepcuisines.co.uk/bang-bang-chicken.jpg" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
-        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
-          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Bang Bang Chicken with Rice and Cucumber Slaw</p>
-          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">525 kcal &middot; 35g protein</p>
-          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
-      <tr>
-        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Peri Rosa Chicken Rigatoni" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/54E9D387-545B-4D9B-AA99-3F93705571BF.png" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
-        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
-          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Peri Rosa Chicken Rigatoni with Peas</p>
-          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">528 kcal &middot; 50g protein</p>
-          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
-      <tr>
-        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Lebanese Garlic Herb Chicken Bowl" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/IMG_0466.jpeg" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
-        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
-          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Lebanese Garlic Herb Chicken Bowl</p>
-          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">555 kcal &middot; 46g protein</p>
-          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:0 36px 14px;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:12px;overflow:hidden;">
-      <tr>
-        <td class="mealimg" width="170" valign="middle" style="width:170px;background:#e8e0d0;"><img alt="Turkish Beef Pasta" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%201,%202026,%2006_09_24%20PM.png" width="170" style="display:block;width:170px;height:auto;border:0;"/></td>
-        <td valign="middle" style="padding:14px 16px;font-family:Helvetica,Arial,sans-serif;">
-          <p style="margin:0 0 6px;font-size:15px;font-weight:700;line-height:1.3;color:#1a2e1a;">Turkish Beef Pasta with Garlic Yoghurt</p>
-          <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#555555;">503 kcal &middot; 51g protein</p>
-          <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong>&pound;4.80</strong> on your first box</p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
-    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">WHAT YOU GET</p>
-    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Healthy eating, without the effort</h2>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:0 36px 8px;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:12px;">
-      <tr><td style="padding:22px 24px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#f5f0e8;">
-        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>Chef-made from fresh</strong>, cooked by our chefs in Stoke-on-Trent</p>
-        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>High protein</strong>, macros on every single meal</p>
-        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>Heat, eat, done</strong>, no cooking, no washing up</p>
-        <p style="margin:0;padding:10px 0;border-bottom:1px solid rgba(245,240,232,0.15);"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>You choose the meals</strong>, from a rotating weekly menu</p>
-        <p style="margin:0;padding:10px 0 0;"><span style="color:#c9a84c;font-weight:700;">&#10003;</span>&nbsp; <strong>Skip or change any week</strong>, no lock-in</p>
-      </td></tr>
-    </table>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
-    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">HOW MUCH YOU'LL SAVE</p>
-    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Your first 6 boxes, side by side</h2>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:0 36px 8px;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:2px solid #1a2e1a;border-radius:12px;">
-      <tr><td style="padding:20px 24px 4px;font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#6b7a6b;">A box of 6 meals</td></tr>
-      <tr><td style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#1a2e1a;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Normal price</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:400;"><span style="text-decoration:line-through;color:#999999;">&pound;48.00</span></td></tr>
-          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Your first box (40% off)</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:700;">&pound;28.80</td></tr>
-          <tr><td style="padding:11px 0;">Orders 2 to 6 (20% off)</td><td align="right" style="padding:11px 0;font-weight:400;">&pound;38.40 each</td></tr>
+  <p style="margin:38px 0 14px;font-family:Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;text-align:center;color:#f5f0e8;">Where your week goes</p>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>
+    <td class="stack" valign="top" width="50%" style="padding:0 6px 0 0;">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#c9a84c;border-radius:22px;"><tr><td align="center" style="padding:26px 18px;font-family:Helvetica,Arial,sans-serif;color:#1a2e1a;">
+        <p style="margin:0;font-size:56px;line-height:1;font-weight:800;letter-spacing:-2px;">5 hrs</p>
+        <p style="margin:6px 0 12px;font-size:15px;font-weight:800;">back every week</p>
+        <p style="margin:0;font-size:12px;line-height:1.6;">Food shop 1 hr<br/>Cooking 3 hrs<br/>Washing up 1 hr</p>
+      </td></tr></table>
+    </td>
+    <td class="stack" valign="top" width="50%" style="padding:0 0 0 6px;">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:22px;"><tr><td align="center" style="padding:26px 18px;font-family:Helvetica,Arial,sans-serif;color:#1a2e1a;">
+        <p style="margin:0;font-size:56px;line-height:1;font-weight:800;letter-spacing:-2px;">&pound;67.20</p>
+        <p style="margin:6px 0 12px;font-size:15px;font-weight:800;">saved on your first 6 boxes</p>
+        <p style="margin:0;font-size:12px;line-height:1.6;">Box 1: 40% off<br/>Boxes 2 to 6: 20% off<br/>Based on 6 meals at &pound;8.00</p>
+      </td></tr></table>
+    </td>
+  </tr></table>
+  <p style="margin:10px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;text-align:center;color:rgba(245,240,232,0.55);">Delivery is charged separately and isn't discounted.</p>
+
+  <p style="margin:38px 0 14px;font-family:Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;text-align:center;color:#f5f0e8;">On this week's menu</p>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Bang Bang Chicken" src="https://prepcuisines.co.uk/bang-bang-chicken.jpg" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Bang Bang Chicken with Rice and Cucumber Slaw</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">525 kcal &middot; 35g protein</p>
+            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;8.00</p>
+          </td></tr>
         </table>
-      </td></tr>
-      <tr><td align="center" style="background:#1a2e1a;border-radius:0 0 10px 10px;padding:18px 24px;">
-        <p style="margin:0;font-family:Georgia,serif;font-size:28px;line-height:1.1;color:#c9a84c;">Save &pound;67.20</p>
-        <p style="margin:4px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#f5f0e8;">across your first 6 boxes</p>
-      </td></tr>
-    </table>
-    <p style="margin:10px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;color:#999999;text-align:center;">Based on 6 meals at &pound;8.00 each. Delivery is charged separately and isn't discounted.</p>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:30px 36px 14px;text-align:center;">
-    <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;color:#c9a84c;">YOUR TIME</p>
-    <h2 style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;line-height:1.2;color:#1a2e1a;">Get your week back</h2>
-  </td></tr>
-  <tr><td class="pad" style="background:#ffffff;padding:0 36px 8px;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:2px solid #1a2e1a;border-radius:12px;">
-      <tr><td style="padding:20px 24px 4px;font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#6b7a6b;">Where your week goes</td></tr>
-      <tr><td style="padding:0 24px;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#1a2e1a;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Food shop</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:700;">1 hr</td></tr>
-          <tr><td style="padding:11px 0;border-bottom:1px solid #e8e0d0;">Prep and cooking</td><td align="right" style="padding:11px 0;border-bottom:1px solid #e8e0d0;font-weight:700;">3 hrs</td></tr>
-          <tr><td style="padding:11px 0;">Cleaning and washing up</td><td align="right" style="padding:11px 0;font-weight:700;">1 hr</td></tr>
+      </td>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Peri Rosa Chicken Rigatoni" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/54E9D387-545B-4D9B-AA99-3F93705571BF.png" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Peri Rosa Chicken Rigatoni with Peas</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">528 kcal &middot; 50g protein</p>
+            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;8.00</p>
+          </td></tr>
         </table>
-      </td></tr>
-      <tr><td align="center" style="background:#c9a84c;border-radius:0 0 10px 10px;padding:18px 24px;">
-        <p style="margin:0;font-family:Georgia,serif;font-size:28px;line-height:1.1;color:#1a2e1a;">5 hours back</p>
-        <p style="margin:4px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#1a2e1a;">every single week</p>
-      </td></tr>
-    </table>
-  </td></tr>
+      </td>
+    </tr>
+    <tr>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Turkish Beef Pasta" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%201,%202026,%2006_09_24%20PM.png" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Turkish Beef Pasta with Garlic Yoghurt</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">503 kcal &middot; 51g protein</p>
+            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;8.00</p>
+          </td></tr>
+        </table>
+      </td>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Protein Pancakes with Strawberries" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/CB1E6F27-C090-4571-A6FC-4BF56089FA02.png" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Protein Pancakes with Strawberries</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">374 kcal &middot; 25g protein</p>
+            <p style="margin:0;font-size:13px;font-weight:700;color:#1a2e1a;">&pound;4.49</p>
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 
-  <tr><td class="pad" style="background:#ffffff;padding:20px 36px 40px;text-align:center;font-family:Helvetica,Arial,sans-serif;">
-    <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#555555;">Chef-made, high protein, from £4.80 a meal. Heat, eat, done.</p>
-    <table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
-      <tr><td align="center" style="background:#1a2e1a;border-radius:40px;">
-        <a href="https://prepcuisines.co.uk/menu" style="display:inline-block;padding:16px 36px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.06em;color:#f5f0e8;text-decoration:none;">PICK MY MEALS</a>
-      </td></tr>
-    </table>
-    <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#777777;">Sunday delivery: order by Thursday 8pm<br/>Wednesday delivery: order by Sunday 8pm</p>
-    <p style="margin:18px 0 0;font-size:15px;color:#333333;">Hope to take some of the load off,<br/><strong>Bukr</strong></p>
-  </td></tr>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:22px;"><tr><td style="font-size:0;line-height:0;"><img alt="Fresh meals delivered to your door" src="https://prepcuisines.co.uk/december-delivery.jpg" width="500" style="display:block;width:100%;height:auto;border:0;border-radius:24px;"/></td></tr></table>
+  <p style="margin:26px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;text-align:center;color:#f5f0e8;">Order by Thursday 8pm<br/>for Sunday delivery</p>
+  <p style="margin:12px 0 22px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;text-align:center;color:#dfe6dc;">Or order by Sunday 8pm for Wednesday delivery.</p>
+  <table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr><td align="center" style="background:#c9a84c;border-radius:40px;"><a href="https://prepcuisines.co.uk/menu" style="display:inline-block;padding:16px 34px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.04em;color:#1a2e1a;text-decoration:none;">PICK MY MEALS</a></td></tr></table>
+  <p style="margin:28px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;text-align:center;color:#f5f0e8;">Hope to take some of the load off,<br/><strong>Bukr</strong></p>
 
-  <tr><td align="center" style="background:#1a2e1a;padding:24px 30px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:rgba(245,240,232,0.5);">
-    prepcuisines &middot; 102A Sun Street, Stoke-on-Trent, ST1 4JR<br/>
-    <a href="{{unsubscribe_url}}" style="color:rgba(245,240,232,0.5);">Unsubscribe</a>
-  </td></tr>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:30px;background:#f5f0e8;border-radius:22px;"><tr><td align="center" style="padding:22px 20px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:#666666;">
+    <span style="font-size:16px;font-weight:800;color:#1a2e1a;letter-spacing:-0.5px;">prepcuisines</span><br/>
+    102A Sun Street, Stoke-on-Trent, ST1 4JR<br/>
+    <a href="{{unsubscribe_url}}" style="color:#666666;">Unsubscribe</a>
+  </td></tr></table>
 
-</table>
-</td></tr>
-</table>
+</td></tr></table>
+</td></tr></table>
+</td></tr></table>
 </body></html>
 `,
   },
