@@ -6,10 +6,10 @@ import { buildReminderEmailHtml } from '@/lib/reminder-email'
 import { buildSkipUrl } from '@/lib/skip-link'
 import { isPermanentBounce, suppressBouncedEmail, loadSuppressedEmails } from '@/lib/emailBounce'
 
-// Hard limits. The database enforces these too (max 400 recipients per
+// Hard limits. The database enforces these too (max 5000 recipients per
 // batch, only one batch sending at a time), so even a bug here can't
 // exceed them.
-export const MAX_BATCH_SIZE = 400
+export const MAX_BATCH_SIZE = 5000
 export const MIN_GAP_MINUTES = 60
 
 export type ChunkResult = {

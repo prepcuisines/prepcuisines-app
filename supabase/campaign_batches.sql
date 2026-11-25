@@ -1,4 +1,4 @@
--- Campaign batch sending: fixed batches of max 400, one sending at a time.
+-- Campaign batch sending: fixed batches of max 5000 (was 400; raised Nov 2026), one sending at a time.
 create table if not exists email_campaigns (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -12,7 +12,7 @@ create table if not exists email_campaign_batches (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid not null references email_campaigns(id) on delete cascade,
   batch_number int not null,
-  recipient_count int not null check (recipient_count between 1 and 400),
+  recipient_count int not null check (recipient_count between 1 and 5000),
   status text not null default 'ready' check (status in ('ready','scheduled','sending','sent')),
   scheduled_at timestamptz,
   started_at timestamptz,
@@ -40,12 +40,12 @@ create table if not exists email_campaign_recipients (
 );
 create index if not exists email_campaign_recipients_batch_idx on email_campaign_recipients (batch_id);
 
--- Hard cap: the database refuses a 401st person in any batch.
+-- Hard cap: the database refuses a 5001st person in any batch.
 create or replace function enforce_campaign_batch_cap() returns trigger
 language plpgsql as $$
 begin
-  if (select count(*) from email_campaign_recipients where batch_id = new.batch_id) >= 400 then
-    raise exception 'Batch % already has 400 recipients', new.batch_id;
+  if (select count(*) from email_campaign_recipients where batch_id = new.batch_id) >= 5000 then
+    raise exception 'Batch % already has 5000 recipients', new.batch_id;
   end if;
   return new;
 end $$;
