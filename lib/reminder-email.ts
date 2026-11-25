@@ -71,7 +71,7 @@ export function buildReminderEmailHtml(o: {
 <tr><td align="center">
 <table border="0" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;background:#ffffff;">
   <tr><td align="center" style="background:${G};padding:22px 28px;">
-    <a href="${siteUrl}" style="display:inline-block;"><img src="https://prepcuisines.co.uk/logo-email.png" alt="prepcuisines" width="170" style="display:block;height:auto;border:0;margin:0 auto;color:#f5f0e8;font-family:Georgia,serif;font-size:22px;"/></a>
+    <a href="${siteUrl}" style="display:inline-block;"><img src="https://www.prepcuisines.co.uk/logo-email.png" alt="prepcuisines" width="170" style="display:block;height:auto;border:0;margin:0 auto;color:#f5f0e8;font-family:Georgia,serif;font-size:22px;"/></a>
   </td></tr>
   ${image}
   <tr><td align="center" style="padding:32px 28px 8px;">
