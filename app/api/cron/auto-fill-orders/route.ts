@@ -294,6 +294,7 @@ export async function POST(req: NextRequest) {
           winbackPercent: sub.winback_discount_percent,
           bonusOrders: sub.bonus_discount_orders_remaining || 0,
           promoUntil: sub.promo_discount_until,
+          permanentPercent: sub.permanent_discount_percent,
         })
 
         const foodTotal = chosen.reduce(

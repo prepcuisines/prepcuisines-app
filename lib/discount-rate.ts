@@ -19,6 +19,9 @@ export type DiscountInputs = {
   winbackPercent?: number | null
   bonusOrders: number
   promoUntil?: string | null
+  // Admin-set permanent discount (customer_profiles.permanent_discount_percent).
+  // Applies to every order; if another offer is better, the better one wins.
+  permanentPercent?: number | null
 }
 
 export function isPromoActive(promoUntil: string | null | undefined, now: Date = new Date()): boolean {
@@ -31,9 +34,11 @@ export function winbackRate(winbackPercent?: number | null): number {
 }
 
 export function discountRate(i: DiscountInputs, now: Date = new Date()): number {
-  if (i.winbackPending) return winbackRate(i.winbackPercent)
-  if (i.ordersCompleted <= 5 || i.bonusOrders > 0 || isPromoActive(i.promoUntil, now)) return 0.8
-  return 1
+  let rate = 1
+  if (i.winbackPending) rate = winbackRate(i.winbackPercent)
+  else if (i.ordersCompleted <= 5 || i.bonusOrders > 0 || isPromoActive(i.promoUntil, now)) rate = 0.8
+  const pct = i.permanentPercent && i.permanentPercent > 0 && i.permanentPercent < 100 ? i.permanentPercent : 0
+  return pct ? Math.min(rate, 1 - pct / 100) : rate
 }
 
 // Value to store in promo_discount_until when someone cancels: the end-of-year

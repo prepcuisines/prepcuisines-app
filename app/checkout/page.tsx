@@ -67,6 +67,7 @@ export default function CheckoutPage() {
   const [returningDeliveriesPerWeek, setReturningDeliveriesPerWeek] = useState<number | null>(null)
   const [unfinishedSignupUserId, setUnfinishedSignupUserId] = useState<string | null>(null)
   const [permanentRate, setPermanentRate] = useState<number | null>(null)
+  const [permanentPercent, setPermanentPercent] = useState(0)
   const [unfinishedSignupEmail, setUnfinishedSignupEmail] = useState<string | null>(null)
 
   useEffect(() => {
@@ -79,7 +80,10 @@ export default function CheckoutPage() {
         .eq('id', data.user.id)
         .single()
       if (!profile) return
-      if ((profile.permanent_discount_percent || 0) > 0) setPermanentRate(1 - profile.permanent_discount_percent / 100)
+      if ((profile.permanent_discount_percent || 0) > 0) {
+        setPermanentRate(1 - profile.permanent_discount_percent / 100)
+        setPermanentPercent(profile.permanent_discount_percent)
+      }
 
       // subscription_status defaults to 'active' the moment an account is
       // created — before they've actually finished paying for anything. So
@@ -214,7 +218,7 @@ export default function CheckoutPage() {
     // price rather than ever charging a surprise amount.
     if (!priceChangedNeedsReconfirm) {
       const rateFor = (winback: boolean, ordersCompleted: number, bonusOrders: number, winbackPercent: number, promoUntil: string | null) =>
-        discountRate({ ordersCompleted, winbackPending: winback, winbackPercent, bonusOrders, promoUntil })
+        discountRate({ ordersCompleted, winbackPending: winback, winbackPercent, bonusOrders, promoUntil, permanentPercent })
       const currentRate = rateFor(subscriberWinbackPending, subscriberOrdersCompleted, subscriberBonusOrders, subscriberWinbackPercent, subscriberPromoUntil)
 
       const supabase = createClient()
@@ -461,6 +465,7 @@ export default function CheckoutPage() {
       winbackPercent: subscriberWinbackPercent,
       bonusOrders: subscriberBonusOrders,
       promoUntil: subscriberPromoUntil,
+      permanentPercent,
     })
     const foodTotal = lineItems.reduce(
       (sum, i) => sum + i.price * i.qty * (i.discountExempt ? 1 : rate),

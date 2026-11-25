@@ -176,6 +176,7 @@ export async function GET(req: NextRequest) {
       winbackPercent: profile.winback_discount_percent,
       bonusOrders: profile.bonus_discount_orders_remaining || 0,
       promoUntil: profile.promo_discount_until,
+      permanentPercent: profile.permanent_discount_percent,
     })
 
     const foodTotal = items.reduce((sum, item) => {
