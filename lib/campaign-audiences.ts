@@ -7,13 +7,13 @@ export const CAMPAIGN_AUDIENCES = [
   {
     key: 'not_subscribed',
     label: 'Not subscribed yet',
-    hint: "Leads and Pay As You Go customers who can still get 40% off their first box",
+    hint: "Leads, Pay As You Go customers and Incomplete signups who can still get 40% off their first box",
   },
   { key: 'leads', label: 'Leads only', hint: 'Never ordered, can still get 40% off' },
   {
     key: 'latest_leads',
-    label: 'Latest 400 leads',
-    hint: 'Newest signups on the new site (up to 400) who haven\'t subscribed and can still get 40% off. Excludes the Shopify import',
+    label: 'New-site signups (incl. incomplete)',
+    hint: 'Newest signups on the new site (up to 400) who haven\'t really subscribed: Pay As You Go customers plus Incomplete signups (account made, no plan or orders). Can still get 40% off. Excludes the Shopify import',
   },
   { key: 'payg', label: 'Pay As You Go customers', hint: 'Ordered one-off, never subscribed' },
   {
@@ -67,13 +67,15 @@ export async function buildCampaignAudience(
   supabase: SupabaseClient,
   audience: CampaignAudienceKey
 ): Promise<CampaignRecipient[]> {
-  const [leads, profiles, paygOrders, used40, suppressions] = await Promise.all([
+  const [leads, profiles, paygOrders, used40, suppressions, ordersByCustomer] = await Promise.all([
     fetchAll<{ email: string; full_name: string | null }>((a, b) =>
       supabase.from('marketing_leads').select('email, full_name').not('email', 'is', null).range(a, b)
     ),
     fetchAll<{
+      id: string
       email: string
       full_name: string | null
+      standing_plan_size: number | null
       marketing_consent: boolean | null
       subscription_status: string | null
       orders_completed: number | null
@@ -82,7 +84,7 @@ export async function buildCampaignAudience(
     }>((a, b) =>
       supabase
         .from('customer_profiles')
-        .select('email, full_name, marketing_consent, subscription_status, orders_completed, created_at, winback_discount_pending')
+        .select('id, email, full_name, standing_plan_size, marketing_consent, subscription_status, orders_completed, created_at, winback_discount_pending')
         .not('email', 'is', null)
         .range(a, b)
     ),
@@ -96,6 +98,9 @@ export async function buildCampaignAudience(
     ),
     fetchAll<{ email: string }>((a, b) => supabase.from('welcome40_used_emails').select('email').range(a, b)),
     fetchAll<{ email: string }>((a, b) => supabase.from('email_suppressions').select('email').range(a, b)),
+    fetchAll<{ customer_id: string | null }>((a, b) =>
+      supabase.from('customer_window_orders').select('customer_id').not('customer_id', 'is', null).range(a, b)
+    ),
   ])
 
   const suppressed = new Set(suppressions.map((s) => norm(s.email)))
@@ -103,10 +108,19 @@ export async function buildCampaignAudience(
   const profileByEmail = new Map(profiles.map((p) => [norm(p.email), p]))
   for (const p of profiles) if (p.marketing_consent === false) suppressed.add(norm(p.email))
 
-  const isActive = (e: string) => profileByEmail.get(e)?.subscription_status === 'active'
+  // Same rule as the admin's "Incomplete signup": marked active but no plan
+  // and no orders of any kind. They made an account and never finished, so
+  // they are treated as leads, not subscribers.
+  const customersWithOrders = new Set(ordersByCustomer.map((o) => o.customer_id))
+  const isIncomplete = (p: (typeof profiles)[number]) =>
+    p.subscription_status === 'active' && !p.standing_plan_size && !customersWithOrders.has(p.id)
+  const isActive = (e: string) => {
+    const p = profileByEmail.get(e)
+    return !!p && p.subscription_status === 'active' && !isIncomplete(p)
+  }
   const hasSubscribed = (e: string) => {
     const p = profileByEmail.get(e)
-    return !!p && (p.subscription_status === 'active' || (p.orders_completed || 0) > 0)
+    return !!p && (isActive(e) || (p.orders_completed || 0) > 0)
   }
 
   const paygEmails = new Map<string, string | null>()
@@ -151,6 +165,11 @@ export async function buildCampaignAudience(
       add(e, c.name || profileByEmail.get(e)?.full_name)
     }
   }
+  const addIncomplete = () => {
+    for (const p of profiles) {
+      if (isIncomplete(p) && !usedOffer.has(norm(p.email)) && (p.orders_completed || 0) === 0) add(p.email, p.full_name)
+    }
+  }
   const addPayg = () => {
     for (const [e, name] of paygEmails) {
       if (hasSubscribed(e) || usedOffer.has(e)) continue
@@ -161,6 +180,7 @@ export async function buildCampaignAudience(
   if (audience === 'latest_leads') addLatestSignups(LATEST_LEADS_COUNT)
   if (audience === 'leads' || audience === 'not_subscribed') addLeads()
   if (audience === 'payg' || audience === 'not_subscribed') addPayg()
+  if (audience === 'not_subscribed') addIncomplete()
 
   if (audience === 'everyone') {
     for (const l of leads) add(l.email, l.full_name)
@@ -169,7 +189,7 @@ export async function buildCampaignAudience(
   }
 
   if (audience === 'subscribers') {
-    for (const p of profiles) if (p.subscription_status === 'active') add(p.email, p.full_name)
+    for (const p of profiles) if (p.subscription_status === 'active' && !isIncomplete(p)) add(p.email, p.full_name)
   }
 
   if (audience === 'cancelled_40') {
