@@ -117,7 +117,13 @@ async function sendEmailViaNeo(to: string, subject: string, html: string) {
 // Marketing batch sends: Neo only, and it THROWS on failure (no silent
 // Resend fallback) so the batch sender knows exactly who was and wasn't
 // emailed and never double-counts.
-export async function sendCampaignEmailStrict(to: string, subject: string, html: string) {
+export async function sendCampaignEmailStrict(to: string, subject: string, html: string, unsubscribeUrl?: string) {
+  // Preferred route: Resend, from the verified sending domain. It's used as
+  // soon as RESEND_FROM_ADDRESS (an address on that domain) is set. It never
+  // touches the Neo mailbox, so bounces can't get that mailbox blocked.
+  if (process.env.RESEND_API_KEY && process.env.RESEND_FROM_ADDRESS) {
+    return sendCampaignViaResend(to, subject, html, unsubscribeUrl)
+  }
   const transporter = getNeoTransporter()
   if (!transporter) throw new Error('NEO_EMAIL / NEO_EMAIL_PASSWORD not set')
   await transporter.sendMail({ from: process.env.NEO_EMAIL, to, subject, html })
@@ -1356,4 +1362,37 @@ export async function sendBulkEmailSummaryToAdmin(
       <ul>${breakdownLines}</ul>
     `
   )
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+// Resend allows only a few requests a second, so pace sends and retry
+// briefly if it says slow down. Throws on any other failure, same as the
+// Neo path, so the batch sender records exactly who was and wasn't emailed.
+async function sendCampaignViaResend(to: string, subject: string, html: string, unsubscribeUrl?: string) {
+  const body = JSON.stringify({
+    from: process.env.RESEND_FROM_ADDRESS,
+    to: [to],
+    reply_to: 'info@prepcuisines.co.uk',
+    subject,
+    html,
+    ...(unsubscribeUrl ? { headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>` } } : {}),
+  })
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body,
+    })
+    if (res.ok) {
+      await sleep(350)
+      return
+    }
+    if (res.status === 429 && attempt < 3) {
+      await sleep(1200)
+      continue
+    }
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Resend ${res.status}${res.status === 429 ? ' rate limit' : ''}: ${detail.slice(0, 200)}`)
+  }
 }

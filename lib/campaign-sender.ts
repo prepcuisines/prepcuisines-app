@@ -184,7 +184,7 @@ export async function sendCampaignBatchChunk(
           )
     const subject = isReminder ? campaign.subject : renderCampaignSubject(campaign.subject, r.first_name)
     try {
-      await sendCampaignEmailStrict(r.email, subject, html)
+      await sendCampaignEmailStrict(r.email, subject, html, buildUnsubscribeUrl(r.email))
       await supabase.from('email_campaign_recipients').update({ sent_at: new Date().toISOString() }).eq('id', r.id)
       sent += 1
     } catch (err: any) {
