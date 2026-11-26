@@ -115,7 +115,9 @@ export default function CampaignBatchesPanel() {
     !!template &&
     !!audience &&
     ((template.intendedFor === 'not_subscribed' && !['not_subscribed', 'leads', 'latest_leads', 'payg'].includes(audience)) ||
-      (template.intendedFor === 'cancelled_40' && audience !== 'cancelled_40'))
+      (template.intendedFor === 'cancelled_40' && audience !== 'cancelled_40') ||
+      (template.intendedFor === 'cancelled_pre_nov_40' && audience !== 'cancelled_pre_nov_40') ||
+      (template.intendedFor === 'cancelled_pre_nov_20' && audience !== 'cancelled_pre_nov_20'))
 
   const pickAudience = async (key: string) => {
     setAudience(key)
@@ -222,8 +224,10 @@ export default function CampaignBatchesPanel() {
         )}
         {audienceMismatch && (
           <p style={{ fontSize: 13, color: '#a33', margin: '0 0 12px' }}>
-            {template?.intendedFor === 'cancelled_40'
-              ? "This email promises a waiting 40% off. Only the Cancelled — 40% waiting group has that."
+            {template?.intendedFor === 'cancelled_40' || template?.intendedFor === 'cancelled_pre_nov_40'
+              ? "This email promises a waiting 40% off. Only the Cancelled — 40% waiting groups have that."
+              : template?.intendedFor === 'cancelled_pre_nov_20'
+              ? "This email is written for the Cancelled before Nov — 20% group. Other groups have a different offer."
               : "This email promises 40% off a first box. This group won't get 40% at checkout."}
           </p>
         )}

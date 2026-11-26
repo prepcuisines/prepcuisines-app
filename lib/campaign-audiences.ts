@@ -33,6 +33,16 @@ export const CAMPAIGN_AUDIENCES = [
     hint: 'Cancelled customers who still have their one-off 40% off waiting on their next order',
   },
   {
+    key: 'cancelled_pre_nov_40',
+    label: 'Cancelled before Nov — 40% waiting',
+    hint: 'Cancelled before 1 November with their one-off 40% off waiting, then 20% until 31 Dec. Cancellations with no recorded date are left out',
+  },
+  {
+    key: 'cancelled_pre_nov_20',
+    label: 'Cancelled before Nov — 20% until 31 Dec',
+    hint: 'Cancelled before 1 November, no 40% waiting. They get 20% off every order until 31 Dec. Cancellations with no recorded date are left out',
+  },
+  {
     key: 'cancelled_20',
     label: 'Cancelled — 20% until 31 Dec',
     hint: 'Cancelled customers with no one-off 40% waiting (already used it, or cancelled after 6+ orders). They get 20% off every order until 31 Dec',
@@ -81,10 +91,11 @@ export async function buildCampaignAudience(
       orders_completed: number | null
       created_at: string | null
       winback_discount_pending: boolean | null
+      subscription_cancelled_at: string | null
     }>((a, b) =>
       supabase
         .from('customer_profiles')
-        .select('id, email, full_name, standing_plan_size, marketing_consent, subscription_status, orders_completed, created_at, winback_discount_pending')
+        .select('id, email, full_name, standing_plan_size, marketing_consent, subscription_status, orders_completed, created_at, winback_discount_pending, subscription_cancelled_at')
         .not('email', 'is', null)
         .range(a, b)
     ),
@@ -196,6 +207,15 @@ export async function buildCampaignAudience(
     for (const p of profiles) {
       if (p.subscription_status === 'cancelled' && p.winback_discount_pending) add(p.email, p.full_name)
     }
+  }
+
+  const cancelledBeforeNov = (p: (typeof profiles)[number]) =>
+    p.subscription_status === 'cancelled' && !!p.subscription_cancelled_at && p.subscription_cancelled_at < '2026-11-01'
+  if (audience === 'cancelled_pre_nov_40') {
+    for (const p of profiles) if (cancelledBeforeNov(p) && p.winback_discount_pending) add(p.email, p.full_name)
+  }
+  if (audience === 'cancelled_pre_nov_20') {
+    for (const p of profiles) if (cancelledBeforeNov(p) && !p.winback_discount_pending) add(p.email, p.full_name)
   }
 
   if (audience === 'cancelled_20') {
