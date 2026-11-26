@@ -74,7 +74,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Your subscription is not active' }, { status: 400 })
     }
 
-    if (profile.skip_next_order) {
+    // A customer who is deliberately reactivating by placing an order isn't
+    // skipping this week - the flag is cleared when the charge succeeds.
+    if (profile.skip_next_order && !reactivate) {
       return NextResponse.json(
         { error: "This week is set to be skipped — turn that off in your account first." },
         { status: 400 }
@@ -267,6 +269,7 @@ export async function POST(req: NextRequest) {
       const updates: Record<string, any> = { orders_completed: ordersCompleted + 1 }
       if (reactivate) {
         updates.subscription_status = 'active'
+        if (profile.skip_next_order) updates.skip_next_order = false
       }
       if (profile.winback_discount_pending && (profile.permanent_discount_percent || 0) < 40) {
         updates.winback_discount_pending = false
