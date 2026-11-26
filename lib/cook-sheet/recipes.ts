@@ -485,15 +485,15 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    // Per-portion weights from Bukr: chicken 200g cooked (240g raw, same
-    // breast ratio as the other chicken dishes), rice & bean mix 200g,
-    // potatoes 25g, peppers 25g, cheese 15g = 465g total.
+    // Per-portion weights from Bukr: chicken thigh 280g raw -> 200g cooked,
+    // rice & bean mix 200g, potatoes 25g, peppers 25g, cheese 15g = 465g
+    // cooked total.
     name: 'Chicken Burrito Bowl',
     cat: 'high',
     stickerColour: 'light green',
-    meat: { name: 'Chicken Breast', raw: 240, cookedWeight: 200 },
+    meat: { name: 'Chicken Thigh (boneless skinless)', raw: 280, cookedWeight: 200 },
     ingredients: [
-      { name: 'Chicken Breast', raw: 240, isMeat: true },
+      { name: 'Chicken Thigh (boneless skinless)', raw: 280, isMeat: true },
       { name: 'Rice & Bean Mix', raw: 200 },
       { name: 'Potatoes', raw: 25 },
       { name: 'Peppers', raw: 25 },
