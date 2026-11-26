@@ -4,6 +4,7 @@ import HomeChart from './HomeChart'
 import ReminderPopup from './ReminderPopup'
 
 import { PROTEIN_GROUPS, proteinGroupFor } from '@/lib/protein-groups'
+import { checkMenu, targetFor, PROTEIN_LABEL, type Protein } from '@/lib/menu-planner'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
 import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
@@ -501,7 +502,7 @@ export default function AdminDashboard() {
   const [fillManualBusyId, setFillManualBusyId] = useState<string | null>(null)
 
   const [menuItems, setMenuItems] = useState<
-    { id: string; name: string; category: string | null; price: number | null; ingredients?: string | null; allergens?: string | null }[]
+    { id: string; name: string; category: string | null; price: number | null; ingredients?: string | null; allergens?: string | null; protein?: string | null }[]
   >([])
   const [lastDrop, setLastDrop] = useState<Record<string, { date: string; sold: Record<string, number> }>>({})
   const [allergenDrafts, setAllergenDrafts] = useState<Record<string, string>>({})
@@ -1107,6 +1108,36 @@ export default function AdminDashboard() {
     })
     setIngredientSavedId(itemId)
     setTimeout(() => setIngredientSavedId((c) => (c === itemId ? null : c)), 2000)
+  }
+
+  const fillMenuToRule = async (windowId: string) => {
+    const post = (action: string) =>
+      fetch('/api/admin/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ menuWindowId: windowId, action }),
+      })
+    const previewRes = await post('plan')
+    const preview = await previewRes.json().catch(() => ({}))
+    if (!previewRes.ok) {
+      window.alert(preview.error || 'Could not build the menu')
+      return
+    }
+    if (!preview.add?.length && !preview.remove?.length) {
+      window.alert('This menu already matches the rule.')
+      return
+    }
+    const lines = [
+      ...(preview.add || []).map((a: { name: string }) => `+ ${a.name}`),
+      ...(preview.remove || []).map((r: { name: string }) => `- ${r.name}`),
+    ]
+    if (!window.confirm(`Fill this menu to the rule?\n\n${lines.join('\n')}`)) return
+    const res = await post('fill_to_rule')
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      window.alert(err.error || 'Could not save the menu')
+    }
+    await loadMenu()
   }
 
   const toggleMenuItem = async (windowId: string, itemId: string, currentlyOn: boolean) => {
@@ -5896,6 +5927,37 @@ Bukr / prepcuisines`
                         {w.delivery_day} — w/c{' '}
                         {new Date(w.week_start_date).toLocaleDateString('en-GB')}
                       </div>
+                      {(() => {
+                        const target = targetFor(w.delivery_day, w.week_start_date)
+                        const onMenu = menuItems
+                          .filter((m) => m.category === 'meal' && selected.includes(m.id))
+                          .map((m) => ({ id: m.id, name: m.name, protein: m.protein || null }))
+                        const { have, issues } = checkMenu(target, onMenu)
+                        return (
+                          <div style={{ margin: '6px 0 10px', fontSize: 13 }}>
+                            <div>
+                              {(Object.keys(target) as Protein[]).map((k) => (
+                                <span key={k} style={{ marginRight: 10 }}>
+                                  {PROTEIN_LABEL[k]} {have[k] || 0}/{target[k]}
+                                </span>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: 4, color: issues.length ? '#b42318' : '#067647' }}>
+                              {issues.length ? `Needs: ${issues.join(', ')}` : 'Matches the weekly rule'}
+                            </div>
+                            {issues.length > 0 && (
+                              <button
+                                type="button"
+                                className="btn-primary"
+                                style={{ marginTop: 6 }}
+                                onClick={() => fillMenuToRule(w.id)}
+                              >
+                                Fill to rule
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })()}
                       <div className="menu-window-count">
                         {selected.length} dishes on
                         {drop

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { planWindow, applyPlan } from '@/lib/menu-planner-server'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   const { data: menuItems, error: itemsError } = await supabase
     .from('menu_items')
-    .select('id, name, category, price, ingredients, allergens')
+    .select('id, name, category, price, ingredients, allergens, protein')
     .order('category', { ascending: true })
     .order('name', { ascending: true })
 
@@ -131,7 +132,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const { menuWindowId, menuItemId, action } = await req.json()
+  const { menuWindowId, menuItemId, action, force } = await req.json()
+
+  // "Fill to rule": preview shows what would change, apply saves it. Dishes
+  // already on the menu are kept wherever they fit the rule.
+  if (menuWindowId && (action === 'plan' || action === 'fill_to_rule')) {
+    try {
+      const plan =
+        action === 'plan'
+          ? await planWindow(supabase, menuWindowId)
+          : await applyPlan(supabase, menuWindowId, { force: !!force })
+      return NextResponse.json({ success: true, add: plan.add, remove: plan.remove, issuesAfter: plan.issuesAfter })
+    } catch (e: any) {
+      return NextResponse.json({ error: e?.message || 'Could not build the menu' }, { status: 400 })
+    }
+  }
 
   if (!menuWindowId || !menuItemId || !['add', 'remove'].includes(action)) {
     return NextResponse.json({ error: 'Missing or invalid parameters' }, { status: 400 })

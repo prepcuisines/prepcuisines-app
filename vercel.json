@@ -25,6 +25,10 @@
             "schedule": "30 23 * * 4,0"
         },
         {
+            "path": "/api/cron/fill-empty-menus",
+            "schedule": "0 6 * * *"
+        },
+        {
             "path": "/api/cron/check-scheduled-sends",
             "schedule": "*/15 * * * *"
         }
