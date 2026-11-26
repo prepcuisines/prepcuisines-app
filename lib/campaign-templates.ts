@@ -507,7 +507,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 }
 </style></head>
 <body style="margin:0;padding:0;background:#ffffff;">
-<div style="display:none;max-height:0;overflow:hidden;">Your 40% off is waiting. Order by 8pm tonight for Sunday delivery, then 20% off every order until 31 December.</div>
+<div style="display:none;max-height:0;overflow:hidden;">Your 40% off is waiting. DPD is more reliable than ever. Order by 8pm tonight for Sunday delivery, then 20% off every order until 31 December.</div>
 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff;"><tr><td align="center" class="outer" style="padding:20px 10px;">
 <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;background:#ece3d0;border-radius:36px;"><tr><td style="padding:16px;">
 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:28px;"><tr><td class="inner" style="padding:28px 28px 32px;">
@@ -541,6 +541,11 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     </td>
   </tr></table>
   <p style="margin:10px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;text-align:center;color:rgba(245,240,232,0.55);">Delivery is charged separately and isn't discounted. Protein pancakes stay at full price.</p>
+
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:26px;background:#f5f0e8;border-radius:22px;"><tr><td style="padding:20px 22px;font-family:Helvetica,Arial,sans-serif;color:#1a2e1a;">
+    <p style="margin:0 0 6px;font-size:15px;font-weight:800;">DPD is now more reliable than ever.</p>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:#444444;">If you ever had an issue with a delivery, we're sorry. DPD is back up and running and more reliable than ever, so your meals arrive fresh and on time.</p>
+  </td></tr></table>
 
   <p style="margin:38px 0 14px;font-family:Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;text-align:center;color:#f5f0e8;">On this week's menu</p>
   <table border="0" cellpadding="0" cellspacing="0" width="100%">
@@ -630,7 +635,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 }
 </style></head>
 <body style="margin:0;padding:0;background:#ffffff;">
-<div style="display:none;max-height:0;overflow:hidden;">20% off every order until 31 December. Order by 8pm tonight for Sunday delivery.</div>
+<div style="display:none;max-height:0;overflow:hidden;">20% off every order until 31 December, and DPD is more reliable than ever. Order by 8pm tonight for Sunday delivery.</div>
 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff;"><tr><td align="center" class="outer" style="padding:20px 10px;">
 <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;background:#ece3d0;border-radius:36px;"><tr><td style="padding:16px;">
 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:28px;"><tr><td class="inner" style="padding:28px 28px 32px;">
@@ -664,6 +669,11 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     </td>
   </tr></table>
   <p style="margin:10px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;text-align:center;color:rgba(245,240,232,0.55);">Delivery is charged separately and isn't discounted. Protein pancakes stay at full price.</p>
+
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:26px;background:#f5f0e8;border-radius:22px;"><tr><td style="padding:20px 22px;font-family:Helvetica,Arial,sans-serif;color:#1a2e1a;">
+    <p style="margin:0 0 6px;font-size:15px;font-weight:800;">DPD is now more reliable than ever.</p>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:#444444;">If you ever had an issue with a delivery, we're sorry. DPD is back up and running and more reliable than ever, so your meals arrive fresh and on time.</p>
+  </td></tr></table>
 
   <p style="margin:38px 0 14px;font-family:Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;text-align:center;color:#f5f0e8;">On this week's menu</p>
   <table border="0" cellpadding="0" cellspacing="0" width="100%">
