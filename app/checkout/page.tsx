@@ -671,9 +671,18 @@ export default function CheckoutPage() {
   // (20% off if still within their first 5 orders, full price after) — not
   // the 40% new-customer rate, which only applies to a genuinely new signup.
   const isReturningCustomer = !!returningUserId
-  const subscribeRate = permanentRate ?? (isReturningCustomer
-    ? (returningOrdersCompleted <= 5 ? 0.8 : 1)
-    : 0.6)
+  // Same calculation the confirm screen and the charge use, so a returning
+  // customer's waiting win-back 40% (or the 20% to 31 Dec) shows here too.
+  const subscribeRate = isReturningCustomer
+    ? discountRate({
+        ordersCompleted: returningOrdersCompleted,
+        winbackPending: returningWinbackPending,
+        winbackPercent: returningWinbackPercent,
+        bonusOrders: returningBonusOrders,
+        promoUntil: returningPromoUntil,
+        permanentPercent,
+      })
+    : (permanentRate ?? 0.6)
 
   const fullFoodTotal = lineItems.reduce((sum, item) => sum + item.price * item.qty, 0)
   const subscribeFoodTotal = lineItems.reduce(
@@ -781,7 +790,7 @@ export default function CheckoutPage() {
               <p className="pc-checkout-note">
                 {isReturningCustomer
                   ? subscribeRate < 1
-                    ? `Your loyalty discount is still applied (${Math.max(0, 6 - returningOrdersCompleted)} left at this rate)`
+                    ? `Your ${Math.round((1 - subscribeRate) * 100)}% off is applied`
                     : 'Full price — loyalty discount period ended'
                   : 'New customer discount applied at checkout'}
               </p>
