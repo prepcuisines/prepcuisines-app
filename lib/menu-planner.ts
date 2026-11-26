@@ -26,6 +26,11 @@ export const PROTEIN_LABEL: Record<Protein, string> = {
   halloumi: 'Halloumi',
 }
 
+// The rule starts with the Sunday 6 Dec and Wednesday 9 Dec menus. Anything
+// earlier is left exactly as it was set up.
+export const RULE_STARTS = '2026-12-06'
+export const ruleApplies = (weekStart: string) => weekStart.slice(0, 10) >= RULE_STARTS
+
 // Steak weeks for each delivery day: this date, then every 14 days.
 const STEAK_ANCHOR: Record<string, string> = {
   Sunday: '2026-11-29',

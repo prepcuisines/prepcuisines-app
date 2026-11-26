@@ -4,7 +4,7 @@ import HomeChart from './HomeChart'
 import ReminderPopup from './ReminderPopup'
 
 import { PROTEIN_GROUPS, proteinGroupFor } from '@/lib/protein-groups'
-import { checkMenu, targetFor, PROTEIN_LABEL, type Protein } from '@/lib/menu-planner'
+import { checkMenu, targetFor, ruleApplies, PROTEIN_LABEL, type Protein } from '@/lib/menu-planner'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
 import CookSheetBreakdown from '../../components/admin/CookSheetBreakdown'
@@ -5927,7 +5927,7 @@ Bukr / prepcuisines`
                         {w.delivery_day} — w/c{' '}
                         {new Date(w.week_start_date).toLocaleDateString('en-GB')}
                       </div>
-                      {(() => {
+                      {ruleApplies(w.week_start_date) && (() => {
                         const target = targetFor(w.delivery_day, w.week_start_date)
                         const onMenu = menuItems
                           .filter((m) => m.category === 'meal' && selected.includes(m.id))

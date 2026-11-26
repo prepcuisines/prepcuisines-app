@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { checkMenu, pickDishes, targetFor, type PlanItem } from '@/lib/menu-planner'
+import { checkMenu, pickDishes, targetFor, ruleApplies, type PlanItem } from '@/lib/menu-planner'
 
 type WindowRow = { id: string; delivery_day: string; week_start_date: string; cutoff_datetime: string }
 
@@ -37,6 +37,9 @@ export async function planWindow(supabase: SupabaseClient, windowId: string) {
     if (d && (!lastUsed[r.menu_item_id] || lastUsed[r.menu_item_id] < d)) lastUsed[r.menu_item_id] = d
   }
 
+  if (!ruleApplies(win.week_start_date)) {
+    throw new Error('The weekly rule starts from the Sunday 6 Dec menu - this one is left as it is')
+  }
   const target = targetFor(win.delivery_day, win.week_start_date)
   const desired = new Set(pickDishes(target, meals, currentMealIds, lastUsed))
   const add = [...desired].filter((id) => !currentMealIds.has(id))
