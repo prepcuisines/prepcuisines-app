@@ -365,6 +365,129 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
 `,
   },
   {
+    key: 'deadline-tonight',
+    name: 'Deadline - order by 8pm tonight (Sunday delivery), 40% then 20%',
+    defaultSubject: '{{first_name}}, order by 8pm tonight for Sunday delivery',
+    intendedFor: 'not_subscribed',
+    nameFallback: 'there',
+    html: `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order by 8pm tonight</title>
+<style>
+@media only screen and (max-width:560px){
+  .outer{padding:10px 8px !important;}
+  .inner{padding:22px 16px !important;}
+  .h1{font-size:32px !important;line-height:1.08 !important;}
+  .stack{display:block !important;width:100% !important;padding:0 0 14px !important;}
+  .col{display:block !important;width:100% !important;padding:0 0 12px !important;}
+  .navpills{display:none !important;}
+}
+</style></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<div style="display:none;max-height:0;overflow:hidden;">Order by 8pm tonight for Sunday delivery. 40% off your first box, then 20% off your next 5 orders.</div>
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff;"><tr><td align="center" class="outer" style="padding:20px 10px;">
+<table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;background:#ece3d0;border-radius:36px;"><tr><td style="padding:16px;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#1a2e1a;border-radius:28px;"><tr><td class="inner" style="padding:28px 28px 32px;">
+
+  <table border="0" cellpadding="0" cellspacing="0" width="100%"><tr>
+    <td valign="middle"><img alt="prepcuisines" src="https://prepcuisines.co.uk/logo-email.png" width="190" style="display:block;width:190px;max-width:100%;height:auto;border:0;"/></td>
+    <td class="navpills" align="right" valign="middle" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;">
+      <a href="https://prepcuisines.co.uk/menu" style="display:inline-block;background:#f5f0e8;color:#1a2e1a;text-decoration:none;border-radius:20px;padding:9px 16px;">MENU</a>
+    </td>
+  </tr></table>
+
+  <p style="margin:30px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:0.12em;text-align:center;color:#c9a84c;">SUNDAY DELIVERY &middot; CLOSES TONIGHT</p>
+  <h1 class="h1" style="margin:10px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:44px;line-height:1.05;font-weight:800;letter-spacing:-1.5px;text-align:center;color:#f5f0e8;">Order by <span style="color:#c9a84c;">8pm tonight</span> to get your box on Sunday.</h1>
+  <p style="margin:18px 8px 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;text-align:center;color:#dfe6dc;">Hey {{first_name}}, today's the last day to order for this Sunday. Pick your meals now and your discount is applied automatically at checkout.</p>
+  <div style="margin:26px 0 0;"><table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr><td align="center" style="background:#f5f0e8;border-radius:40px;"><a href="https://prepcuisines.co.uk/menu" style="display:inline-block;padding:16px 34px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.04em;color:#1a2e1a;text-decoration:none;">PICK MY MEALS</a></td></tr></table></div>
+
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:34px;"><tr>
+    <td class="stack" valign="top" width="50%" style="padding:0 6px 0 0;">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#c9a84c;border-radius:22px;"><tr><td align="center" style="padding:26px 18px;font-family:Helvetica,Arial,sans-serif;color:#1a2e1a;">
+        <p style="margin:0;font-size:56px;line-height:1;font-weight:800;letter-spacing:-2px;">40%</p>
+        <p style="margin:6px 0 12px;font-size:15px;font-weight:800;">off your first box</p>
+        <p style="margin:0;font-size:12px;line-height:1.6;">From &pound;4.80 a meal<br/>No code needed</p>
+      </td></tr></table>
+    </td>
+    <td class="stack" valign="top" width="50%" style="padding:0 0 0 6px;">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:22px;"><tr><td align="center" style="padding:26px 18px;font-family:Helvetica,Arial,sans-serif;color:#1a2e1a;">
+        <p style="margin:0;font-size:56px;line-height:1;font-weight:800;letter-spacing:-2px;">20%</p>
+        <p style="margin:6px 0 12px;font-size:15px;font-weight:800;">off your next 5 orders</p>
+        <p style="margin:0;font-size:12px;line-height:1.6;">When you subscribe<br/>From &pound;6.40 a meal</p>
+      </td></tr></table>
+    </td>
+  </tr></table>
+  <p style="margin:10px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;text-align:center;color:rgba(245,240,232,0.55);">Delivery is charged separately and isn't discounted.</p>
+
+  <p style="margin:38px 0 14px;font-family:Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;text-align:center;color:#f5f0e8;">On this week's menu</p>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Bang Bang Chicken" src="https://prepcuisines.co.uk/bang-bang-chicken.jpg" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Bang Bang Chicken with Rice and Cucumber Slaw</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">525 kcal &middot; 35g protein</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong style="font-size:15px;">&pound;4.80</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">on your first box</p>
+          </td></tr>
+        </table>
+      </td>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Peri Rosa Chicken Rigatoni" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/54E9D387-545B-4D9B-AA99-3F93705571BF.png" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Peri Rosa Chicken Rigatoni with Peas</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">528 kcal &middot; 50g protein</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong style="font-size:15px;">&pound;4.80</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">on your first box</p>
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Turkish Beef Pasta" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/ChatGPT%20Image%20Sep%201,%202026,%2006_09_24%20PM.png" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Turkish Beef Pasta with Garlic Yoghurt</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">503 kcal &middot; 51g protein</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;8.00</span>&nbsp; <strong style="font-size:15px;">&pound;4.80</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">on your first box</p>
+          </td></tr>
+        </table>
+      </td>
+      <td class="col" valign="top" width="50%" style="padding:0 6px 12px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#f5f0e8;border-radius:20px;overflow:hidden;">
+          <tr><td style="font-size:0;line-height:0;"><img alt="Protein Pancakes with Strawberries" src="https://moqvizvlfqmehzhutzds.supabase.co/storage/v1/object/public/menu-images/CB1E6F27-C090-4571-A6FC-4BF56089FA02.png" width="236" style="display:block;width:100%;height:auto;border:0;border-radius:20px 20px 0 0;"/></td></tr>
+          <tr><td style="padding:14px 16px 16px;font-family:Helvetica,Arial,sans-serif;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.3;color:#1a2e1a;">Protein Pancakes with Strawberries</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#555555;">374 kcal &middot; 25g protein</p>
+            <p style="margin:0;font-size:13px;color:#1a2e1a;"><span style="text-decoration:line-through;color:#999999;">&pound;4.49</span>&nbsp; <strong style="font-size:15px;">&pound;1.99</strong></p>
+            <p style="margin:3px 0 0;font-size:11px;color:#666666;">new customers, until 31 December</p>
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:26px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;text-align:center;color:#f5f0e8;">Miss tonight? Order by Sunday 8pm<br/>for Wednesday delivery.</p>
+  <div style="margin:22px 0 0;"><table border="0" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr><td align="center" style="background:#c9a84c;border-radius:40px;"><a href="https://prepcuisines.co.uk/menu" style="display:inline-block;padding:16px 34px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;letter-spacing:0.04em;color:#1a2e1a;text-decoration:none;">ORDER NOW</a></td></tr></table></div>
+  <p style="margin:28px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;text-align:center;color:#f5f0e8;">Hope to feed you soon,<br/><strong>Bukr</strong></p>
+
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:30px;background:#f5f0e8;border-radius:22px;"><tr><td align="center" style="padding:22px 20px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.7;color:#666666;">
+    <span style="font-size:16px;font-weight:800;color:#1a2e1a;letter-spacing:-0.5px;">prepcuisines</span><br/>
+    102A Sun Street, Stoke-on-Trent, ST1 4JR<br/>
+    <a href="{{unsubscribe_url}}" style="color:#666666;">Unsubscribe</a>
+  </td></tr></table>
+
+</td></tr></table>
+</td></tr></table>
+</td></tr></table>
+</body></html>
+`,
+  },
+  {
     key: 'weekly-menu',
     name: "This week's menu - fresh meals, order by Thursday",
     defaultSubject: "{{first_name}}, this week's menu is live",
