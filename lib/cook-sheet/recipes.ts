@@ -490,7 +490,7 @@ export const RECIPES: Recipe[] = [
     // cooked total.
     name: 'Chicken Burrito Bowl',
     cat: 'high',
-    stickerColour: 'light green',
+    stickerColour: 'pink',
     meat: { name: 'Chicken Thigh (boneless skinless)', raw: 280, cookedWeight: 200 },
     ingredients: [
       { name: 'Chicken Thigh (boneless skinless)', raw: 280, isMeat: true },
