@@ -15,6 +15,16 @@ function isAuthorized(req: NextRequest) {
   return !!session && session === process.env.ADMIN_SESSION_SECRET
 }
 
+// When an order's delivery day changes, any DPD booking made for the old day
+// is stale (wrong service, past its 24-hour validity, cached old label). Clear
+// it so the order is treated as brand new and DPD makes a fresh shipment.
+const CLEAR_DPD = {
+  dpd_shipment_id: null,
+  dpd_consignment_number: null,
+  dpd_label_html: null,
+  label_printed_at: null,
+}
+
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
@@ -177,7 +187,7 @@ export async function PATCH(req: NextRequest) {
   if (action === 'set_delivery_day') {
     const { error } = await supabase
       .from('customer_window_orders')
-      .update({ delivery_day: payload.deliveryDay })
+      .update({ delivery_day: payload.deliveryDay, ...CLEAR_DPD })
       .eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
@@ -223,7 +233,7 @@ export async function PATCH(req: NextRequest) {
 
     const { error } = await supabase
       .from('customer_window_orders')
-      .update({ menu_window_id: target.id, delivery_day: target.delivery_day })
+      .update({ menu_window_id: target.id, delivery_day: target.delivery_day, ...CLEAR_DPD })
       .eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true, movedTo: target.delivery_day })
