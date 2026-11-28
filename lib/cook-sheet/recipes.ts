@@ -201,9 +201,9 @@ export const RECIPES: Recipe[] = [
     name: 'Sweet Chilli Chicken With Rice Peppers And Green Beans',
     cat: 'low',
     stickerColour: 'pink',
-    meat: { name: 'Chicken Breast', raw: 225, cookedWeight: 180 },
+    meat: { name: 'Chicken Breast', raw: 240, cookedWeight: 180 },
     ingredients: [
-      { name: 'Chicken Breast', raw: 225, isMeat: true },
+      { name: 'Chicken Breast', raw: 240, isMeat: true },
       { name: 'Basmati Rice (dry)', raw: 75 },
       { name: 'Green Beans', raw: 20 },
       { name: 'Peppers', raw: 20 },
